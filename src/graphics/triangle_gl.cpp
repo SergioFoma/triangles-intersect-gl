@@ -5,6 +5,8 @@
 
 const int kBufCount = 1;
 const int kLineCount = 1;
+const int kLayoutId = 0;
+const int kDimension = 3;                                   // (x, y, z)
 
 const char* vertexShaderSource = "#version 410 core\n"
     "layout (location = 0) in vec3 aPos;\n"
@@ -31,7 +33,7 @@ void ShowTriangle(GLFWwindow* window) {
     std::vector<float> coordinates;
     RecordTrianglesData(coordinates, triangles);
 
-    // 2. Создание и компиляция шейдеров
+    // 2. create and compile shaders
     unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vertexShader, kLineCount, &vertexShaderSource, NULL);
     glCompileShader(vertexShader);
@@ -47,17 +49,17 @@ void ShowTriangle(GLFWwindow* window) {
     glLinkProgram(shaderProgram);
 
     glDeleteShader(vertexShader);       // no need, because we've already linked before.
-    glDeleteShader(fragmentShader);     // No need, because we've already linked before.
+    glDeleteShader(fragmentShader);     // no need, because we've already linked before.
 
     // VBO - raw vertex data directly in GPU video memory (buffer)
     // VAO - how the data from the VBO is mapped to the vertex attributes in the shader.
 
-    // создаем и привязываем VAO
+    // create VAO
     unsigned int VAO = 0;
     glGenVertexArrays(kBufCount, &VAO);         // ge unique ID
     glBindVertexArray(VAO);                     // VAO activation
 
-    // создаем, привязываем VBO и копируем данные
+    // создаем, привязываем VBO
     unsigned int VBO = 0;
     glGenBuffers(kBufCount, &VBO);              // get unique ID
     glBindBuffer(GL_ARRAY_BUFFER, VBO);         // VBO activation
@@ -68,11 +70,11 @@ void ShowTriangle(GLFWwindow* window) {
     glBufferData(GL_ARRAY_BUFFER, coordinates.size() * sizeof(float), coordinates.data(), GL_STATIC_DRAW);
 
     // settings for parsing data
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);  // activate the zero slot
+    // GL_FALSE - don't need normalize data
+    glVertexAttribPointer(kLayoutId, kDimension, GL_FLOAT, GL_FALSE, kDimension * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(kLayoutId);  // activate the zero slot
 
-    // Отвязываем VAO, чтобы случайно не испортить настройки в другом месте кода
-    glBindVertexArray(0);
+    glBindVertexArray(0);                   // unbind VAO
 
     Rendering(window, shaderProgram, VAO);
 }
@@ -107,7 +109,7 @@ void Rendering(GLFWwindow* window, unsigned int shaderProgram, unsigned int VAO)
         // Рисуем: тип примитива, с какого индекса начать, сколько вершин нарисовать
         glDrawArrays(GL_TRIANGLES, 0, 3);
 
-        // (Отвязываем обратно
+        // Отвязываем обратно
         glBindVertexArray(0);
 
         glfwSwapBuffers(window);
