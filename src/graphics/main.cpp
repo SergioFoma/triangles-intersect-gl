@@ -1,33 +1,43 @@
+#include "utility.hpp"
+#include "triangles_rendering.hpp"
+
 #include <iostream>
-
-#include "windows_gl.hpp"
-#include "triangle_gl.hpp"
-
-const int kWidth = 800;             // logical
-const int kHeight = 600;            //  size
 
 int main() {
 
     InitOpenGl();
 
-    GLFWwindow* window = glfwCreateWindow(kWidth, kHeight, "Triangle", NULL, NULL);
-    if (!window) {
-        std::cout << "glfwCreateWindow: window is nullptr!\n";
+    GLFWwindow* win = CreateWindow("triangle 3D");
+    if (!win) {
+        std::cout << "CreateWindow: returned null ptr!\n";
+        CleanResources();                                        // cleaning resources
         return 0;
     }
 
-    int phys_width = 0, phys_height = 0;
-    glfwGetFramebufferSize(window, &phys_width, &phys_height);
+    glfwMakeContextCurrent(win);
 
-    glfwMakeContextCurrent(window);
+    if (InitGlad() != utility::ErrorType::kCorrect) {
+        std::cout << "InitGlad: returned negative value!\n";
+        CleanResources();                                        // cleaning resources
+        return 0;
+    }
 
-    InitGlad();
+    ConfigureViewing(win);
 
-    glViewport(0, 0, phys_width, phys_height);  // configuring the rendering window
+    Point p_1 = {-0.5f , -0.5f  , 0.0f};
+    Point p_2 = {0.5f  , -0.5f  , 0.0f};
+    Point p_3 = {0.0f  ,  0.5f  , 0.0f};
+    Color white(1.0f, 1.0f, 1.0f);
+    Triangle tr(p_1, p_2, p_3, white);
 
-    ShowTriangle(window);
+    std::vector<Triangle> triangles = {tr};
 
-    glfwTerminate();                                        // cleaning resources
+    render::ErrorType error_code = RenderTriangles(win, triangles);
+    if (error_code != render::ErrorType::kCorrect) {
+        std::cout << "RenderTriangles: return negative error code!\n";
+    }
+
+    CleanResources();                                        // cleaning resources
 
     return 0;
 }
