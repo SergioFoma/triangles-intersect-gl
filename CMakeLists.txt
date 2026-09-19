@@ -18,8 +18,9 @@ find_package(glfw3 REQUIRED)
 
 add_executable(${TARGET}
     ${SRC}/${GRAPHICS}/main.cpp
-    ${SRC}/${GRAPHICS}/windows_gl.cpp
-    ${SRC}/${GRAPHICS}/triangle_gl.cpp
+    ${SRC}/${GRAPHICS}/utility.cpp
+    ${SRC}/${GRAPHICS}/triangles_rendering.cpp
+    ${SRC}/${GRAPHICS}/parsing_shaders.cpp
     ${SRC}/${GRAPHICS}/glad.c
 )
 
