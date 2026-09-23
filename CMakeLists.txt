@@ -12,6 +12,9 @@ set(INCLUDE include)
 set(GRAPHICS graphics)
 set(TRIANGLES triangles)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE BOOL
+    "Generate compile_commands.json" FORCE)
+
 # find OpenGL packets
 find_package(OpenGL REQUIRED)
 find_package(glfw3 REQUIRED)

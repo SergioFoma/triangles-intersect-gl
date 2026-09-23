@@ -3,7 +3,7 @@
 
 #include <sstream>
 #include <fstream>
-#include <assert.h>
+#include <cassert>
 
 #include "parsing_shaders.hpp"
 
@@ -24,23 +24,23 @@ unsigned int LinkShaders(const char* vertex_ptr, const char* fragment_ptr) {
 
     int line_count = 1;
 
-    unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, line_count, &vertex_ptr, NULL);
-    glCompileShader(vertexShader);
+    unsigned int vertex_shader = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vertex_shader, line_count, &vertex_ptr, NULL);
+    glCompileShader(vertex_shader);
 
-    unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, line_count, &fragment_ptr, NULL);
-    glCompileShader(fragmentShader);
+    unsigned int fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fragment_shader, line_count, &fragment_ptr, NULL);
+    glCompileShader(fragment_shader);
 
-    unsigned int shaderProgram = glCreateProgram();
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
-    glLinkProgram(shaderProgram);
+    unsigned int shader_program = glCreateProgram();
+    glAttachShader(shader_program, vertex_shader);
+    glAttachShader(shader_program, fragment_shader);
+    glLinkProgram(shader_program);
 
-    glDeleteShader(vertexShader);       // no need, because we've already linked before.
-    glDeleteShader(fragmentShader);     // no need, because we've already linked before.
+    glDeleteShader(vertex_shader);       // no need, because we've already linked before.
+    glDeleteShader(fragment_shader);     // no need, because we've already linked before.
 
-    return shaderProgram;
+    return shader_program;
 
 }
 

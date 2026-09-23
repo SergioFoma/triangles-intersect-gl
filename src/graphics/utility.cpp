@@ -33,6 +33,9 @@ void ConfigureViewing(GLFWwindow* win) {
     glfwGetFramebufferSize(win, &phys_width, &phys_height);
 
     glViewport(0, 0, phys_width, phys_height);  // configuring the rendering window
+    
+    glfwSetInputMode(win, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
 
     CallbackSettings(win);
 }
@@ -49,10 +52,12 @@ utility::ErrorType InitGlad() {
 void CallbackSettings(GLFWwindow* win) {
     assert(win);
 
-   glfwSetFramebufferSizeCallback(win, framebuffer_size_callback);
+   glfwSetFramebufferSizeCallback(win, FrameBufferSizeCallback);
+
+   glfwSetCursorPosCallback(win, MouseCallback);
 }
 
-void framebuffer_size_callback(GLFWwindow* win, int width, int height) {
+void FrameBufferSizeCallback(GLFWwindow* win, int width, int height) {
     assert(win);
 
     glViewport(utility::kLowerLeftX, utility::kLowerLeftY, width, height);
