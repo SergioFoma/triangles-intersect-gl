@@ -162,4 +162,6 @@ render::ErrorType RenderTriangles(GLFWwindow* win,
                                   const render::SkyboxConfig& skybox_con);
 }  // namespace render
 
+void ProcessInput(GLFWwindow* win, Camera& camera);
+
 #endif
