@@ -376,4 +376,3 @@ void utility::detail::MouseCallback(GLFWwindow* win, double xpos, double ypos) {
   camera.front.y = std::sin(pitch_rad);
   camera.front.z = std::cos(pitch_rad) * std::sin(yaw_rad);
 }
-

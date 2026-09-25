@@ -164,4 +164,6 @@ render::ErrorType RenderTriangles(GLFWwindow* win,
 
 void ProcessInput(GLFWwindow* win, Camera& camera);
 
+//unsigned int LightSettings(unsigned vbo, unsigned int& light_vao);
+
 #endif
