@@ -9,6 +9,6 @@ set(GRAPHICS_SRC
 target_sources(${GRAPHICS} PRIVATE ${GRAPHICS_SRC})
 
 target_include_directories(${GRAPHICS} PUBLIC
-    ../../${INCLUDE}
-    ../../${INCLUDE}/${GRAPHICS}
+    ${INCLUDE}
+    ${INCLUDE}/${GRAPHICS}
 )
