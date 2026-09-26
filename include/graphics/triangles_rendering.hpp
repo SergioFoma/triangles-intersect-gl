@@ -164,6 +164,10 @@ render::ErrorType RenderTriangles(GLFWwindow* win,
 
 void ProcessInput(GLFWwindow* win, Camera& camera);
 
+RenderObject CreateTriangleObj(std::vector<float>& raw_data, size_t triangles_number);
+
+RenderObject CreateLightObj();
+
 //unsigned int LightSettings(unsigned vbo, unsigned int& light_vao);
 
 #endif
