@@ -168,6 +168,4 @@ RenderObject CreateTriangleObj(std::vector<float>& raw_data, size_t triangles_nu
 
 RenderObject CreateLightObj();
 
-//unsigned int LightSettings(unsigned vbo, unsigned int& light_vao);
-
 #endif
