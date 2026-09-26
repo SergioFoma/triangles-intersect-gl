@@ -4,6 +4,10 @@ in vec3 pointColor;
 
 layout (location = 0) out vec4 FragColor;
 
+uniform vec3 lightColor;
+
 void main() {
-    FragColor = vec4(pointColor, 1.0F);
+    vec3 totalColor = lightColor * pointColor;
+
+    FragColor = vec4(totalColor, 1.0F);
 }

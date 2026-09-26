@@ -1,6 +1,8 @@
 #include "triangles_rendering.hpp"
 
 #include <cassert>
+#include <memory>
+#include <utility>
 
 namespace {
 float last_mouse_x = 0.0F;
@@ -21,34 +23,14 @@ render::ErrorType RenderTriangles(GLFWwindow* win,
   raw_data.reserve(data_cap);
 
   InitData(raw_data, triangles);
+  
+  RenderObject tr_obj = CreateTriangleObj(raw_data, triangles_number);
+  RenderObject light_obj = CreateLightObj();
+  
+  glm::vec3 source_color = glm::vec3(1.0F, 0.0F, 0.0F);
+  LightSource light_source(light_obj, source_color);
 
-  GeometryBuffer* geom_buff = new GeometryBuffer(
-      raw_data, render::kDimension, render::kColors, render::kNormal,
-      triangles_number * render::kDimension);
-  assert(geom_buff);
-
-  Shader* tr_shader = new Shader(render::kTrVertPath, render::kTrFragPath);
-  assert(tr_shader);
-
-  Shader* light_shader = new Shader(render::kLgVertPath, render::kLgFragPath);
-  assert(light_shader);
-
-  // ============== TRIANGLE SETTING ========================
-  glm::mat4 model = glm::mat4(1.0F);  // init unit matrix
-  glm::vec3 rotational_axis = glm::vec3(1.0F, 0.0F, 0.0F);
-  model =
-      glm::rotate(model, glm::radians(render::kRotateAngle), rotational_axis);
-
-  RenderObject tr_obj(*geom_buff, *tr_shader, model);
-
-  tr_obj.geom_buff.Bind();
-  tr_obj.geom_buff.SetCoordinates(render::kZeroLocation);
-  tr_obj.geom_buff.SetColors(render::kFirstLocation);
-  tr_obj.geom_buff.Unbind();
-
-  // ========================================================
-
-  RenderCycle(win, tr_obj);
+  RenderCycle(win, tr_obj, light_source);
 
   return render::ErrorType::kCorrect;
 }
@@ -74,7 +56,7 @@ void AddPointData(std::vector<float>& data, const Point& point,
   data.push_back(color.b);
 }
 
-void RenderCycle(GLFWwindow* win, struct RenderObject& tr_obj) {
+void RenderCycle(GLFWwindow* win, RenderObject& tr_obj, LightSource& light_source) {
   assert(win);
 
   float back_r = 0.0F, back_g = 0.0F, back_b = 0.0F, alpha = 1.0F;
@@ -85,49 +67,119 @@ void RenderCycle(GLFWwindow* win, struct RenderObject& tr_obj) {
 
   while (glfwGetKey(win, GLFW_KEY_ESCAPE) != GLFW_PRESS) {
     glClearColor(back_r, back_g, back_b, alpha);
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    tr_obj.shader.Use();
-    tr_obj.geom_buff.Bind();
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     ProcessInput(win, camera);
 
-    CoordinateTransform(tr_obj, camera);
-    tr_obj.geom_buff.Draw(GL_TRIANGLES);
+    tr_obj.shader->Use();
+    tr_obj.geom_buff->Bind();
+    UpdateTrPos(tr_obj, camera, light_source.source_color);
+    tr_obj.geom_buff->Draw(GL_TRIANGLES); 
+    tr_obj.geom_buff->Unbind();
+    tr_obj.shader->Disable();
+
+    light_source.light_obj.shader->Use();
+    light_source.light_obj.geom_buff->Bind();
+    UpdateLgPos(light_source, camera);
+    light_source.light_obj.geom_buff->Draw(GL_TRIANGLES);
+    light_source.light_obj.geom_buff->Unbind();
+    light_source.light_obj.shader->Disable();
 
     glfwSwapBuffers(win);
     glfwPollEvents();
 
-    tr_obj.geom_buff.Unbind();
-    tr_obj.shader.Disable();
   }
 }
 
-/*
-unsigned int LightingSettings(unsigned int vbo, unsigned int& light_vao) {
+RenderObject CreateTriangleObj(std::vector<float>& raw_data, size_t triangles_number) {
+
+  glm::mat4 model = glm::mat4(1.0F);  // init unit matrix
+  glm::vec3 rotational_axis = glm::vec3(1.0F, 0.0F, 0.0F);
+  model =
+      glm::rotate(model, glm::radians(render::kRotateAngle), rotational_axis);
+  
+
+  RenderObject tr_obj(
+      std::make_unique<GeometryBuffer>(raw_data, render::kDimension,
+                                        render::kColors, render::kNormal,
+                                        triangles_number * render::kVertexes),
+      std::make_unique<Shader>(render::kTrVertPath, render::kTrFragPath),
+      model);
     
-    std::string light_vert_str = ReadShader(render::kLgVertPath);
-    std::string light_frag_str = ReadShader(render::kLgFragPath);
+  tr_obj.geom_buff->Bind();
+  tr_obj.geom_buff->SetCoordinates(render::kZeroLocation);
+  tr_obj.geom_buff->SetColors(render::kFirstLocation);
+  tr_obj.geom_buff->Unbind();
 
-    const char* light_vert_ptr = light_vert_str.c_str();
-    const char* light_frag_ptr = light_frag_str.c_str();
-        
-    unsigned int light_shader = LinkShaders(light_vert_ptr, light_frag_ptr);
-
-    unsigned int light_vao = 0;
-    glGenVertexArrays(render::kBuffCount, &light_vao);
-    glBindVertexArray(light_vao);
-    
-    int float_offset = (2 * render::kDimension) * sizeof(float);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glVertexAttribPointer(render::kZeroLocation, render::kDimension, GL_FLOAT,
-                          GL_FALSE, float_offset, (void*)0);
-
-    glEnableVertexAttribArray(render::kZeroLocation);
-
-    return light_shader;
+  return tr_obj;
 }
-*/
+
+RenderObject CreateLightObj() {
+  
+  std::vector<float> raw_data = {
+    // Задняя грань
+    -0.075f, -0.075f, -1.575f,
+     0.075f, -0.075f, -1.575f,
+     0.075f,  0.075f, -1.575f,
+     0.075f,  0.075f, -1.575f,
+    -0.075f,  0.075f, -1.575f,
+    -0.075f, -0.075f, -1.575f,
+
+    // Передняя грань
+    -0.075f, -0.075f, -1.425f,
+     0.075f, -0.075f, -1.425f,
+     0.075f,  0.075f, -1.425f,
+     0.075f,  0.075f, -1.425f,
+    -0.075f,  0.075f, -1.425f,
+    -0.075f, -0.075f, -1.425f,
+
+    // Левая грань
+    -0.075f,  0.075f, -1.425f,
+    -0.075f,  0.075f, -1.575f,
+    -0.075f, -0.075f, -1.575f,
+    -0.075f, -0.075f, -1.575f,
+    -0.075f, -0.075f, -1.425f,
+    -0.075f,  0.075f, -1.425f,
+
+    // Правая грань
+     0.075f,  0.075f, -1.425f,
+     0.075f,  0.075f, -1.575f,
+     0.075f, -0.075f, -1.575f,
+     0.075f, -0.075f, -1.575f,
+     0.075f, -0.075f, -1.425f,
+     0.075f,  0.075f, -1.425f,
+
+    // Нижняя грань
+    -0.075f, -0.075f, -1.575f,
+     0.075f, -0.075f, -1.575f,
+     0.075f, -0.075f, -1.425f,
+     0.075f, -0.075f, -1.425f,
+    -0.075f, -0.075f, -1.425f,
+    -0.075f, -0.075f, -1.575f,
+
+    // Верхняя грань
+    -0.075f,  0.075f, -1.575f,
+     0.075f,  0.075f, -1.575f,
+     0.075f,  0.075f, -1.425f,
+     0.075f,  0.075f, -1.425f,
+    -0.075f,  0.075f, -1.425f,
+    -0.075f,  0.075f, -1.575f
+
+  };
+
+  glm::mat4 model = glm::mat4(1.0F);
+  
+  RenderObject light_obj(
+      std::make_unique<GeometryBuffer>(raw_data, render::kDimension, 0, 0, 36),
+      std::make_unique<Shader>(render::kLgVertPath, render::kLgFragPath),
+      model); 
+
+  light_obj.geom_buff->Bind();
+  light_obj.geom_buff->SetCoordinates(render::kZeroLocation);
+  light_obj.geom_buff->Unbind();
+
+  return light_obj;
+}
 
 void ProcessInput(GLFWwindow* win, Camera& camera) {
   assert(win);
@@ -151,6 +203,8 @@ void ProcessInput(GLFWwindow* win, Camera& camera) {
     camera.pos -=
         glm::normalize(glm::cross(camera.up, camera.front)) * camera_speed;
   }
+  
+  camera.UpdateCameraMatrix();
 }
 
 Camera CameraSettings() {
@@ -165,18 +219,21 @@ Camera CameraSettings() {
   return camera;
 }
 
-void CoordinateTransform(RenderObject& tr_obj, const Camera& camera) {
+void UpdateTrPos(RenderObject& tr_obj, const Camera& camera, const glm::vec3& lg_color) {
 
-  glm::mat4 view =
-      glm::lookAt(camera.pos, camera.pos + camera.front, camera.up);
+  tr_obj.shader->SetMatUniform("model", tr_obj.model);
+  tr_obj.shader->SetMatUniform("view", camera.view);
+  tr_obj.shader->SetMatUniform("projection", camera.projection);
+  tr_obj.shader->SetVecUniform("lightColor", lg_color);
+}
 
-  glm::mat4 projection =
-      glm::perspective(glm::radians(render::kFovy), render::kAspect,
-                       render::kNear, render::kFar);
+void UpdateLgPos(LightSource& light_source, const Camera& camera) {
+  
+  RenderObject& light_obj = light_source.light_obj;
 
-  tr_obj.shader.SetUniform("model", tr_obj.model);
-  tr_obj.shader.SetUniform("view", view);
-  tr_obj.shader.SetUniform("projection", projection);
+  light_obj.shader->SetMatUniform("view", camera.view);
+  light_obj.shader->SetMatUniform("projection", camera.projection);
+  light_obj.shader->SetVecUniform("lightColor", light_source.source_color);
 }
 
 void MouseCallback(GLFWwindow* win, double xpos, double ypos) {

@@ -1,6 +1,6 @@
 #include "utility.hpp"
 
-#include <assert.h>
+#include <cassert>
 #include <iostream>
 
 void InitOpenGl() {
@@ -23,6 +23,8 @@ GLFWwindow* CreateWindow(const char* win_name) {
   if (!win) {
     std::cout << "glfwCreateWindow: window is nullptr!\n";
   }
+    
+  glfwMakeContextCurrent(win);
 
   return win;
 }
@@ -37,6 +39,8 @@ void ConfigureViewing(GLFWwindow* win) {
              phys_height);  // configuring the rendering window
 
   glfwSetInputMode(win, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+  glEnable(GL_DEPTH_TEST);
 
   CallbackSettings(win);
 }

@@ -1,8 +1,8 @@
 #ifndef UTILITY_HPP_
 #define UTILITY_HPP_
 
-#include <GLFW/glfw3.h>
 #include <glad/glad.h>
+#include <GLFW/glfw3.h>
 
 namespace utility {
 const int kWidth = 800;       // logical

@@ -14,8 +14,6 @@ int main() {
     return 0;
   }
 
-  glfwMakeContextCurrent(win);
-
   if (InitGlad() != utility::ErrorType::kCorrect) {
     std::cout << "InitGlad: returned negative value!\n";
     CleanResources();
@@ -27,7 +25,7 @@ int main() {
   Point p_1 = {-0.5F, -0.5F, 0.0F};
   Point p_2 = {0.5F, -0.5F, 0.0F};
   Point p_3 = {0.0F, 0.5F, 0.0F};
-  Color white(1.0F, 1.0F, 1.0F);
+  Color white(0.8F, 0.0F, 0.3F);
   Triangle tr_1(p_1, p_2, p_3, white);
 
   std::vector<Triangle> triangles = {tr_1};

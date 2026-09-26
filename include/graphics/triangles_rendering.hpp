@@ -1,15 +1,16 @@
 #ifndef TRIANGLES_RENDERING_HPP_
 #define TRIANGLES_RENDERING_HPP_
 
+#include "geometry_buffer.hpp"
+#include "Shader.hpp"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#include "geometry_buffer.hpp"
-#include "shader.hpp"
 #include "utility.hpp"
 
 #include <string>
 #include <vector>
+#include <memory>
 
 namespace render {
 const int kDimension = 3;   // R^3 (x, y, z)
@@ -26,8 +27,7 @@ const std::string kTrVertPath =
 const std::string kTrFragPath =
     "./shaders/triangle.frag";  // triangle fragment shader
 const std::string kLgVertPath = "./shaders/light.vert";  // light vertex shader
-const std::string kLgFragPath =
-    "./shaders/light.frag";  // light fragment shader
+const std::string kLgFragPath = "./shaders/light.frag";  // light fragment shader
 const int kBuffCount = 1;
 const int kZeroLocation = 0;   // location in shaders
 const int kFirstLocation = 1;  // location in shaders
@@ -64,18 +64,35 @@ struct Camera {
   float last_frame = 0.0F;
   float yaw = -90.0F;
   float pitch = 0.0F;
+  glm::mat4 view = glm::mat4(1.0F);
+  glm::mat4 projection = glm::mat4(1.0F);
 
   Camera(const glm::vec3& pos, const glm::vec3& front, const glm::vec3& up,
          float speed)
       : pos(pos), front(front), up(up), speed(speed) {
     last_frame = glfwGetTime();
+
+    projection = glm::perspective(glm::radians(render::kFovy), render::kAspect,
+                                  render::kNear, render::kFar);
+  }
+
+  void UpdateCameraMatrix() {
+    view = glm::lookAt(pos, pos + front, up);
   }
 };
 
 struct RenderObject {
-  class GeometryBuffer& geom_buff;
-  class Shader& shader;
-  glm::mat4& model;
+  std::unique_ptr<GeometryBuffer> geom_buff;
+  std::unique_ptr<Shader> shader;
+  glm::mat4 model;
+};
+
+struct LightSource {
+    RenderObject& light_obj;
+    glm::vec3 source_color;
+
+    LightSource(RenderObject& obj, const glm::vec3& colors)
+        : light_obj(obj), source_color(colors) {}
 };
 
 render::ErrorType RenderTriangles(GLFWwindow* win,
@@ -86,13 +103,19 @@ void InitData(std::vector<float>& data, const std::vector<Triangle>& triangles);
 void AddPointData(std::vector<float>& data, const Point& point,
                   const Color& color);
 
-void RenderCycle(GLFWwindow* win, struct RenderObject& tr_obj);
+void RenderCycle(GLFWwindow* win, RenderObject& tr_obj, LightSource& light_source);
 
 Camera CameraSettings();
 
-void CoordinateTransform(RenderObject& tr_obj, const Camera& camera);
+void UpdateTrPos(RenderObject& tr_obj, const Camera& camera, const glm::vec3& lg_color);
+
+void UpdateLgPos(LightSource& light_source, const Camera& camera);
 
 void ProcessInput(GLFWwindow* win, Camera& camera);
+
+RenderObject CreateTriangleObj(std::vector<float>& raw_data, size_t triangles_number);
+
+RenderObject CreateLightObj();
 
 //unsigned int LightSettings(unsigned vbo, unsigned int& light_vao);
 

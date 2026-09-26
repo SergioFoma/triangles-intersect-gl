@@ -1,8 +1,8 @@
 #ifndef GEOMETRY_BUFFER_HPP_
 #define GEOMETRY_BUFFER_HPP_
 
-#include <GLFW/glfw3.h>
 #include <glad/glad.h>
+#include <GLFW/glfw3.h>
 #include <vector>
 
 class GeometryBuffer {
