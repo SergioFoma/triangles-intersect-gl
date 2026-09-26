@@ -25,8 +25,8 @@ int main() {
   Point p_1 = {-0.5F, -0.5F, 0.0F};
   Point p_2 = {0.5F, -0.5F, 0.0F};
   Point p_3 = {0.0F, 0.5F, 0.0F};
-  Color white(0.8F, 0.0F, 0.3F);
-  Triangle tr_1(p_1, p_2, p_3, white);
+  Color color(1.0F, 0.5F, 0.31F);
+  Triangle tr_1(p_1, p_2, p_3, color);
 
   std::vector<Triangle> triangles = {tr_1};
 

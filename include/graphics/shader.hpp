@@ -15,7 +15,7 @@ class Shader {
 
   Shader(const std::string& vert_path, const std::string& frag_path);
 
-  void SetMatUniform(const std::string& name, const glm::mat4& mat) const {
+  void SetMat4(const std::string& name, const glm::mat4& mat) const {
     const char* name_ptr = name.c_str();
 
     assert(name_ptr);
@@ -24,13 +24,22 @@ class Shader {
     glUniformMatrix4fv(mat_loc, kOneMatrix, GL_FALSE, glm::value_ptr(mat));
   }
 
+  void SetMat3(const std::string& name, const glm::mat3& mat) const {
+    const char* name_ptr = name.c_str();
+
+    assert(name_ptr);
+
+    int mat_loc = glGetUniformLocation(shader_program_, name_ptr);
+    glUniformMatrix3fv(mat_loc, kOneMatrix, GL_FALSE, glm::value_ptr(mat));
+  }
+
   void SetVecUniform(const std::string& name, const glm::vec3& vec) const {
-      const char* name_ptr = name.c_str();
+    const char* name_ptr = name.c_str();
 
-      assert(name_ptr);
+    assert(name_ptr);
 
-      int vec_loc = glGetUniformLocation(shader_program_, name_ptr);
-      glUniform3fv(vec_loc, kOneVec, glm::value_ptr(vec));
+    int vec_loc = glGetUniformLocation(shader_program_, name_ptr);
+    glUniform3fv(vec_loc, kOneVec, glm::value_ptr(vec));
   }
 
   void Use() const { glUseProgram(shader_program_); }
@@ -55,11 +64,6 @@ class Shader {
   static constexpr unsigned int kDisable = 0;
   static constexpr unsigned int kOneMatrix = 1;
   static constexpr unsigned int kOneVec = 1;
-
-  void UpdateMatrix(unsigned int shaderProgram, const char* name,
-                    const glm::mat4& matrix) const {
-    assert(name);
-  }
 
   std::string ReadShader(const std::string& file_path) const;
 

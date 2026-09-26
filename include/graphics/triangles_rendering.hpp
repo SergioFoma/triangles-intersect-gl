@@ -16,7 +16,7 @@ namespace render {
 const int kDimension = 3;   // R^3 (x, y, z)
 const int kVertexes = 3;    // Point p_1, p_2, p_3
 const int kColors = 3;      // (r, g, b)
-const int kNormal = 0;      // (n_x, n_y, n_z)
+const int kNormal = 3;      // (n_x, n_y, n_z)
 const float kFovy = 45.0F;  // Field of View
 const float kAspect = utility::kWidth / utility::kHeight;
 const float kNear = 0.1F;           // zNear
@@ -29,8 +29,9 @@ const std::string kTrFragPath =
 const std::string kLgVertPath = "./shaders/light.vert";  // light vertex shader
 const std::string kLgFragPath = "./shaders/light.frag";  // light fragment shader
 const int kBuffCount = 1;
-const int kZeroLocation = 0;   // location in shaders
-const int kFirstLocation = 1;  // location in shaders
+const int kZeroLocation = 0;    // location in shaders
+const int kFirstLocation = 1;   // location in shaders
+const int kSecondLocation = 2;  // location in shader
 const int kOneMatrix = 1;
 
 enum class ErrorType { kCorrect, kError };
@@ -85,14 +86,17 @@ struct RenderObject {
   std::unique_ptr<GeometryBuffer> geom_buff;
   std::unique_ptr<Shader> shader;
   glm::mat4 model;
+  glm::mat3 normal_mat;
 };
 
 struct LightSource {
     RenderObject& light_obj;
-    glm::vec3 source_color;
+    glm::vec3 color;
+    glm::vec3 position;
 
-    LightSource(RenderObject& obj, const glm::vec3& colors)
-        : light_obj(obj), source_color(colors) {}
+    LightSource(RenderObject& obj,
+                const glm::vec3& color, const glm::vec3& position)
+        : light_obj(obj), color(color), position(position) {}
 };
 
 render::ErrorType RenderTriangles(GLFWwindow* win,
@@ -103,11 +107,17 @@ void InitData(std::vector<float>& data, const std::vector<Triangle>& triangles);
 void AddPointData(std::vector<float>& data, const Point& point,
                   const Color& color);
 
+void AddNormalData(std::vector<float>& data, const glm::vec3& normal);
+
 void RenderCycle(GLFWwindow* win, RenderObject& tr_obj, LightSource& light_source);
+
+void DrawTriangles(RenderObject& tr_obj, const Camera& camera, const LightSource& light_source);
+
+void DrawLightSource(LightSource& light_source, const Camera& camera);
 
 Camera CameraSettings();
 
-void UpdateTrPos(RenderObject& tr_obj, const Camera& camera, const glm::vec3& lg_color);
+void UpdateTrPos(RenderObject& tr_obj, const Camera& camera, const LightSource& light_source);
 
 void UpdateLgPos(LightSource& light_source, const Camera& camera);
 
@@ -116,7 +126,5 @@ void ProcessInput(GLFWwindow* win, Camera& camera);
 RenderObject CreateTriangleObj(std::vector<float>& raw_data, size_t triangles_number);
 
 RenderObject CreateLightObj();
-
-//unsigned int LightSettings(unsigned vbo, unsigned int& light_vao);
 
 #endif
