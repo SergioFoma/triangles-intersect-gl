@@ -11,7 +11,8 @@ namespace triangles {
 class Triangle3D {
  public:
   Triangle3D() = default;
-  Triangle3D(Point3D a, Point3D b, Point3D c) : vertices_{a, b, c} {}
+  Triangle3D(Point3D p1, Point3D p2, Point3D p3)
+      : vertices_{p1, p2, p3}, surface_{p1, p2, p3} {}
 
   const std::array<Point3D, 3>& Vertices() const { return vertices_; }
 
@@ -20,15 +21,15 @@ class Triangle3D {
            vertices_[2].IsValid();
   }
 
+  bool Intersects(const Triangle3D& other) const;
+  bool IsCoplanar(const Triangle3D& other) const {
+    return surface_.IsCoplanar(other.surface_);
+  }
+
  private:
   std::array<Point3D, 3> vertices_{};
+  Surface surface_;
 };
-
-inline bool Intersects(const Triangle3D& first, const Triangle3D& second) {
-  (void)first;
-  (void)second;
-  throw std::runtime_error("TODO: Intersects");
-}
 
 }  // namespace triangles
 

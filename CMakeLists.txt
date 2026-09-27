@@ -40,5 +40,6 @@ FetchContent_Declare(googletest
 FetchContent_MakeAvailable(googletest)
 
 set(TRIANGLES triangles)
-add_executable(${TRIANGLES})
+add_library(${TRIANGLES} STATIC)
 add_subdirectory(${SRC}/triangles)
+add_subdirectory(tests)

@@ -3,6 +3,8 @@
 
 #include "triangles/basics.hpp"
 
+using triangles::Point3D;
+
 TEST(Point3D, InitializesCoordinates) {
   const Point3D point{1.5, 2.5, 3.5};
 

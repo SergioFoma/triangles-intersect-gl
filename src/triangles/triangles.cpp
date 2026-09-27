@@ -1,4 +1,8 @@
 #include "triangles/triangle.hpp"
 
-int main(void) {
+namespace triangles {
+bool Triangle3D::Intersects(const Triangle3D& other) const {
+  
+  return true;
 }
+}  // namespace triangles
