@@ -116,6 +116,7 @@ struct RenderObject {
   glm::mat4 model;
   glm::mat3 normal_mat;
 };
+}  // namespace render
 
 struct SkyboxData {
   SkyboxConfig config;
@@ -162,10 +163,15 @@ render::ErrorType RenderTriangles(GLFWwindow* win,
                                   const render::SkyboxConfig& skybox_con);
 }  // namespace render
 
-void ProcessInput(GLFWwindow* win, Camera& camera);
+void ProcessInput(GLFWwindow* win, render::Camera& camera);
 
-RenderObject CreateTriangleObj(std::vector<float>& raw_data, size_t triangles_number);
+render::RenderObject CallSkyboxCreating(render::SkyboxConfig& skybox_con);
 
-RenderObject CreateLightObj();
+render::RenderObject CreateTriangleObj(const std::vector<float>& raw_data,
+                                       const render::ShaderConfig& shader_con, 
+                                       size_t triangles_number);
+
+render::RenderObject CreateSkyboxObj(const std::vector<float>& raw_data,
+                                     render::SkyboxConfig& skybox_con);
 
 #endif
