@@ -2,7 +2,6 @@
 
 #include <cassert>
 #include <memory>
-#include <utility>
 #include "glm/matrix.hpp"
 
 namespace {
@@ -29,7 +28,7 @@ render::ErrorType RenderTriangles(GLFWwindow* win,
   RenderObject light_obj = CreateLightObj();
   
   glm::vec3 color = glm::vec3(1.0F, 1.0F, 1.0F);
-  glm::vec3 position = glm::vec3(0.8F, 0.0F, 0.2F);
+  glm::vec3 position = glm::vec3(0.2F, 0.0F, 0.4F);
   LightSource light_source(light_obj, color, position);
 
   RenderCycle(win, tr_obj, light_source);
@@ -254,9 +253,15 @@ void UpdateTrPos(RenderObject& tr_obj, const Camera& camera, const LightSource& 
   tr_obj.shader->SetMat4("view", camera.view);
   tr_obj.shader->SetMat4("projection", camera.projection);
   tr_obj.shader->SetMat3("normalMatrix", tr_obj.normal_mat);
-  tr_obj.shader->SetVecUniform("lightColor", light_source.color);
-  tr_obj.shader->SetVecUniform("lightPos", light_source.position);
-  tr_obj.shader->SetVecUniform("viewPos", camera.pos);
+  tr_obj.shader->SetVec3("light.lightColor", light_source.color);
+  tr_obj.shader->SetVec3("light.lightPos", light_source.position);
+  tr_obj.shader->SetVec3("light.viewPos", camera.pos);
+  tr_obj.shader->SetVec3("light.direction", camera.front);
+
+  tr_obj.shader->SetFloat("light.constant", 1.0F);
+  tr_obj.shader->SetFloat("light.linear", 0.09F);
+  tr_obj.shader->SetFloat("light.quadratic", 0.032F);
+  tr_obj.shader->SetFloat("light.cutOff", glm::cos(glm::radians(render::kCutOff)));
 }
 
 void UpdateLgPos(LightSource& light_source, const Camera& camera) {
@@ -268,7 +273,7 @@ void UpdateLgPos(LightSource& light_source, const Camera& camera) {
   light_obj.shader->SetMat4("model", model);
   light_obj.shader->SetMat4("view", camera.view);
   light_obj.shader->SetMat4("projection", camera.projection);
-  light_obj.shader->SetVecUniform("lightColor", light_source.color);
+  light_obj.shader->SetVec3("lightColor", light_source.color);
 }
 
 void MouseCallback(GLFWwindow* win, double xpos, double ypos) {

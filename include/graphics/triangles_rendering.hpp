@@ -33,6 +33,7 @@ const int kZeroLocation = 0;    // location in shaders
 const int kFirstLocation = 1;   // location in shaders
 const int kSecondLocation = 2;  // location in shader
 const int kOneMatrix = 1;
+const float kCutOff = 12.5F;
 
 enum class ErrorType { kCorrect, kError };
 }  // namespace render

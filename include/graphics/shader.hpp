@@ -33,13 +33,22 @@ class Shader {
     glUniformMatrix3fv(mat_loc, kOneMatrix, GL_FALSE, glm::value_ptr(mat));
   }
 
-  void SetVecUniform(const std::string& name, const glm::vec3& vec) const {
+  void SetVec3(const std::string& name, const glm::vec3& vec) const {
     const char* name_ptr = name.c_str();
 
     assert(name_ptr);
 
     int vec_loc = glGetUniformLocation(shader_program_, name_ptr);
     glUniform3fv(vec_loc, kOneVec, glm::value_ptr(vec));
+  }
+
+  void SetFloat(const std::string& name, float val) const {
+    const char* name_ptr = name.c_str();
+
+    assert(name_ptr);
+
+    int val_loc = glGetUniformLocation(shader_program_, name_ptr);
+    glUniform1f(val_loc, val);
   }
 
   void Use() const { glUseProgram(shader_program_); }
