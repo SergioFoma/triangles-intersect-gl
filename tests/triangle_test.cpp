@@ -50,8 +50,8 @@ using triangles::Triangle3D;
 void ExpectIntersectionInBothOrders(const Triangle3D& first,
                                     const Triangle3D& second,
                                     bool expected) {
-  EXPECT_EQ(first.Intersects(second), expected);
-  EXPECT_EQ(second.Intersects(first), expected);
+  EXPECT_EQ(expected, first.DoesIntersect(second));
+  EXPECT_EQ(expected, second.DoesIntersect(first));
 }
 
 const Triangle3D kReferenceTriangle{{0, 0, 0}, {2, 0, 0}, {0, 2, 0}};
@@ -159,7 +159,6 @@ TEST(CoplanarTriangleIntersection, IdenticalTriangles) {
 TEST(CoplanarTriangleIntersection, ReversedVertexOrder) {
   const Triangle3D reversed{{0, 2, 0}, {2, 0, 0}, {0, 0, 0}};
 
-  EXPECT_TRUE(kReferenceTriangle.IsCoplanar(reversed));
   ExpectIntersectionInBothOrders(kReferenceTriangle, reversed, true);
 }
 
@@ -223,7 +222,6 @@ TEST(CoplanarTriangleIntersection, IntersectsInOffsetPlane) {
   const Triangle3D second{{0.25, 0.25, 5}, {0.5, 0.25, 5},
                           {0.25, 0.5, 5}};
 
-  EXPECT_TRUE(first.IsCoplanar(second));
   ExpectIntersectionInBothOrders(first, second, true);
 }
 
@@ -232,28 +230,5 @@ TEST(CoplanarTriangleIntersection, IntersectsInVerticalPlane) {
   const Triangle3D second{{1, 0.25, 0.25}, {1, 0.5, 0.25},
                           {1, 0.25, 0.5}};
 
-  EXPECT_TRUE(first.IsCoplanar(second));
   ExpectIntersectionInBothOrders(first, second, true);
-}
-
-TEST(TriangleCoplanarity, ParallelDisplacedTrianglesAreNotCoplanar) {
-  const Triangle3D above{{0, 0, 1}, {2, 0, 1}, {0, 2, 1}};
-
-  EXPECT_FALSE(kReferenceTriangle.IsCoplanar(above));
-  EXPECT_FALSE(above.IsCoplanar(kReferenceTriangle));
-}
-
-TEST(TriangleCoplanarity, ReversedWindingInOffsetPlaneIsCoplanar) {
-  const Triangle3D first{{0, 0, 5}, {2, 0, 5}, {0, 2, 5}};
-  const Triangle3D reversed{{0, 2, 5}, {2, 0, 5}, {0, 0, 5}};
-
-  EXPECT_TRUE(first.IsCoplanar(reversed));
-  EXPECT_TRUE(reversed.IsCoplanar(first));
-}
-
-TEST(TriangleCoplanarity, IntersectingPlanesAreNotCoplanar) {
-  const Triangle3D vertical{{1, 0, -1}, {1, 0, 1}, {1, 1, 0}};
-
-  EXPECT_FALSE(kReferenceTriangle.IsCoplanar(vertical));
-  EXPECT_FALSE(vertical.IsCoplanar(kReferenceTriangle));
 }

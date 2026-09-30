@@ -4,6 +4,8 @@
 #include <cmath>
 #include <cstdlib>
 #include <iostream>
+#include <exception>
+#include <stdexcept>
 
 namespace triangles {
 
@@ -19,6 +21,14 @@ struct Point3D {
     return std::isfinite(x_) && std::isfinite(y_) && std::isfinite(z_);
   }
   void Print() const { std::cout << "Point: " << x_ << ' ' << y_ << ' ' << z_; }
+
+  Point3D operator-(const Point3D& other) const {
+    return {x_ - other.x_, y_ - other.y_, z_ - other.z_};
+  }
+
+  Point3D operator+(const Point3D& other) const {
+    return {x_ + other.x_, y_ + other.y_, z_ + other.z_};
+  }
 };
 
 struct Surface {
@@ -26,6 +36,9 @@ struct Surface {
 
   Surface() = default;
   Surface(const Point3D& p1, const Point3D& p2, const Point3D& p3) {
+    if (!(p1.IsValid() && p2.IsValid() && p3.IsValid())) {
+      throw std::runtime_error("Non valid arguments in Triangle Ctor");
+    }
     double a = ((p2.y_ - p1.y_) * (p3.z_ - p1.z_)) -
                ((p2.z_ - p1.z_) * (p3.y_ - p1.y_));
     double b = ((p2.z_ - p1.z_) * (p3.x_ - p1.x_)) -
