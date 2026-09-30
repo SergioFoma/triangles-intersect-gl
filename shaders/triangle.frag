@@ -1,4 +1,4 @@
-#version 410
+#version 410 core
 
 in vec3 pointColor;
 in vec3 normal;
@@ -7,7 +7,6 @@ in vec3 fragPos;
 layout (location = 0) out vec4 FragColor;
 
 struct Light {
-  vec3 lightPos;
   vec3 direction;
   vec3 lightColor;
   vec3 viewPos;

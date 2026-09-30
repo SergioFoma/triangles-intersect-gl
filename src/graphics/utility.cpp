@@ -3,23 +3,29 @@
 #include <cassert>
 #include <iostream>
 
-void InitOpenGl() {
+namespace {
+const int kLowerLeftX = 0;
+const int kLowerLeftY = 0;
+} // namespace
+
+
+void InitOpenGl(const utility::WinConfig& win_con) {
   /*
         GLFW_OPENGL_CORE_PROFILE - usu only modern function
         GL_TRUE                  - delete all old function
-    */
+  */
 
   glfwInit();
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, utility::kMajorVersion);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, utility::kMinorVersion);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, win_con.major_version);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, win_con.minor_version);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 }
 
-GLFWwindow* CreateWindow(const char* win_name) {
+GLFWwindow* CreateWindow(const char* win_name, const utility::WinConfig& win_con) {
 
   GLFWwindow* win =
-      glfwCreateWindow(utility::kWidth, utility::kHeight, win_name, NULL, NULL);
+      glfwCreateWindow(win_con.width, win_con.height, win_name, NULL, NULL);
   if (!win) {
     std::cout << "glfwCreateWindow: window is nullptr!\n";
   }
@@ -65,7 +71,7 @@ void CallbackSettings(GLFWwindow* win) {
 void FrameBufferSizeCallback(GLFWwindow* win, int width, int height) {
   assert(win);
 
-  glViewport(utility::kLowerLeftX, utility::kLowerLeftY, width, height);
+  glViewport(kLowerLeftX, kLowerLeftY, width, height);
 }
 
 void CleanResources() {

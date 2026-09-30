@@ -5,19 +5,20 @@
 #include <GLFW/glfw3.h>
 
 namespace utility {
-const int kWidth = 800;       // logical
-const int kHeight = 600;      //  size
-const int kMajorVersion = 4;  // result version will -
-const int kMinorVersion = 1;  // be 4.1
-const int kLowerLeftX = 0;
-const int kLowerLeftY = 0;
 
 enum class ErrorType { kCorrect, kError };
+
+struct WinConfig {
+  int width = 0;
+  int height = 0;
+  int major_version = 0;
+  int minor_version = 0;
+};
 }  // namespace utility
 
-void InitOpenGl();
+void InitOpenGl(const utility::WinConfig& win_con);
 
-GLFWwindow* CreateWindow(const char* win_name);
+GLFWwindow* CreateWindow(const char* win_name, const utility::WinConfig& win_con);
 
 void ConfigureViewing(GLFWwindow* win);
 

@@ -51,6 +51,15 @@ class Shader {
     glUniform1f(val_loc, val);
   }
 
+  void SetInt(const std::string& name, int val) const {
+    const char* name_ptr = name.c_str();
+
+    assert(name_ptr);
+
+    int val_loc = glGetUniformLocation(shader_program_, name_ptr);
+    glUniform1i(val_loc, val);
+  }
+
   void Use() const { glUseProgram(shader_program_); }
 
   void Disable() const { glUseProgram(kDisable); }
