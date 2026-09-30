@@ -89,7 +89,7 @@ void RenderCycle(GLFWwindow* win, RenderObject& tr_obj, LightSource& light_sourc
 
     DrawTriangles(tr_obj, camera, light_source);
  
-    DrawLightSource(light_source, camera);
+    //DrawLightSource(light_source, camera);
 
     glfwSwapBuffers(win);
     glfwPollEvents();
@@ -262,6 +262,7 @@ void UpdateTrPos(RenderObject& tr_obj, const Camera& camera, const LightSource& 
   tr_obj.shader->SetFloat("light.linear", 0.09F);
   tr_obj.shader->SetFloat("light.quadratic", 0.032F);
   tr_obj.shader->SetFloat("light.cutOff", glm::cos(glm::radians(render::kCutOff)));
+  tr_obj.shader->SetFloat("light.outerCutOff", glm::cos(glm::radians(render::kOuterCutOff)));
 }
 
 void UpdateLgPos(LightSource& light_source, const Camera& camera) {

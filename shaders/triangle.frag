@@ -16,6 +16,7 @@ struct Light {
   float linear;
   float quadratic;
   float cutOff;
+  float outerCutOff;
 };
 
 uniform Light light;
@@ -23,15 +24,15 @@ uniform Light light;
 void main() {
       
     // ===============================================================
-    float distance = length(light.lightPos - fragPos);
+    float distance = length(light.viewPos - fragPos);
     float attenuation = 1.0F / (light.constant + 
                                 light.linear * distance + 
                                 light.quadratic * distance * distance);
   
     // ================================================================
-    float ambientStrength = 0.1F;
+    float ambientStrength = 0.2F;
   
-    vec3 lightTrace = normalize(light.lightPos - fragPos);
+    vec3 lightTrace = normalize(light.viewPos - fragPos);
     float diffStrength = abs(dot(normal, lightTrace));
   
     vec3 diff = diffStrength * light.lightColor;
@@ -54,15 +55,15 @@ void main() {
     diff     *= attenuation;
     specular *= attenuation;
 
-    vec3 totalColor;
     // ==========================================================
     float theta = dot(lightTrace, normalize(-light.direction));
+    float epsilon = light.cutOff - light.outerCutOff;
+    float intencity = clamp((theta - light.outerCutOff) / epsilon, 0.0F, 1.0F);
 
-    if (theta > light.cutOff) {
-      totalColor = (ambient + diff + specular) * pointColor;
-    } else {
-      totalColor = ambient * pointColor;
-    }
+    diff *= intencity;
+    specular *= intencity;
+    vec3 totalColor = (ambient + diff + specular) * pointColor;
+
     // ===========================================================
 
     FragColor = vec4(totalColor, 1.0F);
