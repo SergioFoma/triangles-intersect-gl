@@ -59,7 +59,11 @@ FetchContent_Declare(googletest
 )
 FetchContent_MakeAvailable(googletest)
 
+# === triangles ===
+find_package(TBB REQUIRED COMPONENTS tbb)
+
 set(TRIANGLES triangles)
 add_library(${TRIANGLES} STATIC)
-add_subdirectory(${SRC}/triangles)
+target_link_libraries(${TRIANGLES} PUBLIC TBB::tbb)
+add_subdirectory(${SRC}/${TRIANGLES})
 add_subdirectory(tests)
