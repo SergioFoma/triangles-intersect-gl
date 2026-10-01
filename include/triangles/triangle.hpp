@@ -3,8 +3,9 @@
 
 #include <array>
 #include <stdexcept>
+#include <utility>
 
-#include "triangles/basics.hpp"
+#include "basics.hpp"
 
 namespace triangles {
 
@@ -15,6 +16,17 @@ class Triangle3D {
     if (!(p1.IsValid() && p2.IsValid() && p3.IsValid())) {
       throw std::runtime_error("Non valid arguments in Triangle Ctor");
     }
+    
+    if (p1.x_ > p2.x_) {
+      std::swap(p1, p2);
+    }
+    if (p1.x_ > p3.x_) {
+      std::swap(p1, p3);
+    }
+    if (p2.x_> p3.x_) {
+      std::swap(p2, p3);
+    }
+
     vertices_ = {p1, p2, p3};
     surface_ = {p1, p2, p3};
   }
@@ -22,6 +34,14 @@ class Triangle3D {
   bool IsValid() const {
     return vertices_[0].IsValid() && vertices_[1].IsValid() &&
            vertices_[2].IsValid();
+  }
+
+  double GetSmallerX() const {
+    return vertices_[0].x_;
+  }
+
+  double GetBiggestX() const {
+    return vertices_[2].x_;
   }
 
   bool DoesIntersect(const Triangle3D& other) const;

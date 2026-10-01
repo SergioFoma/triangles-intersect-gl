@@ -1,6 +1,6 @@
-#include "triangles/triangle.hpp"
+#include "triangle.hpp"
 
-#include "triangles/basics.hpp"
+#include "basics.hpp"
 
 namespace triangles {
 
