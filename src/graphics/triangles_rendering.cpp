@@ -104,6 +104,7 @@ render::SkyboxData CreateSkyboxObj(const std::vector<float>& raw_data,
 }
 
 
+
 render::SkyboxData CallSkyboxCreating(const render::SkyboxConfig& skybox_con) {
 
   std::vector<float> skybox_vertices = {
@@ -381,3 +382,4 @@ void utility::detail::MouseCallback(GLFWwindow* win, double xpos, double ypos) {
   camera.front.y = std::sin(pitch_rad);
   camera.front.z = std::cos(pitch_rad) * std::sin(yaw_rad);
 }
+

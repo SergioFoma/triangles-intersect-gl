@@ -81,5 +81,10 @@ unsigned int Shader::LinkShaders() {
     throw std::runtime_error("LinkShaders has an error!");
   }
 
+  error_code = glGetError();
+  if (error_code) {
+    throw std::runtime_error("LinkShaders has an error!");
+  }
+
   return shader_program_;
 }

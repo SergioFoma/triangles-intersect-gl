@@ -121,8 +121,6 @@ struct SkyboxData {
   SkyboxConfig config;
   RenderObject obj;
   unsigned int texture_id = 0;
-};
-}  // namespace render
 
 struct SkyboxData {
   SkyboxConfig config;

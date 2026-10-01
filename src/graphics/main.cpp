@@ -3,64 +3,8 @@
 
 #include <iostream>
 
-static render::LightConfig CreateLightConfig();
-static render::CameraConfig CreateCameraConfig(const utility::WinConfig& win_con);
-static render::ShaderConfig CreateShaderConfig();
-static render::SkyboxConfig CreateSkyboxConfig();
-static utility::WinConfig CreateWinConfig();
-
-int main() {
-  
-  utility::WinConfig win_con = CreateWinConfig();
-  render::LightConfig light_con = CreateLightConfig();
-  render::CameraConfig camera_con = CreateCameraConfig(win_con);
-  render::ShaderConfig shader_config = CreateShaderConfig();
-  render::SkyboxConfig skybox_config = CreateSkyboxConfig();
-  render::RenderConfig render_con = {camera_con, light_con, shader_config};
-
-  InitOpenGl(win_con);
-
-  GLFWwindow* win = CreateWindow("triangle 3D", win_con);
-  if (!win) {
-    std::cout << "CreateWindow: returned null ptr!\n";
-    CleanResources();
-    return 0;
-  }
-
-  if (InitGlad() != utility::ErrorType::kCorrect) {
-    std::cout << "InitGlad: returned negative value!\n";
-    CleanResources();
-    return 0;
-  }
-
-  ConfigureViewing(win);
-
-  render::Point p_1_1 = {-0.5F, -0.5F, 0.0F};
-  render::Point p_1_2 = {0.5F, -0.5F, 0.0F};
-  render::Point p_1_3 = {0.0F, 0.5F, 0.0F};
-  render::Color color_1 = {1.0F, 0.5F, 0.31F};
-
-  render::Point p_2_1 = {0.4F, 0.1F, -0.1F};
-  render::Point p_2_2 = {0.9F, 0.4F, -0.3F};
-  render::Point p_2_3 = {0.7F, 0.5F, -0.1F};
-  render::Color color_2 = {0.5F, 0.5F, 0.5F};
-
-  render::Triangle tr_1(p_1_1, p_1_2, p_1_3, color_1);
-  render::Triangle tr_2(p_2_1, p_2_2, p_2_3, color_2);
-
-  std::vector<render::Triangle> triangles = {tr_1, tr_2};
-    
-  render::ErrorType error_code = RenderTriangles(win, triangles, render_con, skybox_config);
-  if (error_code != render::ErrorType::kCorrect) {
-    std::cout << "RenderTriangles: return negative error code!\n";
-  }
-
-  CleanResources();
-
-  return 0;
-}
-
-static render::LightConfig CreateLightConfig() {
+namespace {
+render::LightConfig CreateLightConfig() {
   
   glm::vec3 color = glm::vec3(1.0F);
   float cut_off = 12.5F;
@@ -75,7 +19,7 @@ static render::LightConfig CreateLightConfig() {
   return light;
 }
 
-static render::CameraConfig CreateCameraConfig(const utility::WinConfig& win_con) {
+render::CameraConfig CreateCameraConfig(const utility::WinConfig& win_con) {
   glm::vec3 pos = glm::vec3(0.0F, 0.0F, 3.0F);
   glm::vec3 front = glm::vec3(0.0F, 0.0F, -1.0F);
   glm::vec3 up = glm::vec3(0.0F, 1.0F, 0.0F);
@@ -92,7 +36,7 @@ static render::CameraConfig CreateCameraConfig(const utility::WinConfig& win_con
   return camera;
 }
 
-static render::ShaderConfig CreateShaderConfig() {
+render::ShaderConfig CreateShaderConfig() {
   std::string vert_path =
     "./shaders/triangle.vert";    // triangle vertex shader
   std::string frag_path =
@@ -106,7 +50,7 @@ static render::ShaderConfig CreateShaderConfig() {
   return shader_con;
 }
 
-static render::SkyboxConfig CreateSkyboxConfig() {
+render::SkyboxConfig CreateSkyboxConfig() {
   std::vector<std::string> texture_sides = {
     "./blue/bkg1_right.png",
     "./blue/bkg1_left.png",
@@ -129,7 +73,7 @@ static render::SkyboxConfig CreateSkyboxConfig() {
   return skybox_con;
 }
 
-static utility::WinConfig CreateWinConfig() {
+utility::WinConfig CreateWinConfig() {
   int width = 1000;
   int height = 800;
   int major_version = 4;
@@ -138,4 +82,56 @@ static utility::WinConfig CreateWinConfig() {
   utility::WinConfig win_con = {width, height, major_version, minor_version};
   
   return win_con;
+}
+} // namespace
+
+int main() {
+  
+  utility::WinConfig win_con = CreateWinConfig();
+  render::LightConfig light_con = CreateLightConfig();
+  render::CameraConfig camera_con = CreateCameraConfig(win_con);
+  render::ShaderConfig shader_config = CreateShaderConfig();
+  render::SkyboxConfig skybox_config = CreateSkyboxConfig();
+  render::RenderConfig render_con = {camera_con, light_con, shader_config};
+
+  utility::InitOpenGl(win_con);
+
+  GLFWwindow* win = utility::CreateWindow("triangle 3D", win_con);
+  if (!win) {
+    std::cout << "CreateWindow: returned null ptr!\n";
+    utility::CleanResources();
+    return 0;
+  }
+
+  if (utility::InitGlad() != utility::ErrorType::kCorrect) {
+    std::cout << "InitGlad: returned negative value!\n";
+    utility::CleanResources();
+    return 0;
+  }
+
+  utility::ConfigureViewing(win);
+
+  render::Point p_1_1 = {-0.5F, -0.5F, 0.0F};
+  render::Point p_1_2 = {0.5F, -0.5F, 0.0F};
+  render::Point p_1_3 = {0.0F, 0.5F, 0.0F};
+  render::Color color_1 = {1.0F, 0.5F, 0.31F};
+
+  render::Point p_2_1 = {0.4F, 0.1F, -0.1F};
+  render::Point p_2_2 = {0.9F, 0.4F, -0.3F};
+  render::Point p_2_3 = {0.7F, 0.5F, -0.1F};
+  render::Color color_2 = {0.5F, 0.5F, 0.5F};
+
+  render::Triangle tr_1(p_1_1, p_1_2, p_1_3, color_1);
+  render::Triangle tr_2(p_2_1, p_2_2, p_2_3, color_2);
+
+  std::vector<render::Triangle> triangles = {tr_1, tr_2};
+    
+  render::ErrorType error_code = render::RenderTriangles(win, triangles, render_con, skybox_config);
+  if (error_code != render::ErrorType::kCorrect) {
+    std::cout << "RenderTriangles: return negative error code!\n";
+  }
+
+  utility::CleanResources();
+
+  return 0;
 }
