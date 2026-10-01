@@ -11,9 +11,15 @@ namespace triangles {
 class TriangleHandler {
   public:
     
-    explicit TriangleHandler(std::istream& in);
+    TriangleHandler() = default;
+
+    void ReadData(std::istream& in);
 
     void Sort();
+
+    void SearchIntersection();
+
+    void ClearData();
 
   private:
     
@@ -25,7 +31,7 @@ class TriangleHandler {
 
     static constexpr auto comparator_ = [](const Triangle3D& first,
                                           const Triangle3D& second) {
-      return first.GetSmallerX() < second.GetSmallerX();
+      return first.GetSmallestX() < second.GetSmallestX();
     };
 };
 

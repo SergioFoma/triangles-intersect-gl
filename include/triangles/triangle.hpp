@@ -36,7 +36,7 @@ class Triangle3D {
            vertices_[2].IsValid();
   }
 
-  double GetSmallerX() const {
+  double GetSmallestX() const {
     return vertices_[0].x_;
   }
 
