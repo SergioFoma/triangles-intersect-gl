@@ -53,11 +53,8 @@ endif()
 
 
 enable_testing()
-include(FetchContent)
-FetchContent_Declare(googletest
-    URL https://github.com/google/googletest/archive/refs/tags/v1.15.2.zip
-)
-FetchContent_MakeAvailable(googletest)
+
+fetch_if_not_available(GTest https://github.com/google/googletest/archive/refs/tags/v1.15.2.zip)
 
 # === triangles ===
 find_package(TBB REQUIRED COMPONENTS tbb)
