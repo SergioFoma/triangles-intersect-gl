@@ -8,10 +8,13 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <string>
+#include <stdexcept>
 
 class Shader {
  public:
   Shader(const Shader& other) = delete;
+
+  Shader(Shader&& other) = delete;
 
   Shader(const std::string& vert_path, const std::string& frag_path);
 
@@ -22,6 +25,8 @@ class Shader {
 
     int mat_loc = glGetUniformLocation(shader_program_, name_ptr);
     glUniformMatrix4fv(mat_loc, kOneMatrix, GL_FALSE, glm::value_ptr(mat));
+
+    if (glGetError()) throw std::runtime_error("SetMat4 has an error!");
   }
 
   void SetMat3(const std::string& name, const glm::mat3& mat) const {
@@ -31,6 +36,8 @@ class Shader {
 
     int mat_loc = glGetUniformLocation(shader_program_, name_ptr);
     glUniformMatrix3fv(mat_loc, kOneMatrix, GL_FALSE, glm::value_ptr(mat));
+
+    if (glGetError()) throw std::runtime_error("SetMat3 has an error!");
   }
 
   void SetVec3(const std::string& name, const glm::vec3& vec) const {
@@ -40,6 +47,8 @@ class Shader {
 
     int vec_loc = glGetUniformLocation(shader_program_, name_ptr);
     glUniform3fv(vec_loc, kOneVec, glm::value_ptr(vec));
+
+    if (glGetError()) throw std::runtime_error("SetVec3 has an error!");
   }
 
   void SetFloat(const std::string& name, float val) const {
@@ -49,6 +58,8 @@ class Shader {
 
     int val_loc = glGetUniformLocation(shader_program_, name_ptr);
     glUniform1f(val_loc, val);
+
+    if (glGetError()) throw std::runtime_error("SetFloat has an error!");
   }
 
   void SetInt(const std::string& name, int val) const {
@@ -58,6 +69,8 @@ class Shader {
 
     int val_loc = glGetUniformLocation(shader_program_, name_ptr);
     glUniform1i(val_loc, val);
+
+    if (glGetError()) throw std::runtime_error("SetInt has an error!");
   }
 
   void Use() const { glUseProgram(shader_program_); }
@@ -71,6 +84,8 @@ class Shader {
   unsigned int GetShaderProg() const { return shader_program_; }
 
   Shader& operator=(const Shader& other) = delete;
+
+  Shader& operator=(Shader&& other) = delete;
 
   ~Shader() { glDeleteProgram(shader_program_); }
 

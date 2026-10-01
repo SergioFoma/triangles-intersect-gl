@@ -1,4 +1,6 @@
 #include "triangles_rendering.hpp"
+#include "geometry_buffer.hpp"
+#include "utility.hpp"
 
 #include "glm/matrix.hpp"
 
@@ -8,6 +10,8 @@
 #include <cassert>
 #include <memory>
 #include <utility>
+#include <stdexcept>
+#include <iostream>
 
 namespace {
 const int kDimension = 3;         // R^3 (x, y, z)
@@ -18,30 +22,24 @@ const int kSkyboxVer = 36;        // skybox vertexes number
 float last_mouse_x = 0.0F;
 float last_mouse_y = 0.0F;
 bool first_mouse = true;
-} // namespace
 
-render::ErrorType RenderTriangles(GLFWwindow* win,
-                                  const std::vector<render::Triangle>& triangles,
-                                  const render::RenderConfig& render_con,
-                                  const render::SkyboxConfig& skybox_con) {
-  assert(win);
-
-  int float_counter = (kDimension + kColors + kNormal) * kVertexes;
-  size_t triangles_number = triangles.size();
-  size_t data_cap = (sizeof(float) * float_counter) * triangles_number;
-  std::vector<float> raw_data;  // convert triangle data to float
-  raw_data.reserve(data_cap);
-
-  InitData(raw_data, triangles);
-  
-  render::RenderObject tr_obj = CreateTriangleObj(raw_data, render_con.shader_con,
-                                                  triangles_number);
-  render::SkyboxData skybox_data = CallSkyboxCreating(skybox_con);
-
-  RenderCycle(win, tr_obj, render_con, skybox_data);
-
-  return render::ErrorType::kCorrect;
+void AddPointData(std::vector<float>& data, const render::Point& point,
+                  const render::Color& color) {
+  data.push_back(point.x);
+  data.push_back(point.y);
+  data.push_back(point.z);
+  data.push_back(color.r);
+  data.push_back(color.g);
+  data.push_back(color.b);
 }
+
+void AddNormalData(std::vector<float>& data, const glm::vec3& normal) {
+
+  data.push_back(normal.x);
+  data.push_back(normal.y);
+  data.push_back(normal.z);
+}
+
 
 void InitData(std::vector<float>& data,
               const std::vector<render::Triangle>& triangles) {
@@ -62,27 +60,85 @@ void InitData(std::vector<float>& data,
   }
 }
 
-void AddPointData(std::vector<float>& data, const render::Point& point,
-                  const render::Color& color) {
-  data.push_back(point.x);
-  data.push_back(point.y);
-  data.push_back(point.z);
-  data.push_back(color.r);
-  data.push_back(color.g);
-  data.push_back(color.b);
+unsigned int LoadCubemap(const render::SkyboxConfig& skybox_con) {
+
+  unsigned int texture_id = 0;
+  glGenTextures(render::kOneTexture, &texture_id);
+  glBindTexture(GL_TEXTURE_CUBE_MAP, texture_id);
+
+  int width = 0, height = 0;
+  int file_channels = 3;
+  int level = 0, border = 0;
+
+  const std::vector<std::string>& texture_sides = skybox_con.texture_sides;
+  int sides_number = skybox_con.sides_number;
+
+  for (int ind = 0; ind < sides_number; ++ind) {
+    unsigned char* data = stbi_load(texture_sides[ind].c_str(), &width, &height,
+                                   &file_channels, STBI_rgb);
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + ind,
+                 level, GL_RGB, width, height, border, GL_RGB,
+                 GL_UNSIGNED_BYTE, data);
+
+    stbi_image_free(data);
+  }
+
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+  int error_code = glGetError();
+  if (error_code) {
+    throw std::runtime_error("LoadCubemap has an error!");
+  }
+
+  return texture_id;
 }
 
-void AddNormalData(std::vector<float>& data, const glm::vec3& normal) {
 
-  data.push_back(normal.x);
-  data.push_back(normal.y);
-  data.push_back(normal.z);
+render::SkyboxData CreateSkyboxObj(const std::vector<float>& raw_data,
+                                     const render::SkyboxConfig& skybox_con) {
+
+  glm::mat4 model = glm::mat4(1.0F);
+  glm::mat4 normal_mat = glm::mat4(1.0F);
+
+  unsigned int no_colors = 0, no_normals = 0;
+
+  render::RenderObject skybox_obj = {
+    std::make_unique<GeometryBuffer>(raw_data, kDimension,
+                                     no_colors, no_normals,
+                                     kSkyboxVer),
+    std::make_unique<Shader>(skybox_con.shader_con.vert_path,
+                             skybox_con.shader_con.frag_path),
+                             model, normal_mat};
+
+  skybox_obj.geom_buff->Bind();
+  skybox_obj.geom_buff->SetCoordinates(skybox_con.shader_con.position_loc);
+  skybox_obj.geom_buff->Unbind();
+
+  unsigned int texture_id = LoadCubemap(skybox_con);
+
+  skybox_obj.shader->Use();
+  skybox_obj.shader->SetInt("skybox", 0);
+  skybox_obj.shader->Disable();
+
+  render::SkyboxData skybox_data = {skybox_con, std::move(skybox_obj), texture_id};
+
+  int error_code = glGetError();
+  if (error_code) {
+    throw std::runtime_error("CreateSkyboxObj has an error!");
+  }
+
+  return skybox_data;
 }
+
 
 render::SkyboxData CallSkyboxCreating(const render::SkyboxConfig& skybox_con) {
 
   std::vector<float> skybox_vertices = {
-        // positions          
+        // positions
         -1.0F,  1.0F, -1.0F,
         -1.0F, -1.0F, -1.0F,
          1.0F, -1.0F, -1.0F,
@@ -125,37 +181,43 @@ render::SkyboxData CallSkyboxCreating(const render::SkyboxConfig& skybox_con) {
         -1.0F, -1.0F,  1.0F,
          1.0F, -1.0F,  1.0F
   };
-  
+
   return CreateSkyboxObj(skybox_vertices, skybox_con);
 }
 
-void RenderCycle(GLFWwindow* win, render::RenderObject& tr_obj,
-                 const render::RenderConfig& render_con,
-                 render::SkyboxData& skybox_data) {
-  assert(win);
+void UpdateTrPos(render::RenderObject& tr_obj, const render::Camera& camera,
+                 const render::LightConfig& light_con) {
 
-  float back_r = 0.0F, back_g = 0.0F, back_b = 0.0F, alpha = 1.0F;
+  tr_obj.shader->SetMat4("model", tr_obj.model);
+  tr_obj.shader->SetMat4("view", camera.view);
+  tr_obj.shader->SetMat4("projection", camera.projection);
+  tr_obj.shader->SetMat3("normalMatrix", tr_obj.normal_mat);
+  tr_obj.shader->SetVec3("light.lightColor", light_con.color);
+  tr_obj.shader->SetVec3("light.viewPos", camera.pos);
+  tr_obj.shader->SetVec3("light.direction", camera.front);
 
-  render::Camera camera(render_con.camera_con);
+  tr_obj.shader->SetFloat("light.constant", light_con.constant);
+  tr_obj.shader->SetFloat("light.linear", light_con.linear);
+  tr_obj.shader->SetFloat("light.quadratic", light_con.quadratic);
+  tr_obj.shader->SetFloat("light.cutOff", glm::cos(glm::radians(light_con.cut_off)));
+  tr_obj.shader->SetFloat("light.outerCutOff", glm::cos(glm::radians(light_con.outer_cut_off)));
 
-  glfwSetWindowUserPointer(win, &camera);  // save info about camera in window
-    
-  while (glfwGetKey(win, GLFW_KEY_ESCAPE) != GLFW_PRESS) {
-    glClearColor(back_r, back_g, back_b, alpha);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  int error_code = glGetError();
+  if (error_code) {
+    throw std::runtime_error("UpdateTrPos has an error!");
+  }
+}
 
-    ProcessInput(win, camera);
-  
-    DrawTriangles(tr_obj, camera, render_con.light_con);
+void UpdateSkybox(const render::RenderObject& skybox_obj, const render::Camera& camera) {
 
-    glDepthFunc(GL_LEQUAL);
-    DrawSkybox(skybox_data, camera);
-    glDepthFunc(GL_LESS);
+  glm::mat4 view = glm::mat4(glm::mat3(camera.view));
 
+  skybox_obj.shader->SetMat4("view", view);
+  skybox_obj.shader->SetMat4("projection", camera.projection);
 
-    glfwSwapBuffers(win);
-    glfwPollEvents();
-
+  int error_code = glGetError();
+  if (error_code) {
+    throw std::runtime_error("UpdateSkybox has an error!");
   }
 }
 
@@ -165,110 +227,33 @@ void DrawTriangles(render::RenderObject& tr_obj, const render::Camera& camera,
   tr_obj.shader->Use();
   tr_obj.geom_buff->Bind();
   UpdateTrPos(tr_obj, camera, light_con);
-  tr_obj.geom_buff->Draw(GL_TRIANGLES); 
+  tr_obj.geom_buff->Draw(GL_TRIANGLES);
   tr_obj.geom_buff->Unbind();
   tr_obj.shader->Disable();
+
+  int error_code = glGetError();
+  if (error_code) {
+    throw std::runtime_error("DrawTriangles has an error!");
+  }
 }
 
 void DrawSkybox(render::SkyboxData& skybox_data,
                 const render::Camera& camera) {
-  
+
   render::RenderObject& skybox_obj = skybox_data.obj;
 
   skybox_obj.shader->Use();
   skybox_obj.geom_buff->Bind();
-  glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_CUBE_MAP, skybox_data.texture_id);
   UpdateSkybox(skybox_obj, camera);
   skybox_obj.geom_buff->Draw(GL_TRIANGLES);
   skybox_obj.geom_buff->Unbind();
   skybox_obj.shader->Disable();
-}
 
-render::RenderObject CreateTriangleObj(const std::vector<float>& raw_data,
-                                       const render::ShaderConfig& shader_con,
-                                       size_t triangles_number) {
-
-  glm::mat4 model = glm::mat4(1.0F);  // init unit matrix
-
-  glm::mat3 normal_mat = glm::mat3(glm::transpose(glm::inverse(model)));
-
-  render::RenderObject tr_obj = {
-      std::make_unique<GeometryBuffer>(raw_data, kDimension,
-                                        kColors, kNormal,
-                                        triangles_number * kVertexes),
-      std::make_unique<Shader>(shader_con.vert_path, shader_con.frag_path),
-      model, normal_mat};
-    
-  tr_obj.geom_buff->Bind();
-  tr_obj.geom_buff->SetCoordinates(shader_con.position_loc);
-  tr_obj.geom_buff->SetColors(shader_con.color_loc);
-  tr_obj.geom_buff->SetNormal(shader_con.normal_loc);
-  tr_obj.geom_buff->Unbind();
-
-  return tr_obj;
-}
-
-render::SkyboxData CreateSkyboxObj(const std::vector<float>& raw_data,
-                                     const render::SkyboxConfig& skybox_con) {
-
-  glm::mat4 model = glm::mat4(1.0F);
-  glm::mat4 normal_mat = glm::mat4(1.0F);
-  
-  unsigned int no_colors = 0, no_normals = 0;
-
-  render::RenderObject skybox_obj = {
-    std::make_unique<GeometryBuffer>(raw_data, kDimension,
-                                     no_colors, no_normals,
-                                     kSkyboxVer),
-    std::make_unique<Shader>(skybox_con.shader_con.vert_path,
-                             skybox_con.shader_con.frag_path),
-                             model, normal_mat};
-
-  skybox_obj.geom_buff->Bind();
-  skybox_obj.geom_buff->SetCoordinates(skybox_con.shader_con.position_loc);
-  skybox_obj.geom_buff->Unbind();
-
-  unsigned int texture_id = LoadCubemap(skybox_con);
-
-  skybox_obj.shader->SetInt("skybox", 0);
-
-  render::SkyboxData skybox_data = {skybox_con, std::move(skybox_obj), texture_id};
-
-  return skybox_data;
-}
-
-unsigned int LoadCubemap(const render::SkyboxConfig& skybox_con) {
-  const int one_texture = 1;
-
-  unsigned int texture_id = 0;
-  glGenTextures(one_texture, &texture_id);
-  glBindTexture(GL_TEXTURE_CUBE_MAP, texture_id);
-
-  int width = 0, height = 0;
-  int file_channels = 3;
-  int level = 0, border = 0; 
-  
-  const std::vector<std::string>& texture_sides = skybox_con.texture_sides;
-  int sides_number = skybox_con.sides_number;
-
-  for (int ind = 0; ind < sides_number; ++ind) {
-    unsigned char* data = stbi_load(texture_sides[ind].c_str(), &width, &height,
-                                   &file_channels, STBI_rgb);
-    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + ind,
-                 level, GL_RGB, width, height, border, GL_RGB,
-                 GL_UNSIGNED_BYTE, data);
-
-    stbi_image_free(data);
+  int error_code = glGetError();
+  if (error_code) {
+    throw std::runtime_error("DrawSkybox has an error!");
   }
-
-  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);  
-  
-  return texture_id;
 }
 
 void ProcessInput(GLFWwindow* win, render::Camera& camera) {
@@ -293,37 +278,108 @@ void ProcessInput(GLFWwindow* win, render::Camera& camera) {
     camera.pos -=
         glm::normalize(glm::cross(camera.up, camera.front)) * camera_speed;
   }
-  
+
   camera.UpdateCameraMatrix();
+
+  int error_code = glGetError();
+  if (error_code) {
+    throw std::runtime_error("ProcessInput has an error!");
+  }
 }
 
-void UpdateTrPos(render::RenderObject& tr_obj, const render::Camera& camera,
-                 const render::LightConfig& light_con) {
 
-  tr_obj.shader->SetMat4("model", tr_obj.model);
-  tr_obj.shader->SetMat4("view", camera.view);
-  tr_obj.shader->SetMat4("projection", camera.projection);
-  tr_obj.shader->SetMat3("normalMatrix", tr_obj.normal_mat);
-  tr_obj.shader->SetVec3("light.lightColor", light_con.color);
-  tr_obj.shader->SetVec3("light.viewPos", camera.pos);
-  tr_obj.shader->SetVec3("light.direction", camera.front);
+void RenderCycle(GLFWwindow* win, render::RenderObject& tr_obj,
+                 const render::RenderConfig& render_con,
+                 render::SkyboxData& skybox_data) {
+  assert(win);
 
-  tr_obj.shader->SetFloat("light.constant", light_con.constant);
-  tr_obj.shader->SetFloat("light.linear", light_con.linear);
-  tr_obj.shader->SetFloat("light.quadratic", light_con.quadratic);
-  tr_obj.shader->SetFloat("light.cutOff", glm::cos(glm::radians(light_con.cut_off)));
-  tr_obj.shader->SetFloat("light.outerCutOff", glm::cos(glm::radians(light_con.outer_cut_off)));
+  float back_r = 0.0F, back_g = 0.0F, back_b = 0.0F, alpha = 1.0F;
+
+  render::Camera camera(render_con.camera_con);
+
+  glfwSetWindowUserPointer(win, &camera);  // save info about camera in window
+
+  while (glfwGetKey(win, GLFW_KEY_ESCAPE) != GLFW_PRESS) {
+    glClearColor(back_r, back_g, back_b, alpha);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    ProcessInput(win, camera);
+
+    DrawTriangles(tr_obj, camera, render_con.light_con);
+
+    glDepthFunc(GL_LEQUAL);
+    DrawSkybox(skybox_data, camera);
+    glDepthFunc(GL_LESS);
+
+
+    glfwSwapBuffers(win);
+    glfwPollEvents();
+
+    if (glGetError()) {
+      throw std::runtime_error("RenderCycle has an error!");
+    }
+  }
 }
 
-void UpdateSkybox(const render::RenderObject& skybox_obj, const render::Camera& camera) {
-  
-  glm::mat4 view = glm::mat4(glm::mat3(camera.view));
+render::RenderObject CreateTriangleObj(const std::vector<float>& raw_data,
+                                       const render::ShaderConfig& shader_con,
+                                       size_t triangles_number) {
 
-  skybox_obj.shader->SetMat4("view", view);
-  skybox_obj.shader->SetMat4("projection", camera.projection);
+  glm::mat4 model = glm::mat4(1.0F);  // init unit matrix
+
+  glm::mat3 normal_mat = glm::mat3(glm::transpose(glm::inverse(model)));
+
+  render::RenderObject tr_obj = {
+      std::make_unique<GeometryBuffer>(raw_data, kDimension,
+                                        kColors, kNormal,
+                                        triangles_number * kVertexes),
+      std::make_unique<Shader>(shader_con.vert_path, shader_con.frag_path),
+      model, normal_mat};
+
+  tr_obj.geom_buff->Bind();
+  tr_obj.geom_buff->SetCoordinates(shader_con.position_loc);
+  tr_obj.geom_buff->SetColors(shader_con.color_loc);
+  tr_obj.geom_buff->SetNormal(shader_con.normal_loc);
+  tr_obj.geom_buff->Unbind();
+
+  int error_code = glGetError();
+  if (error_code) {
+    throw std::runtime_error("CreateTriangleObj has an error!");
+  }
+
+  return tr_obj;
+}
+} // namespace
+
+render::ErrorType render::RenderTriangles(GLFWwindow* win,
+                                  const std::vector<render::Triangle>& triangles,
+                                  const render::RenderConfig& render_con,
+                                  const render::SkyboxConfig& skybox_con) {
+  assert(win);
+
+  int float_counter = (kDimension + kColors + kNormal) * kVertexes;
+  size_t triangles_number = triangles.size();
+  size_t data_cap = (sizeof(float) * float_counter) * triangles_number;
+  std::vector<float> raw_data;  // convert triangle data to float
+  raw_data.reserve(data_cap);
+
+  InitData(raw_data, triangles);
+
+  render::RenderObject tr_obj = CreateTriangleObj(raw_data, render_con.shader_con,
+                                                  triangles_number);
+  render::SkyboxData skybox_data = CallSkyboxCreating(skybox_con);
+
+  RenderCycle(win, tr_obj, render_con, skybox_data);
+
+  if (glGetError()) {
+    throw std::runtime_error("RenderTriangles has an error!");
+    return render::ErrorType::kError;
+  }
+
+  return render::ErrorType::kCorrect;
 }
 
-void MouseCallback(GLFWwindow* win, double xpos, double ypos) {
+void utility::detail::MouseCallback(GLFWwindow* win, double xpos, double ypos) {
   assert(win);
 
   render::Camera* camera_ptr = static_cast<render::Camera*>(glfwGetWindowUserPointer(win));
@@ -358,3 +414,4 @@ void MouseCallback(GLFWwindow* win, double xpos, double ypos) {
   camera.front.y = std::sin(pitch_rad);
   camera.front.z = std::cos(pitch_rad) * std::sin(yaw_rad);
 }
+

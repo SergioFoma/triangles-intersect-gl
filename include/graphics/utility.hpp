@@ -14,7 +14,6 @@ struct WinConfig {
   int major_version = 0;
   int minor_version = 0;
 };
-}  // namespace utility
 
 void InitOpenGl(const utility::WinConfig& win_con);
 
@@ -24,12 +23,12 @@ void ConfigureViewing(GLFWwindow* win);
 
 utility::ErrorType InitGlad();
 
-void CallbackSettings(GLFWwindow* win);
-
-void FrameBufferSizeCallback(GLFWwindow* win, int width, int height);
-
 void CleanResources();
 
+namespace detail {
 void MouseCallback(GLFWwindow* win, double xpos, double ypos);
+} // namespace detail
+
+}  // namespace utility
 
 #endif

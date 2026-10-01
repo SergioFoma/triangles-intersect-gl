@@ -2,7 +2,6 @@
 
 #include <fstream>
 #include <sstream>
-#include <stdexcept>
 
 Shader::Shader(const std::string& vert_path, const std::string& frag_path) {
   std::string vertex_str = ReadShader(vert_path);
@@ -49,6 +48,11 @@ std::string Shader::ReadShader(const std::string& file_path) const {
 
   std::string str = ss.str();
 
+  int error_code = glGetError();
+  if (error_code) {
+    throw std::runtime_error("ReadShader has an error!");
+  }
+
   return str;
 }
 
@@ -69,6 +73,11 @@ unsigned int Shader::LinkShaders() {
       vertex_shader_);  // after linking, the shader is no longer needed - we delete it.
   glDeleteShader(
       fragment_shader_);  // after linking, the shader is no longer needed - we delete it.
+
+  error_code = glGetError();
+  if (error_code) {
+    throw std::runtime_error("LinkShaders has an error!");
+  }
 
   return shader_program_;
 }

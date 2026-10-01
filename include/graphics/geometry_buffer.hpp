@@ -4,10 +4,13 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <vector>
+#include <stdexcept>
 
 class GeometryBuffer {
  public:
   GeometryBuffer(const GeometryBuffer& other) = delete;
+
+  GeometryBuffer(GeometryBuffer&& other) = delete;
 
   explicit GeometryBuffer(const std::vector<float>& raw_data,
                           unsigned int vertex_dim, unsigned int color_dim,
@@ -26,20 +29,28 @@ class GeometryBuffer {
                  raw_data.data(), GL_STATIC_DRAW);
 
     Unbind();
+
+    if (glGetError()) throw std::runtime_error("GeometryBuffer has an error!");
   }
 
   void Bind() const {
     glBindVertexArray(vao_);
     glBindBuffer(GL_ARRAY_BUFFER, vbo_);
+
+    if (glGetError()) throw std::runtime_error("Bind has an error!");
   }
 
   void Unbind() const {
     glBindBuffer(GL_ARRAY_BUFFER, kUnbind);
     glBindVertexArray(kUnbind);
+
+    if (glGetError()) throw std::runtime_error("Undind has an error!");
   }
 
   void Draw(GLenum mode) const {
     glDrawArrays(mode, kStartIndex, vertex_count_);
+
+    if (glGetError()) throw std::runtime_error("Draw has an error!");
   }
 
   void SetCoordinates(int location) const {
@@ -62,6 +73,8 @@ class GeometryBuffer {
   unsigned int GetVbo() const { return vbo_; }
 
   GeometryBuffer& operator=(const GeometryBuffer& other) = delete;
+
+  GeometryBuffer& operator=(GeometryBuffer&& other) = delete;
 
   ~GeometryBuffer() {
     glDeleteBuffers(kBuffCount, &vbo_);
@@ -86,6 +99,8 @@ class GeometryBuffer {
     glVertexAttribPointer(location, att_dim, GL_FLOAT, GL_FALSE,
                           mul_coeff * sizeof(float), start_pos);
     glEnableVertexAttribArray(location);
+
+    if (glGetError()) throw std::runtime_error("SetAttribute has an error!");
   }
 };
 
