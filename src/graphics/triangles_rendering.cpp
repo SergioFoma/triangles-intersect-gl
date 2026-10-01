@@ -355,10 +355,10 @@ void utility::detail::MouseCallback(GLFWwindow* win, double xpos, double ypos) {
     return;
   }
 
-  if (mouse::first_mouse) {
-    mouse::last_mouse_x = xpos;
-    mouse::last_mouse_y = ypos;
-    mouse::first_mouse = false;
+  if (first_mouse) {
+    last_mouse_x = xpos;
+    last_mouse_y = ypos;
+    first_mouse = false;
   }
 
   float delta_x = (xpos - last_mouse_x) * camera_ptr->sensitivity;

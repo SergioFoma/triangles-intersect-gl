@@ -118,21 +118,20 @@ static render::SkyboxConfig CreateSkyboxConfig() {
   
   unsigned int sides_number = 6;
   unsigned int triangles_number = 36;
-  unsigned int texture_id = 0;
 
   render::ShaderConfig shader_con = {"./shaders/skybox.vert", "./shaders/skybox.frag",
                                       0, 1, 2};
 
   render::SkyboxConfig skybox_con = {texture_sides, sides_number,
-                       triangles_number, texture_id,
+                       triangles_number,
                        shader_con};
 
   return skybox_con;
 }
 
 static utility::WinConfig CreateWinConfig() {
-  int width = 800;
-  int height = 600;
+  int width = 1000;
+  int height = 800;
   int major_version = 4;
   int minor_version = 1;
 
