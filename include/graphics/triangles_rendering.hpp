@@ -70,8 +70,6 @@ struct SkyboxConfig {
   std::vector<std::string> texture_sides;
   unsigned int sides_number = 0;
   unsigned int triangles_number = 0;
-  unsigned int texture_id = 0;
-
   ShaderConfig shader_con;
 };
 
@@ -116,13 +114,19 @@ struct RenderObject {
   glm::mat4 model;
   glm::mat3 normal_mat;
 };
+
+struct SkyboxData {
+  SkyboxConfig config;
+  RenderObject obj;
+  unsigned int texture_id = 0;
+};
 }  // namespace render
 
 
 render::ErrorType RenderTriangles(GLFWwindow* win,
                                   const std::vector<render::Triangle>& triangles,
                                   const render::RenderConfig& render_con,
-                                  render::SkyboxConfig& skybox_con);
+                                  const render::SkyboxConfig& skybox_con);
 
 void InitData(std::vector<float>& data, const std::vector<render::Triangle>& triangles);
 
@@ -132,15 +136,13 @@ void AddPointData(std::vector<float>& data, const render::Point& point,
 void AddNormalData(std::vector<float>& data, const glm::vec3& normal);
 
 void RenderCycle(GLFWwindow* win, render::RenderObject& tr_obj,
-                 render::RenderObject& skybox_obj,
                  const render::RenderConfig& render_con,
-                 const render::SkyboxConfig& skybox_con);
+                 render::SkyboxData& skybox_data);
 
 void DrawTriangles(render::RenderObject& tr_obj, const render::Camera& camera, 
                   const render::LightConfig& light_con);
 
-void DrawSkybox(const render::RenderObject& shader_obj,
-                const render::SkyboxConfig& skybox_con,
+void DrawSkybox(render::SkyboxData& skybox_data,
                 const render::Camera& camera);
 
 void UpdateTrPos(render::RenderObject& tr_obj, const render::Camera& camera,
@@ -149,17 +151,17 @@ void UpdateTrPos(render::RenderObject& tr_obj, const render::Camera& camera,
 void UpdateSkybox(const render::RenderObject& skybox_obj,
                   const render::Camera& camera);
 
-void LoadCubemap(render::SkyboxConfig& skybox_con);
+unsigned int LoadCubemap(const render::SkyboxConfig& skybox_con);
 
 void ProcessInput(GLFWwindow* win, render::Camera& camera);
 
-render::RenderObject CallSkyboxCreating(render::SkyboxConfig& skybox_con);
+render::SkyboxData CallSkyboxCreating(const render::SkyboxConfig& skybox_con);
 
 render::RenderObject CreateTriangleObj(const std::vector<float>& raw_data,
                                        const render::ShaderConfig& shader_con, 
                                        size_t triangles_number);
 
-render::RenderObject CreateSkyboxObj(const std::vector<float>& raw_data,
-                                     render::SkyboxConfig& skybox_con);
+render::SkyboxData CreateSkyboxObj(const std::vector<float>& raw_data,
+                                     const render::SkyboxConfig& skybox_con);
 
 #endif

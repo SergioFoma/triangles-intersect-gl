@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <iostream>
+#include "geometry_buffer.hpp"
 
 namespace {
 const int kLowerLeftX = 0;
@@ -25,7 +26,7 @@ void InitOpenGl(const utility::WinConfig& win_con) {
 GLFWwindow* CreateWindow(const char* win_name, const utility::WinConfig& win_con) {
 
   GLFWwindow* win =
-      glfwCreateWindow(win_con.width, win_con.height, win_name, NULL, NULL);
+      glfwCreateWindow(win_con.width, win_con.height, win_name, nullptr, nullptr);
   if (!win) {
     std::cout << "glfwCreateWindow: window is nullptr!\n";
   }

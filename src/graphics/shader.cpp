@@ -17,7 +17,7 @@ Shader::Shader(const std::string& vert_path, const std::string& frag_path) {
   int error_code = 0;
 
   vertex_shader_ = glCreateShader(GL_VERTEX_SHADER);
-  glShaderSource(vertex_shader_, kLineCount, &vertex_ptr, NULL);
+  glShaderSource(vertex_shader_, kLineCount, &vertex_ptr, nullptr);
   glCompileShader(vertex_shader_);
   glGetShaderiv(vertex_shader_, GL_COMPILE_STATUS, &error_code);
 
@@ -26,7 +26,7 @@ Shader::Shader(const std::string& vert_path, const std::string& frag_path) {
   }
 
   fragment_shader_ = glCreateShader(GL_FRAGMENT_SHADER);
-  glShaderSource(fragment_shader_, kLineCount, &fragment_ptr, NULL);
+  glShaderSource(fragment_shader_, kLineCount, &fragment_ptr, nullptr);
   glCompileShader(fragment_shader_);
   glGetShaderiv(fragment_shader_, GL_COMPILE_STATUS, &error_code);
 

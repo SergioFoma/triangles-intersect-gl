@@ -7,12 +7,7 @@
 
 #include <cassert>
 #include <memory>
-
-namespace mouse {
-float last_mouse_x = 0.0F;
-float last_mouse_y = 0.0F;
-bool first_mouse = true;
-}  // namespace mouse
+#include <utility>
 
 namespace {
 const int kDimension = 3;         // R^3 (x, y, z)
@@ -20,12 +15,15 @@ const int kVertexes = 3;          // Point p_1, p_2, p_3
 const int kColors = 3;            // (r, g, b)
 const int kNormal = 3;            // (n_x, n_y, n_z)
 const int kSkyboxVer = 36;        // skybox vertexes number
+float last_mouse_x = 0.0F;
+float last_mouse_y = 0.0F;
+bool first_mouse = true;
 } // namespace
 
 render::ErrorType RenderTriangles(GLFWwindow* win,
                                   const std::vector<render::Triangle>& triangles,
                                   const render::RenderConfig& render_con,
-                                  render::SkyboxConfig& skybox_con) {
+                                  const render::SkyboxConfig& skybox_con) {
   assert(win);
 
   int float_counter = (kDimension + kColors + kNormal) * kVertexes;
@@ -38,9 +36,9 @@ render::ErrorType RenderTriangles(GLFWwindow* win,
   
   render::RenderObject tr_obj = CreateTriangleObj(raw_data, render_con.shader_con,
                                                   triangles_number);
-  render::RenderObject skybox_obj = CallSkyboxCreating(skybox_con);
+  render::SkyboxData skybox_data = CallSkyboxCreating(skybox_con);
 
-  RenderCycle(win, tr_obj, skybox_obj, render_con, skybox_con);
+  RenderCycle(win, tr_obj, render_con, skybox_data);
 
   return render::ErrorType::kCorrect;
 }
@@ -81,7 +79,7 @@ void AddNormalData(std::vector<float>& data, const glm::vec3& normal) {
   data.push_back(normal.z);
 }
 
-render::RenderObject CallSkyboxCreating(render::SkyboxConfig& skybox_con) {
+render::SkyboxData CallSkyboxCreating(const render::SkyboxConfig& skybox_con) {
 
   std::vector<float> skybox_vertices = {
         // positions          
@@ -132,9 +130,8 @@ render::RenderObject CallSkyboxCreating(render::SkyboxConfig& skybox_con) {
 }
 
 void RenderCycle(GLFWwindow* win, render::RenderObject& tr_obj,
-                 render::RenderObject& skybox_obj,
                  const render::RenderConfig& render_con,
-                 const render::SkyboxConfig& skybox_con) {
+                 render::SkyboxData& skybox_data) {
   assert(win);
 
   float back_r = 0.0F, back_g = 0.0F, back_b = 0.0F, alpha = 1.0F;
@@ -152,7 +149,7 @@ void RenderCycle(GLFWwindow* win, render::RenderObject& tr_obj,
     DrawTriangles(tr_obj, camera, render_con.light_con);
 
     glDepthFunc(GL_LEQUAL);
-    DrawSkybox(skybox_obj, skybox_con, camera);
+    DrawSkybox(skybox_data, camera);
     glDepthFunc(GL_LESS);
 
 
@@ -173,14 +170,15 @@ void DrawTriangles(render::RenderObject& tr_obj, const render::Camera& camera,
   tr_obj.shader->Disable();
 }
 
-void DrawSkybox(const render::RenderObject& skybox_obj,
-                const render::SkyboxConfig& skybox_con,
+void DrawSkybox(render::SkyboxData& skybox_data,
                 const render::Camera& camera) {
   
+  render::RenderObject& skybox_obj = skybox_data.obj;
+
   skybox_obj.shader->Use();
   skybox_obj.geom_buff->Bind();
   glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_CUBE_MAP, skybox_con.texture_id);
+  glBindTexture(GL_TEXTURE_CUBE_MAP, skybox_data.texture_id);
   UpdateSkybox(skybox_obj, camera);
   skybox_obj.geom_buff->Draw(GL_TRIANGLES);
   skybox_obj.geom_buff->Unbind();
@@ -211,8 +209,8 @@ render::RenderObject CreateTriangleObj(const std::vector<float>& raw_data,
   return tr_obj;
 }
 
-render::RenderObject CreateSkyboxObj(const std::vector<float>& raw_data,
-                                     render::SkyboxConfig& skybox_con) {
+render::SkyboxData CreateSkyboxObj(const std::vector<float>& raw_data,
+                                     const render::SkyboxConfig& skybox_con) {
 
   glm::mat4 model = glm::mat4(1.0F);
   glm::mat4 normal_mat = glm::mat4(1.0F);
@@ -231,15 +229,16 @@ render::RenderObject CreateSkyboxObj(const std::vector<float>& raw_data,
   skybox_obj.geom_buff->SetCoordinates(skybox_con.shader_con.position_loc);
   skybox_obj.geom_buff->Unbind();
 
-  LoadCubemap(skybox_con);
+  unsigned int texture_id = LoadCubemap(skybox_con);
 
   skybox_obj.shader->SetInt("skybox", 0);
 
+  render::SkyboxData skybox_data = {skybox_con, std::move(skybox_obj), texture_id};
 
-  return skybox_obj;
+  return skybox_data;
 }
 
-void LoadCubemap(render::SkyboxConfig& skybox_con) {
+unsigned int LoadCubemap(const render::SkyboxConfig& skybox_con) {
   const int one_texture = 1;
 
   unsigned int texture_id = 0;
@@ -247,7 +246,7 @@ void LoadCubemap(render::SkyboxConfig& skybox_con) {
   glBindTexture(GL_TEXTURE_CUBE_MAP, texture_id);
 
   int width = 0, height = 0;
-  int file_channels = 3, desired_channels = 0;
+  int file_channels = 3;
   int level = 0, border = 0; 
   
   const std::vector<std::string>& texture_sides = skybox_con.texture_sides;
@@ -255,7 +254,7 @@ void LoadCubemap(render::SkyboxConfig& skybox_con) {
 
   for (int ind = 0; ind < sides_number; ++ind) {
     unsigned char* data = stbi_load(texture_sides[ind].c_str(), &width, &height,
-                                   &file_channels, desired_channels);
+                                   &file_channels, STBI_rgb);
     glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + ind,
                  level, GL_RGB, width, height, border, GL_RGB,
                  GL_UNSIGNED_BYTE, data);
@@ -269,7 +268,7 @@ void LoadCubemap(render::SkyboxConfig& skybox_con) {
   glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);  
   
-  skybox_con.texture_id = texture_id;
+  return texture_id;
 }
 
 void ProcessInput(GLFWwindow* win, render::Camera& camera) {
@@ -333,16 +332,16 @@ void MouseCallback(GLFWwindow* win, double xpos, double ypos) {
     return;
   }
 
-  if (mouse::first_mouse) {
-    mouse::last_mouse_x = xpos;
-    mouse::last_mouse_y = ypos;
-    mouse::first_mouse = false;
+  if (first_mouse) {
+    last_mouse_x = xpos;
+    last_mouse_y = ypos;
+    first_mouse = false;
   }
 
-  float delta_x = (xpos - mouse::last_mouse_x) * camera_ptr->sensitivity;
-  float delta_y = (mouse::last_mouse_y - ypos) * camera_ptr->sensitivity;
-  mouse::last_mouse_x = xpos;
-  mouse::last_mouse_y = ypos;
+  float delta_x = (xpos - last_mouse_x) * camera_ptr->sensitivity;
+  float delta_y = (last_mouse_y - ypos) * camera_ptr->sensitivity;
+  last_mouse_x = xpos;
+  last_mouse_y = ypos;
 
   render::Camera& camera = *camera_ptr;
   camera.yaw += delta_x;
