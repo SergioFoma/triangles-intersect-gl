@@ -1,5 +1,20 @@
 cmake_minimum_required(VERSION 3.14)
 
+# === functions ===
+
+function(fetch_if_not_available PKG DOWNLOAD_URL)
+    find_package(${PKG} QUIET)
+    if(NOT ${PKG}_FOUND)
+        include(FetchContent)
+        FetchContent_Declare(${PKG}_fetchcontent
+            URL ${DOWNLOAD_URL}
+        )
+        FetchContent_MakeAvailable(${PKG}_fetchcontent)
+    endif()
+endfunction()
+
+# === project build ====
+
 project(triangles_gl)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE BOOL
@@ -30,13 +45,9 @@ target_link_libraries(${GRAPHICS} PUBLIC
 
 # === tests ===
 
-
 enable_testing()
-include(FetchContent)
-FetchContent_Declare(googletest
-    URL https://github.com/google/googletest/archive/refs/tags/v1.15.2.zip
-)
-FetchContent_MakeAvailable(googletest)
+
+fetch_if_not_available(GTest https://github.com/google/googletest/archive/refs/tags/v1.15.2.zip)
 
 # === triangles ===
 find_package(TBB REQUIRED COMPONENTS tbb)

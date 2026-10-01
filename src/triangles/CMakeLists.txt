@@ -1,7 +1,6 @@
 # === triangles ===
 
 set(TRIANGLES_SRC
-    ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/triangles.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/triangle_handler.cpp
 )
