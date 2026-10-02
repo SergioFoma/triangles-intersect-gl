@@ -31,7 +31,7 @@ class TriangleHandler {
 
     static constexpr auto comparator_ = [](const Triangle3D& first,
                                           const Triangle3D& second) {
-      return first.GetSmallestX() < second.GetSmallestX();
+      return first.GetMinX() < second.GetMinX();
     };
 };
 

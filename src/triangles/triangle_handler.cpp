@@ -65,12 +65,12 @@ void triangles::TriangleHandler::Sort() {
 void triangles::TriangleHandler::SearchIntersection() {
   
   for (unsigned int ind = 0; ind < sz_; ++ind) {
-    double min_x = triangles_[ind].GetSmallestX();
-    double max_x = triangles_[ind].GetBiggestX();
+    double min_x = triangles_[ind].GetMinX();
+    double max_x = triangles_[ind].GetMaxX();
 
     for (unsigned int next = ind + 1; next < sz_; ++next) {
-      double curr_min_x = triangles_[next].GetSmallestX();
-      double curr_max_x = triangles_[next].GetBiggestX();
+      double curr_min_x = triangles_[next].GetMinX();
+      double curr_max_x = triangles_[next].GetMaxX();
 
       if (curr_max_x < min_x || max_x < curr_min_x) {
         break;
