@@ -36,11 +36,11 @@ class Triangle3D {
            vertices_[2].IsValid();
   }
 
-  double GetSmallestX() const {
+  double GetMinX() const {
     return vertices_[0].x_;
   }
 
-  double GetBiggestX() const {
+  double GetMaxX() const {
     return vertices_[2].x_;
   }
 
@@ -61,6 +61,7 @@ class Triangle3D {
  private:
   bool DoesIntersectCopl(const Triangle3D& other) const;
   bool DoesIntersectNonCopl(const Triangle3D& other) const;
+  bool CheckIfIntesectOtherSurface(const Triangle3D& other);
 
   std::array<Point3D, 3> vertices_{};
   Surface surface_;

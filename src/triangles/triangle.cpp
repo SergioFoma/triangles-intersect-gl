@@ -11,6 +11,13 @@ namespace {
 //                | cx cy cz 1 |
 //                | dx dy dz 1 |
 
+
+enum class Cases {
+  kDoesNotIntersects,
+  kCoplanar,
+  kCanBeIntersected
+};
+
 double GetDeterminant4x4(const Point3D& a, const Point3D& b, const Point3D& c,
                          const Point3D& d) {
   return ((a.x_ - d.x_) *
@@ -23,17 +30,19 @@ double GetDeterminant4x4(const Point3D& a, const Point3D& b, const Point3D& c,
 }  // namespace
 
 bool Triangle3D::DoesIntersect(const Triangle3D& other) const {
-  if (IsCoplanar(other)) {
     return DoesIntersectCopl(other);
-  } else {
     return DoesIntersectNonCopl(other);
-  }
+}
+
+// ============================= CHECK IF COPLANAR ============================
+
+bool Triangle3D::CheckIfIntesectOtherSurface(const Triangle3D& other) {
 }
 
 // ============================= NON COPLANAR CASE ============================
 
 bool Triangle3D::DoesIntersectNonCopl(const Triangle3D& other) {
-
+// не ебу как это делать мб как то по статье
   return true;
 }
 
