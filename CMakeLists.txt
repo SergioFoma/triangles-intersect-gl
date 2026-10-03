@@ -48,12 +48,16 @@ target_link_libraries(${GRAPHICS} PUBLIC
 enable_testing()
 
 fetch_if_not_available(GTest https://github.com/google/googletest/archive/refs/tags/v1.15.2.zip)
+fetch_if_not_available(TBB https://github.com/uxlfoundation/oneTBB/archive/refs/heads/master.zip)
 
 # === triangles ===
-find_package(TBB REQUIRED COMPONENTS tbb)
 
-set(TRIANGLES triangles)
-add_library(${TRIANGLES} STATIC)
-target_link_libraries(${TRIANGLES} PUBLIC TBB::tbb)
-add_subdirectory(${SRC}/${TRIANGLES})
-add_subdirectory(tests)
+#set(TRIANGLES triangles)
+#add_library(${TRIANGLES} STATIC)
+#target_link_libraries(${TRIANGLES} PUBLIC TBB::tbb)
+#add_subdirectory(${SRC}/${TRIANGLES})
+#add_subdirectory(tests)
+
+# === adapter ===
+set(ADAPTER adapter)
+add_subdirectory(${SRC}/${ADAPTER})

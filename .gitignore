@@ -5,6 +5,10 @@ Build
 
 clang-format
 
+# Obsidian files
+Excalidraw/
+.obsidian/
+
 # Windows thumbnail cache files
 Thumbs.db
 Thumbs.db:encryptable

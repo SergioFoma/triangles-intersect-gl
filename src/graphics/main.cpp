@@ -5,7 +5,7 @@
 
 namespace {
 render::LightConfig CreateLightConfig() {
-  
+
   glm::vec3 color = glm::vec3(1.0F);
   float cut_off = 12.5F;
   float outer_cut_off = 17.5F;
@@ -29,7 +29,7 @@ render::CameraConfig CreateCameraConfig(const utility::WinConfig& win_con) {
   float near = 0.1F;
   float far = 100.0F;
   float mouse_sensitivity = 0.1F;
-  
+
   render::CameraConfig camera = {pos, front, up, speed, aspect,
                          fovy, near, far, mouse_sensitivity};
 
@@ -46,7 +46,7 @@ render::ShaderConfig CreateShaderConfig() {
   int normal_loc = 2;                 // location in shaders
 
   render::ShaderConfig shader_con = {vert_path, frag_path,
-                                  position_loc, color_loc, normal_loc}; 
+                                  position_loc, color_loc, normal_loc};
   return shader_con;
 }
 
@@ -59,7 +59,7 @@ render::SkyboxConfig CreateSkyboxConfig() {
     "./blue/bkg1_back.png",
     "./blue/bkg1_front.png"
   };
-  
+
   unsigned int sides_number = 6;
   unsigned int triangles_number = 36;
 
@@ -80,13 +80,13 @@ utility::WinConfig CreateWinConfig() {
   int minor_version = 1;
 
   utility::WinConfig win_con = {width, height, major_version, minor_version};
-  
+
   return win_con;
 }
 } // namespace
 
 int main() {
-  
+
   utility::WinConfig win_con = CreateWinConfig();
   render::LightConfig light_con = CreateLightConfig();
   render::CameraConfig camera_con = CreateCameraConfig(win_con);
@@ -124,12 +124,14 @@ int main() {
   render::Triangle tr_1(p_1_1, p_1_2, p_1_3, color_1);
   render::Triangle tr_2(p_2_1, p_2_2, p_2_3, color_2);
 
+  /*
   std::vector<render::Triangle> triangles = {tr_1, tr_2};
-    
+
   render::ErrorType error_code = render::RenderTriangles(win, triangles, render_con, skybox_config);
   if (error_code != render::ErrorType::kCorrect) {
     std::cout << "RenderTriangles: return negative error code!\n";
   }
+  */
 
   utility::CleanResources();
 

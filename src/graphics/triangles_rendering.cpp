@@ -23,6 +23,7 @@ float last_mouse_x = 0.0F;
 float last_mouse_y = 0.0F;
 bool first_mouse = true;
 
+/*
 void AddPointData(std::vector<float>& data, const render::Point& point,
                   const render::Color& color) {
   data.push_back(point.x);
@@ -59,6 +60,7 @@ void InitData(std::vector<float>& data,
     AddNormalData(data, normal);
   }
 }
+*/
 
 unsigned int LoadCubemap(const render::SkyboxConfig& skybox_con) {
 
@@ -352,20 +354,21 @@ render::RenderObject CreateTriangleObj(const std::vector<float>& raw_data,
 } // namespace
 
 render::ErrorType render::RenderTriangles(GLFWwindow* win,
-                                  const std::vector<render::Triangle>& triangles,
+                                  size_t triangles_number,
+                                  const std::vector<float>& triangles,
                                   const render::RenderConfig& render_con,
                                   const render::SkyboxConfig& skybox_con) {
   assert(win);
 
-  int float_counter = (kDimension + kColors + kNormal) * kVertexes;
-  size_t triangles_number = triangles.size();
-  size_t data_cap = (sizeof(float) * float_counter) * triangles_number;
-  std::vector<float> raw_data;  // convert triangle data to float
-  raw_data.reserve(data_cap);
+  //int float_counter = (kDimension + kColors + kNormal) * kVertexes;
+  //size_t triangles_number = triangles.size();
+  //size_t data_cap = (sizeof(float) * float_counter) * triangles_number;
+  //std::vector<float> raw_data;  // convert triangle data to float
+  //raw_data.reserve(data_cap);
 
-  InitData(raw_data, triangles);
+  //InitData(raw_data, triangles);
 
-  render::RenderObject tr_obj = CreateTriangleObj(raw_data, render_con.shader_con,
+  render::RenderObject tr_obj = CreateTriangleObj(triangles, render_con.shader_con,
                                                   triangles_number);
   render::SkyboxData skybox_data = CallSkyboxCreating(skybox_con);
 

@@ -35,7 +35,7 @@ struct Triangle {
   Color color;
 };
 
-// =============== Configs For User =================
+// ==================== Configs For User ==========================
 
 struct LightConfig {
   glm::vec3 color = glm::vec3(1.0F, 1.0F, 1.0F);
@@ -81,7 +81,7 @@ struct RenderConfig {
   ShaderConfig shader_con;
 };
 
-// =================================================
+// =============================================================
 
 struct Camera {
   glm::mat4 view = glm::mat4(1.0F);
@@ -132,7 +132,7 @@ struct SkyboxData {
     : config(std::move(other.config)),
       obj(std::move(other.obj)),
       texture_id(std::move(other.texture_id)) {
-    
+
     other.texture_id = 0;
   }
 
@@ -151,7 +151,8 @@ struct SkyboxData {
 };
 
 render::ErrorType RenderTriangles(GLFWwindow* win,
-                                  const std::vector<render::Triangle>& triangles,
+                                  size_t triangles_number,
+                                  const std::vector<float>& triangles,
                                   const render::RenderConfig& render_con,
                                   const render::SkyboxConfig& skybox_con);
 }  // namespace render
