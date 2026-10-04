@@ -72,13 +72,12 @@ class Triangle3D {
   const Point3D& GetThirdPoint() const {
     return vertices_[2];
   }
-
   bool DoesIntersect(const Triangle3D& other) const;
 
   const Surface& GetSurface() const { return surface_; }
 
  private:
-  bool DoesIntersectCopl(const Triangle3D& other) const;
+  bool DoesIntersectCopl(const Triangle3D& other) const {/*temporary*/ return true; };
   bool DoesIntersectNonCopl(const Triangle3D& other) const;
   bool CheckOtherTriangle(const Triangle3D& other,
                           VerticesOrientation orientations) const;
