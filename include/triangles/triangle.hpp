@@ -1,6 +1,7 @@
 #ifndef TRIANGLES_TRIANGLE_HPP_
 #define TRIANGLES_TRIANGLE_HPP_
 
+#include <algorithm>
 #include <array>
 #include <stdexcept>
 #include <utility>
@@ -9,22 +10,15 @@
 
 namespace triangles {
 
+using Vertices = std::array<Point3D, 3>;
+using VerticesOrientation = std::array<Orientation, 3>;
+
 class Triangle3D {
  public:
   Triangle3D() = default;
   Triangle3D(Point3D p1, Point3D p2, Point3D p3) {
     if (!(p1.IsValid() && p2.IsValid() && p3.IsValid())) {
       throw std::runtime_error("Non valid arguments in Triangle Ctor");
-    }
-
-    if (p1.x_ > p2.x_) {
-      std::swap(p1, p2);
-    }
-    if (p1.x_ > p3.x_) {
-      std::swap(p1, p3);
-    }
-    if (p2.x_> p3.x_) {
-      std::swap(p2, p3);
     }
 
     vertices_ = {p1, p2, p3};
@@ -36,12 +30,15 @@ class Triangle3D {
            vertices_[2].IsValid();
   }
 
-  double GetMinX() const {
-    return vertices_[0].x_;
+  Orientation GetPointOrientation(const Point3D& point) const {
+    return surface_.GetPointOrientation(point);
   }
 
+  double GetMinX() const {
+    return std::min({vertices_[0].x_, vertices_[1].x_, vertices_[2].x_});
+  }
   double GetMaxX() const {
-    return vertices_[2].x_;
+    return std::max({vertices_[0].x_, vertices_[1].x_, vertices_[2].x_});
   }
 
   const Point3D& GetFirstPoint() const {
@@ -55,16 +52,19 @@ class Triangle3D {
   const Point3D& GetThirdPoint() const {
     return vertices_[2];
   }
-
   bool DoesIntersect(const Triangle3D& other) const;
 
  private:
-  bool DoesIntersectCopl(const Triangle3D& other) const;
+  bool DoesIntersectCopl(const Triangle3D& other) const {/*temporary*/ return true; };
   bool DoesIntersectNonCopl(const Triangle3D& other) const;
-  bool CheckIfIntesectOtherSurface(const Triangle3D& other);
+  bool CheckOtherTriangle(const Triangle3D& other,
+                          VerticesOrientation orientations) const;
+  bool CheckSideIntersection(const Triangle3D& other,
+                             VerticesOrientation orientations,
+                             VerticesOrientation other_orientations) const;
 
-  std::array<Point3D, 3> vertices_{};
-  Surface surface_;
+  Vertices vertices_{};
+  struct Surface surface_;
 };
 
 }  // namespace triangles

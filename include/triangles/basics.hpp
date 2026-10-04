@@ -11,6 +11,14 @@ namespace triangles {
 
 const double kEps = 1e-9;
 
+inline bool IsZero(double value) {
+  return std::abs(value) < kEps;
+}
+
+inline bool HasSameSign(double a, double b, double c) {
+  return ((a >= 0) == (b >= 0)) && ((b >= 0) == (c >= 0));
+}
+
 struct Point3D {
   double x_{NAN}, y_{NAN}, z_{NAN};
 
@@ -21,14 +29,12 @@ struct Point3D {
     return std::isfinite(x_) && std::isfinite(y_) && std::isfinite(z_);
   }
   void Print() const { std::cout << "Point: " << x_ << ' ' << y_ << ' ' << z_; }
+};
 
-  Point3D operator-(const Point3D& other) const {
-    return {x_ - other.x_, y_ - other.y_, z_ - other.z_};
-  }
-
-  Point3D operator+(const Point3D& other) const {
-    return {x_ + other.x_, y_ + other.y_, z_ + other.z_};
-  }
+enum class Orientation : uint8_t {
+  kNegative,
+  kCoplanar,
+  kPositive
 };
 
 struct Surface {
@@ -46,18 +52,20 @@ struct Surface {
     double c = ((p2.x_ - p1.x_) * (p3.y_ - p1.y_)) -
                ((p2.y_ - p1.y_) * (p3.x_ - p1.x_));
     double norm = std::sqrt((a * a) + (b * b) + (c * c));
-    a = a / norm; b = b / norm; c = c / norm;
+    a = -a / norm; b = -b / norm; c = -c / norm;
     double d = -(a * p1.x_) - (b * p1.y_) - (c * p1.z_);
     a_ = a; b_ = b; c_ = c; d_ = d;
   }
 
-  bool IsCoplanar(const Surface& other) const {
-    double sign =
-        (a_ * other.a_) + (b_ * other.b_) + (c_ * other.c_) < 0 ? -1.0 : 1.0;
-    return std::abs(a_ - (sign * other.a_)) < kEps &&
-           std::abs(b_ - (sign * other.b_)) < kEps &&
-           std::abs(c_ - (sign * other.c_)) < kEps &&
-           std::abs(d_ - (sign * other.d_)) < kEps;
+  Orientation GetPointOrientation(const Point3D& point) const {
+    const double distance =
+        (a_ * point.x_) + (b_ * point.y_) + (c_ * point.z_) + d_;
+
+    if (IsZero(distance)) {
+      return Orientation::kCoplanar;
+    }
+    return distance > 0 ? Orientation::kPositive
+                        : Orientation::kNegative;
   }
 };
 

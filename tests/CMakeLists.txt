@@ -1,5 +1,6 @@
 set(TEST_TARGET_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/point_test.cpp
-                        ${CMAKE_CURRENT_SOURCE_DIR}/triangle_test.cpp)
+                        ${CMAKE_CURRENT_SOURCE_DIR}/triangle_test.cpp
+                        ${CMAKE_CURRENT_SOURCE_DIR}/noncoplanar_triangle_test.cpp)
 
 set(TEST_TARGET triangles_tests)
 add_executable(${TEST_TARGET})
