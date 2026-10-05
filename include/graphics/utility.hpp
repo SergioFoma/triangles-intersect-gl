@@ -15,6 +15,8 @@ struct WinConfig {
   int minor_version = 0;
 };
 
+GLFWwindow* InitGraphics(const utility::WinConfig& win_con);
+
 void InitOpenGl(const utility::WinConfig& win_con);
 
 GLFWwindow* CreateWindow(const char* win_name, const utility::WinConfig& win_con);

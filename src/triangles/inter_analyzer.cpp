@@ -1,28 +1,46 @@
 #include <algorithm>
-#include <execution>
+#include <tbb/parallel_sort.h>
 #include <stdexcept>
 
 #include "inter_analyzer.hpp"
 
-namespace analyzer {
+analyzer::InterAnalyzer::InterAnalyzer(const analyzer::TriangleArr& triangles)
+  : triangles_(triangles) {
 
-void InterAnalyzer::Sort() {
-
-  std::sort(std::execution::par, triangles_.begin(), triangles_.end(), kComparator);
+  ConstructorBody();
 }
 
-void InterAnalyzer::AnalyzeIntersection() {
+analyzer::InterAnalyzer::InterAnalyzer(analyzer::TriangleArr&& triangles)
+  : triangles_(std::move(triangles)) {
+
+  ConstructorBody();
+}
+
+void analyzer::InterAnalyzer::ConstructorBody() {
+
+  size_t sz = triangles_.size();
+  intersect_status_.resize(sz);
+
+  Sort();
+
+  AnalyzeIntersection();
+}
+
+void analyzer::InterAnalyzer::Sort() {
+
+  tbb::parallel_sort(triangles_.begin(), triangles_.end(), kComparator);
+}
+
+void analyzer::InterAnalyzer::AnalyzeIntersection() {
 
   size_t sz = triangles_.size();
   for (size_t ind = 0; ind < sz; ++ind) {
+
     double min_x = triangles_[ind].GetMinX();
     double max_x = triangles_[ind].GetMaxX();
 
-    if (intersect_status_[ind]) {
-        continue;
-    }
-
     for (size_t next = ind + 1; next < sz; ++next) {
+
       double curr_min_x = triangles_[next].GetMinX();
       double curr_max_x = triangles_[next].GetMaxX();
 
@@ -32,25 +50,30 @@ void InterAnalyzer::AnalyzeIntersection() {
         continue;
       }
 
-      intersect_status_[ind] = triangles_[ind].DoesIntersect(triangles_[next]);
-      if (intersect_status_[ind]) {
+      if (triangles_[ind].DoesIntersect(triangles_[next])) {
+        intersect_status_[ind] = true;
         intersect_status_[next] = true;
-        break;
       }
     }
   }
 }
 
-InterAnalyzer::InterAnalyzer(analyzer::TriangleArr triangles)
-  : triangles_(std::move(triangles)) {
 
-    size_t sz = triangles_.size();
-    intersect_status_.resize(sz);
+/*
+void analyzer::InterAnalyzer::AnalyzeIntersection() {
 
-    Sort();
+  size_t sz = triangles_.size();
 
-    AnalyzeIntersection();
+  for (size_t ind = 0; ind < sz; ++ind) {
+    for (size_t next = 0; next < sz; ++next) {
+
+      if (intersect_status_[ind]) {
+          break;
+      }
+
+      intersect_status_[ind] = triangles_[ind].DoesIntersect(triangles_[next]);
+    }
+  }
 }
-
-} //namespace analyzer
+*/
 

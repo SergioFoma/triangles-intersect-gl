@@ -30,8 +30,8 @@ class Adapter {
   render::RenderConfig render_con_;
   render::SkyboxConfig skybox_con_;
 
-  render::Color red_color_ = {1.0F, 0.0F, 0.0F};
-  render::Color white_color_ = {1.0F, 1.0F, 1.0F};
+  static constexpr render::Color red_color_ = {1.0F, 0.0F, 0.0F};
+  static constexpr render::Color white_color_ = {1.0F, 1.0F, 1.0F};
 
   void ConvertPoint(const triangles::Point3D& point);
 

@@ -12,7 +12,9 @@ using TriangleArr = std::vector<triangles::Triangle3D>;
 class InterAnalyzer {
  public:
 
-  explicit InterAnalyzer(TriangleArr  triangles);
+  explicit InterAnalyzer(TriangleArr&& triangles);
+
+  explicit InterAnalyzer(const TriangleArr&  triangles);
 
   const TriangleArr& GetTriangles() const {
     return triangles_;
@@ -33,7 +35,10 @@ class InterAnalyzer {
   };
 
   void Sort();
+
   void AnalyzeIntersection();
+  
+  void ConstructorBody();
 };
 } // namespace analyzer
 

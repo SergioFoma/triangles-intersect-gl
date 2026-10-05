@@ -53,6 +53,10 @@ class Triangle3D {
   }
   bool DoesIntersect(const Triangle3D& other) const;
 
+  const Surface& GetSurface() const {
+    return surface_;
+  }
+
  private:
   bool DoesIntersectCopl(const Triangle3D& other) const;
   bool DoesIntersectNonCopl(const Triangle3D& other) const;

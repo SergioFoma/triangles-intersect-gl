@@ -33,6 +33,26 @@ void CallbackSettings(GLFWwindow* win) {
 }
 } // namespace
 
+GLFWwindow* utility::InitGraphics(const utility::WinConfig& win_con) {
+  utility::InitOpenGl(win_con);
+
+  GLFWwindow* win = utility::CreateWindow("triangle 3D", win_con);
+
+  if (!win) {
+    utility::CleanResources();
+    throw std::runtime_error("CreateWindow: returned null ptr!\n");
+  }
+
+  if (utility::InitGlad() != utility::ErrorType::kCorrect) {
+    utility::CleanResources();
+    throw std::runtime_error("InitGlad: returned negative value!\n");
+  }
+
+  utility::ConfigureViewing(win);
+
+  return win;
+}
+
 void utility::InitOpenGl(const utility::WinConfig& win_con) {
   /*
         GLFW_OPENGL_CORE_PROFILE - usu only modern function

@@ -23,45 +23,6 @@ float last_mouse_x = 0.0F;
 float last_mouse_y = 0.0F;
 bool first_mouse = true;
 
-/*
-void AddPointData(std::vector<float>& data, const render::Point& point,
-                  const render::Color& color) {
-  data.push_back(point.x);
-  data.push_back(point.y);
-  data.push_back(point.z);
-  data.push_back(color.r);
-  data.push_back(color.g);
-  data.push_back(color.b);
-}
-
-void AddNormalData(std::vector<float>& data, const glm::vec3& normal) {
-
-  data.push_back(normal.x);
-  data.push_back(normal.y);
-  data.push_back(normal.z);
-}
-
-
-void InitData(std::vector<float>& data,
-              const std::vector<render::Triangle>& triangles) {
-
-  for (const auto& tr : triangles) {
-    const render::Color& color = tr.color;
-    glm::vec3 v_12 = glm::vec3(tr.p_1.x - tr.p_2.x, tr.p_1.y - tr.p_2.y,
-                                     tr.p_1.z - tr.p_2.z);
-    glm::vec3 v_13 = glm::vec3(tr.p_1.x - tr.p_3.x, tr.p_1.y - tr.p_3.y,
-                                       tr.p_1.z - tr.p_3.z);
-    glm::vec3 normal = glm::normalize(glm::cross(v_12, v_13));
-    AddPointData(data, tr.p_1, color);
-    AddNormalData(data, normal);
-    AddPointData(data, tr.p_2, color);
-    AddNormalData(data, normal);
-    AddPointData(data, tr.p_3, color);
-    AddNormalData(data, normal);
-  }
-}
-*/
-
 unsigned int LoadCubemap(const render::SkyboxConfig& skybox_con) {
 
   unsigned int texture_id = 0;
@@ -359,14 +320,6 @@ render::ErrorType render::RenderTriangles(GLFWwindow* win,
                                   const render::RenderConfig& render_con,
                                   const render::SkyboxConfig& skybox_con) {
   assert(win);
-
-  //int float_counter = (kDimension + kColors + kNormal) * kVertexes;
-  //size_t triangles_number = triangles.size();
-  //size_t data_cap = (sizeof(float) * float_counter) * triangles_number;
-  //std::vector<float> raw_data;  // convert triangle data to float
-  //raw_data.reserve(data_cap);
-
-  //InitData(raw_data, triangles);
 
   render::RenderObject tr_obj = CreateTriangleObj(triangles, render_con.shader_con,
                                                   triangles_number);
