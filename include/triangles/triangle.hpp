@@ -4,7 +4,6 @@
 #include <algorithm>
 #include <array>
 #include <stdexcept>
-#include <utility>
 
 #include "basics.hpp"
 
@@ -77,7 +76,7 @@ class Triangle3D {
   const Surface& GetSurface() const { return surface_; }
 
  private:
-  bool DoesIntersectCopl(const Triangle3D& other) const {/*temporary*/ return true; };
+  bool DoesIntersectCopl(const Triangle3D& other) const;
   bool DoesIntersectNonCopl(const Triangle3D& other) const;
   bool CheckOtherTriangle(const Triangle3D& other,
                           VerticesOrientation orientations) const;

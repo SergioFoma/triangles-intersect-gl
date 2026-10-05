@@ -29,6 +29,20 @@ struct Point3D {
     return std::isfinite(x_) && std::isfinite(y_) && std::isfinite(z_);
   }
   void Print() const { std::cout << "Point: " << x_ << ' ' << y_ << ' ' << z_; }
+
+  Point3D operator-(const Point3D& other) const {
+    return {x_ - other.x_, y_ - other.y_, z_ - other.z_};
+  };
+
+  Point3D Cross(const Point3D& other) const {
+    return {(y_ * other.z_) - (z_ * other.y_),
+            (z_ * other.x_) - (x_ * other.z_),
+            (x_ * other.y_) - (y_ * other.x_)};
+  }
+
+  double Dot(const Point3D& other) const {
+    return (x_ * other.x_) + (y_ * other.y_) + (z_ * other.z_);
+  }
 };
 
   Point3D operator+(const Point3D& other) const {
