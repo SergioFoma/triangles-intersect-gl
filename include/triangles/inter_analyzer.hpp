@@ -27,9 +27,9 @@ class InterAnalyzer {
   TriangleArr triangles_;
   std::vector<bool> intersect_status_;
 
-  static constexpr auto comparator_ = [](const triangles::Triangle3D& first,
+  static constexpr auto kComparator = [](const triangles::Triangle3D& first,
                                          const triangles::Triangle3D& second) {
-      return first.GetSmallestX() < second.GetSmallestX();
+      return first.GetMinX() < second.GetMinX();
   };
 
   void Sort();

@@ -4,7 +4,6 @@
 #include <cmath>
 #include <cstdlib>
 #include <iostream>
-#include <exception>
 #include <stdexcept>
 
 namespace triangles {
@@ -29,6 +28,20 @@ struct Point3D {
     return std::isfinite(x_) && std::isfinite(y_) && std::isfinite(z_);
   }
   void Print() const { std::cout << "Point: " << x_ << ' ' << y_ << ' ' << z_; }
+
+  Point3D operator-(const Point3D& other) const {
+    return {x_ - other.x_, y_ - other.y_, z_ - other.z_};
+  };
+
+  Point3D Cross(const Point3D& other) const {
+    return {(y_ * other.z_) - (z_ * other.y_),
+            (z_ * other.x_) - (x_ * other.z_),
+            (x_ * other.y_) - (y_ * other.x_)};
+  }
+
+  double Dot(const Point3D& other) const {
+    return (x_ * other.x_) + (y_ * other.y_) + (z_ * other.z_);
+  }
 };
 
 enum class Orientation : uint8_t {
@@ -38,7 +51,8 @@ enum class Orientation : uint8_t {
 };
 
 struct Surface {
-  double a_{NAN}, b_{NAN}, c_{NAN}, d_{NAN};
+  Point3D norm_;
+  double d_{NAN};
 
   Surface() = default;
   Surface(const Point3D& p1, const Point3D& p2, const Point3D& p3) {
@@ -52,15 +66,23 @@ struct Surface {
     double c = ((p2.x_ - p1.x_) * (p3.y_ - p1.y_)) -
                ((p2.y_ - p1.y_) * (p3.x_ - p1.x_));
     double norm = std::sqrt((a * a) + (b * b) + (c * c));
+    if (IsZero(norm)) {
+      norm_ = {NAN, NAN, NAN};
+      d_ = NAN;
+      return;
+    }
     a = -a / norm; b = -b / norm; c = -c / norm;
     double d = -(a * p1.x_) - (b * p1.y_) - (c * p1.z_);
-    a_ = a; b_ = b; c_ = c; d_ = d;
+    norm_ = {a, b, c};
+    d_ = d;
+  }
+
+  bool IsValid() const {
+    return norm_.IsValid() && std::isfinite(d_);
   }
 
   Orientation GetPointOrientation(const Point3D& point) const {
-    const double distance =
-        (a_ * point.x_) + (b_ * point.y_) + (c_ * point.z_) + d_;
-
+    const double distance = norm_.Dot(point) + d_;
     if (IsZero(distance)) {
       return Orientation::kCoplanar;
     }

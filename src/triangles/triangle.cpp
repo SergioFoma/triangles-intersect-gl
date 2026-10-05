@@ -1,4 +1,5 @@
 #include <cassert>
+#include <cstddef>
 #include "triangle.hpp"
 
 #include "basics.hpp"
@@ -7,23 +8,23 @@ namespace triangles {
 
 namespace {
 
-enum class Case {
+enum class InterCase {
   kNoIntersection,
   kCoplanar,
   kCanBeIntersection
 };
 
-Case GetIntersectionCase(VerticesOrientation orientations) {
+InterCase GetIntersectionCase(VerticesOrientation orientations) {
   if (orientations[0] == Orientation::kCoplanar &&
       orientations[1] == Orientation::kCoplanar &&
       orientations[2] == Orientation::kCoplanar)
-    return Case::kCoplanar;
+    return InterCase::kCoplanar;
 
   if ((orientations[0] == orientations[1]) &&
       (orientations[1] == orientations[2]))
-    return Case::kNoIntersection;
+    return InterCase::kNoIntersection;
 
-  return Case::kCanBeIntersection;
+  return InterCase::kCanBeIntersection;
 }
 }  // namespace
 
@@ -36,11 +37,11 @@ bool Triangle3D::DoesIntersect(const Triangle3D& other) const {
                                       other.GetPointOrientation(q1),
                                       other.GetPointOrientation(r1)};
   switch (GetIntersectionCase(orientations)) {
-    case Case::kNoIntersection:
+    case InterCase::kNoIntersection:
       return false;
-    case Case::kCanBeIntersection:
+    case InterCase::kCanBeIntersection:
       return CheckOtherTriangle(other, orientations);
-    case Case::kCoplanar:
+    case InterCase::kCoplanar:
       return DoesIntersectCopl(other);
     default:
       assert(0 && "No such case.");
@@ -62,11 +63,11 @@ bool Triangle3D::CheckOtherTriangle(const Triangle3D& other,
                                             GetPointOrientation(r2)};
 
   switch (GetIntersectionCase(other_orientations)) {
-    case Case::kNoIntersection:
+    case InterCase::kNoIntersection:
       return false;
-    case Case::kCanBeIntersection:
+    case InterCase::kCanBeIntersection:
       return CheckSideIntersection(other, orientations, other_orientations);
-    case Case::kCoplanar:
+    case InterCase::kCoplanar:
       return DoesIntersectCopl(other);
     default:
       assert(0 && "No such case.");
@@ -156,9 +157,41 @@ bool Triangle3D::CheckSideIntersection(const Triangle3D& other,
 
 // ============================== COPLANAR CASE ===============================
 
-// bool Triangle3D::DoesIntersectCopl(const Triangle3D& other) const{
-// не ебу как это делать мб как то по статье
-//   return true;
-// }
+namespace {
+enum class Side {
+  kUndefined,
+  kPositive,
+  kNegative
+};
+
+Side GetSide(double dist) {
+  if (IsZero(dist)) return Side::kUndefined;
+  return dist > 0 ? Side::kPositive : Side::kNegative;
+}
+} // namespace
+
+bool Triangle3D::CheckCoplSeparation(const Triangle3D& other) const {
+  for (size_t i = 0; i < 3; ++i) {
+    Point3D side_vector = vertices_[(i + 1) % 3] - vertices_[i];
+    Point3D normal_to_side = side_vector.Cross(surface_.norm_);
+    const Side vert_side = Side::kPositive;
+
+    bool does_separate = false;
+    for (size_t j = 0; j < 3; ++j) {
+      double dist = normal_to_side.Dot(other.vertices_[j] - vertices_[i]);
+      Side other_side = GetSide(dist);
+      if (other_side == Side::kUndefined || other_side == vert_side) {
+        does_separate = true;
+        break;
+      }
+    }
+    if (!does_separate) return true;
+  }
+  return false;
+}
+
+bool Triangle3D::DoesIntersectCopl(const Triangle3D& other) const {
+  return !(CheckCoplSeparation(other) || other.CheckCoplSeparation(*this));
+}
 
 }  // namespace triangles

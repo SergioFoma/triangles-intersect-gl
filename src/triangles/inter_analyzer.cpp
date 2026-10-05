@@ -8,23 +8,23 @@ namespace analyzer {
 
 void InterAnalyzer::Sort() {
 
-  std::sort(std::execution::par, triangles_.begin(), triangles_.end(), comparator_);
+  std::sort(std::execution::par, triangles_.begin(), triangles_.end(), kComparator);
 }
 
 void InterAnalyzer::AnalyzeIntersection() {
 
   size_t sz = triangles_.size();
   for (size_t ind = 0; ind < sz; ++ind) {
-    double min_x = triangles_[ind].GetSmallestX();
-    double max_x = triangles_[ind].GetBiggestX();
+    double min_x = triangles_[ind].GetMinX();
+    double max_x = triangles_[ind].GetMaxX();
 
     if (intersect_status_[ind]) {
         continue;
     }
 
     for (size_t next = ind + 1; next < sz; ++next) {
-      double curr_min_x = triangles_[next].GetSmallestX();
-      double curr_max_x = triangles_[next].GetBiggestX();
+      double curr_min_x = triangles_[next].GetMinX();
+      double curr_max_x = triangles_[next].GetMaxX();
 
       if (max_x < curr_min_x) {
         break;

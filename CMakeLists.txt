@@ -33,6 +33,8 @@ set(TARGET triangles_gl)
 # === graphics ===
 find_package(OpenGL REQUIRED)
 find_package(glfw3 REQUIRED)
+
+
 set(GRAPHICS graphics)
 add_executable(${GRAPHICS})
 add_subdirectory(${SRC}/${GRAPHICS})

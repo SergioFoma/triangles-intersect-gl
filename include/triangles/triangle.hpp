@@ -4,7 +4,6 @@
 #include <algorithm>
 #include <array>
 #include <stdexcept>
-#include <utility>
 
 #include "basics.hpp"
 
@@ -27,7 +26,7 @@ class Triangle3D {
 
   bool IsValid() const {
     return vertices_[0].IsValid() && vertices_[1].IsValid() &&
-           vertices_[2].IsValid();
+           vertices_[2].IsValid() && surface_.IsValid();
   }
 
   Orientation GetPointOrientation(const Point3D& point) const {
@@ -55,13 +54,14 @@ class Triangle3D {
   bool DoesIntersect(const Triangle3D& other) const;
 
  private:
-  bool DoesIntersectCopl(const Triangle3D& other) const {/*temporary*/ return true; };
+  bool DoesIntersectCopl(const Triangle3D& other) const;
   bool DoesIntersectNonCopl(const Triangle3D& other) const;
   bool CheckOtherTriangle(const Triangle3D& other,
                           VerticesOrientation orientations) const;
   bool CheckSideIntersection(const Triangle3D& other,
                              VerticesOrientation orientations,
                              VerticesOrientation other_orientations) const;
+  bool CheckCoplSeparation(const Triangle3D& other) const;
 
   Vertices vertices_{};
   struct Surface surface_;

@@ -4,7 +4,6 @@
 #include <vector>
 
 #include "triangles_rendering.hpp"
-#include "utility.hpp"
 #include "triangle.hpp"
 
 namespace adapter {
