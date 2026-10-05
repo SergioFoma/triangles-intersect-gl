@@ -1,7 +1,7 @@
 #include <cassert>
 #include <cstddef>
-#include "triangle.hpp"
 
+#include "triangle.hpp"
 #include "basics.hpp"
 
 namespace triangles {
@@ -53,6 +53,8 @@ bool Triangle3D::DoesIntersect(const Triangle3D& other) const {
 
 bool Triangle3D::CheckOtherTriangle(const Triangle3D& other,
                                     VerticesOrientation orientations) const {
+  assert(other.IsValid());
+  assert(IsValid());
 
   Point3D p2 = other.vertices_[0];
   Point3D q2 = other.vertices_[1];

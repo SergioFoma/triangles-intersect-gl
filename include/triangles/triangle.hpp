@@ -15,13 +15,11 @@ using VerticesOrientation = std::array<Orientation, 3>;
 class Triangle3D {
  public:
   Triangle3D() = default;
-  Triangle3D(Point3D p1, Point3D p2, Point3D p3) {
-    if (!(p1.IsValid() && p2.IsValid() && p3.IsValid())) {
+  Triangle3D(Point3D p1, Point3D p2, Point3D p3)
+      : vertices_{p1, p2, p3}, surface_{p1, p2, p3} {
+    if (!IsValid()) {
       throw std::runtime_error("Non valid arguments in Triangle Ctor");
     }
-
-    vertices_ = {p1, p2, p3};
-    surface_ = {p1, p2, p3};
   }
 
   bool IsValid() const {

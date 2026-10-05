@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
 
+option(BUILD_TESTING "Build test" ON)
+
 # === functions ===
 
 function(fetch_if_not_available PKG DOWNLOAD_URL)
@@ -23,48 +25,25 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE BOOL
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "-O2 -Wall")
-
 set(SRC ${PROJECT_SOURCE_DIR}/src)
 set(INCLUDE ${PROJECT_SOURCE_DIR}/include)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-# === graphics ===
+# === packages ===
+
 find_package(OpenGL REQUIRED)
 find_package(glfw3 REQUIRED)
+fetch_if_not_available(TBB https://github.com/uxlfoundation/oneTBB/archive/refs/heads/master.zip)
 
+# === add_executables ===
 
-set(GRAPHICS graphics)
-add_library(${GRAPHICS} STATIC)
-add_subdirectory(${SRC}/${GRAPHICS})
-
-target_link_libraries(${GRAPHICS} PUBLIC
-    OpenGL::GL
-    glfw
-    ${CMAKE_DL_LIBS} # for GLAD
-)
+add_subdirectory(${SRC})
 
 # === tests ===
 
-enable_testing()
+if (${BUILD_TESTING})
+    fetch_if_not_available(GTest https://github.com/google/googletest/archive/refs/tags/v1.15.2.zip)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
 
-fetch_if_not_available(GTest https://github.com/google/googletest/archive/refs/tags/v1.15.2.zip)
-fetch_if_not_available(TBB https://github.com/uxlfoundation/oneTBB/archive/refs/heads/master.zip)
-
-# === triangles ===
-
-set(TRIANGLES triangles)
-add_library(${TRIANGLES} STATIC)
-target_link_libraries(${TRIANGLES} PUBLIC TBB::tbb)
-add_subdirectory(${SRC}/${TRIANGLES})
-add_subdirectory(tests)
-
-# === adapter ===
-set(ADAPTER adapter)
-add_library(${ADAPTER} STATIC)
-add_subdirectory(${SRC}/${ADAPTER})
-target_link_libraries(${ADAPTER} PUBLIC ${GRAPHICS} ${TRIANGLES})
-
-# === triangles-intersect-gl ===
-set(TARGET triangles_gl)
-add_executable(${TARGET})
-target_sources(${TARGET} PRIVATE main.cpp)
-target_link_libraries(${TARGET} PRIVATE ${ADAPTER})

@@ -1,4 +1,3 @@
-
 #include "adapter.hpp"
 #include "glm/ext/quaternion_geometric.hpp"
 #include "inter_analyzer.hpp"
