@@ -59,12 +59,20 @@ fetch_if_not_available(TBB https://github.com/uxlfoundation/oneTBB/archive/refs/
 
 # === triangles ===
 
-#set(TRIANGLES triangles)
-#add_library(${TRIANGLES} STATIC)
-#target_link_libraries(${TRIANGLES} PUBLIC TBB::tbb)
-#add_subdirectory(${SRC}/${TRIANGLES})
-#add_subdirectory(tests)
+set(TRIANGLES triangles)
+add_library(${TRIANGLES} STATIC)
+target_link_libraries(${TRIANGLES} PUBLIC TBB::tbb)
+add_subdirectory(${SRC}/${TRIANGLES})
+add_subdirectory(tests)
 
 # === adapter ===
 set(ADAPTER adapter)
+add_library(${ADAPTER} STATIC)
 add_subdirectory(${SRC}/${ADAPTER})
+target_link_libraries(${ADAPTER} PUBLIC ${GRAPHICS} ${TRIANGLES})
+
+# === triangles-intersect-gl ===
+set(TARGET triangles_gl)
+add_executable(${TARGET})
+target_sources(${TARGET} PRIVATE main.cpp)
+target_link_libraries(${TARGET} PRIVATE ${ADAPTER})
