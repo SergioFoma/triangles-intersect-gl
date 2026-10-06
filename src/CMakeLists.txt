@@ -1,4 +1,3 @@
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/adapter)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/graphics)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/triangles)
 
