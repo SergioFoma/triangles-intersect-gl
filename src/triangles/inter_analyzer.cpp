@@ -80,6 +80,7 @@ void InterAnalyzer::SortTrianglesByMorton() {
   };
   tbb::parallel_sort(triangles_.begin(), triangles_.end(), k_comparator);
 }
+*/
 
 void InterAnalyzer::ConstructTree() {
   assert(!triangles_.empty());
