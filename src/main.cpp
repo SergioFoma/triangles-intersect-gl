@@ -121,7 +121,7 @@ analyzer::TriangleArr ReadData(std::istream& in) {
   unsigned int tmp_sz = 0;
   in >> tmp_sz;
 
-  if (!(kLowBound < tmp_sz && tmp_sz < kUpperBound)) {
+  if (!(kLowBound < tmp_sz && tmp_sz <= kUpperBound)) {
     throw std::runtime_error("Incorrect number (N) of triangles!");
   }
 
@@ -161,12 +161,12 @@ int main() {
 
   // ==============================================================
 
-  analyzer::TriangleArr triangles = ReadData("materials/triangles_100000.txt");
+  analyzer::TriangleArr triangles = ReadData("materials/triangles_1000000.txt");
   size_t triangles_number = triangles.size();
 
-  std::cout << "Before!\n";
+  std::cerr << "Before!\n";
   analyzer::InterAnalyzer analyzer(std::move(triangles));
-  std::cout << "After!";
+  std::cerr << "After!";
 
   adapter::Adapter adapter(win, render_con, skybox_config);
 
