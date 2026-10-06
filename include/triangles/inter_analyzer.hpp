@@ -7,6 +7,8 @@
 #include "basics.hpp"
 #include "box.hpp"
 #include "triangle.hpp"
+#include "basics.hpp"
+#include "box.hpp"
 
 namespace triangles {
 
