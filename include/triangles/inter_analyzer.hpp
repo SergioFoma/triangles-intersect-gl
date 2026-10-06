@@ -1,45 +1,45 @@
 #ifndef INTER_ANALYZER_HPP_
 #define INTER_ANALYZER_HPP_
 
+#include <algorithm>
 #include <vector>
 
+#include "basics.hpp"
+#include "box.hpp"
 #include "triangle.hpp"
 
-namespace analyzer {
+namespace triangles {
 
 using TriangleArr = std::vector<triangles::Triangle3D>;
-
 class InterAnalyzer {
  public:
-
   explicit InterAnalyzer(TriangleArr&& triangles);
+  explicit InterAnalyzer(const TriangleArr& triangles);
 
-  explicit InterAnalyzer(const TriangleArr&  triangles);
+  const TriangleArr& GetTriangles() const { return triangles_; }
 
-  const TriangleArr& GetTriangles() const {
-    return triangles_;
-  }
-
-  const std::vector<bool>& GetInterStatuses() const {
-    return intersect_status_;
-  }
+  const std::vector<bool>& GetInterStatuses() const { return intersect_status_; }
 
  private:
-
-  TriangleArr triangles_;
-  std::vector<bool> intersect_status_;
-
-  static constexpr auto kComparator = [](const triangles::Triangle3D& first,
-                                         const triangles::Triangle3D& second) {
-      return first.GetMinX() < second.GetMinX();
+  struct Node {
+    Box box;
+    ssize_t node_l;
+    ssize_t node_r;
+    size_t l_triangle;
+    size_t r_triangle;
   };
-
-  void Sort();
+  std::vector<bool> intersect_status_;
+  std::vector<Node> boxes_;
+  TriangleArr triangles_;
+  size_t root_;
 
   void AnalyzeIntersection();
-  
   void ConstructorBody();
+  void SortTrianglesByMorton();
+  void ConstructTree();
+  bool DoesIntersect(size_t triangle_index, size_t box_index);
+
 };
-} // namespace analyzer
+}  // namespace triangles
 
 #endif

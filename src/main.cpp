@@ -112,7 +112,7 @@ utility::WinConfig CreateWinConfig() {
     return triangle;
   }
 
-analyzer::TriangleArr ReadData(std::istream& in) {
+triangles::TriangleArr ReadData(std::istream& in) {
 
   // failbit - format errorr
   // badbit  - system error
@@ -121,11 +121,11 @@ analyzer::TriangleArr ReadData(std::istream& in) {
   unsigned int tmp_sz = 0;
   in >> tmp_sz;
 
-  if (!(kLowBound < tmp_sz && tmp_sz <= kUpperBound)) {
+  if (kLowBound >= tmp_sz || tmp_sz > kUpperBound) {
     throw std::runtime_error("Incorrect number (N) of triangles!");
   }
 
-  analyzer::TriangleArr triangles;
+  triangles::TriangleArr triangles;
   triangles.reserve(tmp_sz);
 
   for (unsigned int ind = 0; ind < tmp_sz; ++ind) {
@@ -135,7 +135,7 @@ analyzer::TriangleArr ReadData(std::istream& in) {
   return triangles;
 }
 
-analyzer::TriangleArr ReadData(const std::string& file_name) {
+triangles::TriangleArr ReadData(const std::string& file_name) {
   std::ifstream file(file_name, std::ios::binary);
 
   if (!file.is_open()) {
@@ -161,19 +161,20 @@ int main() {
 
   // ==============================================================
 
-  analyzer::TriangleArr triangles = ReadData("materials/triangles_1000000.txt");
+  triangles::TriangleArr triangles = ReadData("materials/triangles_1000000.txt");
   size_t triangles_number = triangles.size();
 
   std::cerr << "Before!\n";
-  analyzer::InterAnalyzer analyzer(std::move(triangles));
-  std::cerr << "After!";
+  triangles::InterAnalyzer analyzer(std::move(triangles));
+  std::cerr << "After!\n";
 
   adapter::Adapter adapter(win, render_con, skybox_config);
 
-  const analyzer::TriangleArr& tr_arr = analyzer.GetTriangles();
+  const triangles::TriangleArr& tr_arr = analyzer.GetTriangles();
   const std::vector<bool>& intersect_status = analyzer.GetInterStatuses();
   for (size_t ind = 0; ind < triangles_number; ++ind) {
-    adapter.ConvertTriangle(tr_arr[ind], intersect_status[ind]);
+    const bool intersects = intersect_status[ind];
+    adapter.ConvertTriangle(tr_arr[ind], intersects);
   }
 
   adapter.Draw();
