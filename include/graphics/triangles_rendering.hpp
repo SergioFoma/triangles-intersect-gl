@@ -2,7 +2,7 @@
 #define TRIANGLES_RENDERING_HPP_
 
 #include "geometry_buffer.hpp"
-#include "shader.hpp"
+#include "Shader.hpp"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
