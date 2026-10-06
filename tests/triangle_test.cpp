@@ -220,6 +220,42 @@ TEST(TriangleIntersection, AnalyticCoplanarTranslationGrid) {
   }
 }
 
+TEST(TriangleIntersection, CoplanarPlaneContainsCoordinateAxis) {
+  for (int axis = 0; axis < 3; ++axis) {
+    for (double slope : {-1.0, 1.0}) {
+      // Embed (u, v) into y = +/-z, z = +/-x, or x = +/-y.
+      // Each plane contains exactly one coordinate axis. Its normal has
+      // one zero component, but is not parallel to a coordinate axis.
+      const auto embed = [axis, slope](Vertices vertices) {
+        for (auto& p : vertices) {
+          const double u = p.x_, v = p.y_;
+          if (axis == 0) p = {u, v, slope * v};
+          if (axis == 1) p = {slope * v, u, v};
+          if (axis == 2) p = {v, slope * v, u};
+        }
+        return vertices;
+      };
+      const auto first = embed(kCoplanarReference);
+      for (int x = -6; x <= 6; ++x) {
+        for (int y = -6; y <= 6; ++y) {
+          SCOPED_TRACE(testing::Message() << "axis=" << axis << " slope=" << slope
+                                         << " translation=" << x / 2.0 << ", " << y / 2.0);
+          auto other = kCoplanarReference;
+          for (auto& p : other) {
+            p.x_ += x / 2.0;
+            p.y_ += y / 2.0;
+          }
+          // The injective linear embedding preserves the analytic 2D answer,
+          // including shared edges/vertices and disjoint overlapping AABBs.
+          const bool expected = std::abs(x) <= 4 && std::abs(y) <= 4 &&
+                                std::abs(x + y) <= 4;
+          ExpectAllOrders(first, embed(other), expected);
+        }
+      }
+    }
+  }
+}
+
 TEST(Triangle3D, BoundsInEveryVertexOrder) {
   const Vertices cases[] = {
       {{{-4, 0, 0}, {-2, 1, 0}, {-3, 0, 1}}},

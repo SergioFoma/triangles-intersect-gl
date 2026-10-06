@@ -38,6 +38,20 @@ class Triangle3D {
     return std::max({vertices_[0].x_, vertices_[1].x_, vertices_[2].x_});
   }
 
+  double GetMinY() const {
+    return std::min({vertices_[0].y_, vertices_[1].y_, vertices_[2].y_});
+  }
+  double GetMaxY() const {
+    return std::max({vertices_[0].y_, vertices_[1].y_, vertices_[2].y_});
+  }
+
+  double GetMinZ() const {
+    return std::min({vertices_[0].z_, vertices_[1].z_, vertices_[2].z_});
+  }
+  double GetMaxZ() const {
+    return std::max({vertices_[0].z_, vertices_[1].z_, vertices_[2].z_});
+  }
+
   const Point3D& GetFirstPoint() const {
     return vertices_[0];
   }

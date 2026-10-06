@@ -1,6 +1,8 @@
 #include <algorithm>
 #include <tbb/parallel_sort.h>
+#include <numeric>
 #include <stdexcept>
+#include "basics.hpp"
 
 #include "inter_analyzer.hpp"
 
@@ -31,84 +33,33 @@ void analyzer::InterAnalyzer::Sort() {
   tbb::parallel_sort(triangles_.begin(), triangles_.end(), kComparator);
 }
 
-/*
 void analyzer::InterAnalyzer::AnalyzeIntersection() {
-
   size_t sz = triangles_.size();
+  std::cerr << "meow";
   for (size_t ind = 0; ind < sz; ++ind) {
-
-    if (intersect_status_[ind]) {
-      continue;
-    }
-
-    double min_x = triangles_[ind].GetMinX();
-    double max_x = triangles_[ind].GetMaxX();
+    double max_x = triangles_[ind].GetMaxX() + triangles::kEps;
+    double min_y = triangles_[ind].GetMinY() - triangles::kEps;
+    double max_y = triangles_[ind].GetMaxY() + triangles::kEps;
+    double min_z = triangles_[ind].GetMinZ() - triangles::kEps;
+    double max_z = triangles_[ind].GetMaxZ() + triangles::kEps;
 
     for (size_t next = ind + 1; next < sz; ++next) {
-
       double curr_min_x = triangles_[next].GetMinX();
-      double curr_max_x = triangles_[next].GetMaxX();
+      if (curr_min_x > max_x) break;
 
-      if (max_x < curr_min_x) {
-        break;
-      } else if (curr_max_x < min_x ) {
+      if (triangles_[next].GetMinY() > max_y ||
+          triangles_[next].GetMaxY() < min_y ||
+          triangles_[next].GetMinZ() > max_z ||
+          triangles_[next].GetMaxZ() < min_z) {
         continue;
       }
 
       if (triangles_[ind].DoesIntersect(triangles_[next])) {
         intersect_status_[ind] = true;
-        break;
-      }
-    }
-  }
-}
-*/
-
-void analyzer::InterAnalyzer::AnalyzeIntersection() {
-
-  size_t sz = triangles_.size();
-  for (size_t ind = 0; ind < sz; ++ind) {
-    double min_x = triangles_[ind].GetMinX();
-    double max_x = triangles_[ind].GetMaxX();
-
-    if (intersect_status_[ind]) {
-        continue;
-    }
-
-    for (size_t next = ind + 1; next < sz; ++next) {
-      double curr_min_x = triangles_[next].GetMinX();
-      double curr_max_x = triangles_[next].GetMaxX();
-
-      if (max_x < curr_min_x) {
-        break;
-      } else if (curr_max_x < min_x ) {
-        continue;
-      }
-
-      intersect_status_[ind] = triangles_[ind].DoesIntersect(triangles_[next]);
-      if (intersect_status_[ind]) {
         intersect_status_[next] = true;
-        break;
       }
     }
   }
+
+  std::cerr << "meow";
 }
-
-/*
-void analyzer::InterAnalyzer::AnalyzeIntersection() {
-
-  size_t sz = triangles_.size();
-
-  for (size_t ind = 0; ind < sz; ++ind) {
-    for (size_t next = 0; next < sz; ++next) {
-
-      if (intersect_status_[ind]) {
-          break;
-      }
-
-      intersect_status_[ind] = triangles_[ind].DoesIntersect(triangles_[next]);
-    }
-  }
-}
-*/
-
