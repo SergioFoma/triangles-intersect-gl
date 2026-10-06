@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <istream>
 
 #include "triangles/inter_analyzer.hpp"
