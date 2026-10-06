@@ -62,6 +62,10 @@ void adapter::Adapter::ConvertTriangle(const triangles::Triangle3D& triangle,
 }
 
 void adapter::Adapter::Draw() {
-  render::RenderTriangles(win_, triangles_number_, raw_data_,
-                          render_con_, skybox_con_);
+  render::ErrorType error_code  = render::RenderTriangles(win_,
+                                  triangles_number_, raw_data_,
+                                  render_con_, skybox_con_);
+  if (error_code != render::ErrorType::kCorrect) {
+    throw std::runtime_error("Adapter::Draw: error of Rendering Triangles!");
+  }
 }

@@ -2,7 +2,7 @@
 #define TRIANGLES_RENDERING_HPP_
 
 #include "geometry_buffer.hpp"
-#include "shader.hpp"
+#include "Shader.hpp"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -111,8 +111,8 @@ struct Camera {
 };
 
 struct RenderObject {
-  std::unique_ptr<GeometryBuffer> geom_buff;
-  std::unique_ptr<Shader> shader;
+  GeometryBuffer geom_buff;
+  Shader shader;
   glm::mat4 model;
   glm::mat3 normal_mat;
 };
@@ -131,12 +131,17 @@ struct SkyboxData {
   SkyboxData(SkyboxData&& other)
     : config(std::move(other.config)),
       obj(std::move(other.obj)),
-      texture_id(std::move(other.texture_id)) {
+      texture_id(other.texture_id) {
 
     other.texture_id = 0;
   }
 
   SkyboxData& operator=(SkyboxData&& other) {
+    if (this == &other) {
+      return *this;
+    }
+    glDeleteTextures(kOneTexture, &texture_id);
+
     config = std::move(other.config);
     obj = std::move(other.obj);
     texture_id = other.texture_id;

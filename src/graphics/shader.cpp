@@ -1,4 +1,4 @@
-#include "shader.hpp"
+#include "Shader.hpp"
 
 #include <fstream>
 #include <sstream>
@@ -73,6 +73,8 @@ unsigned int Shader::LinkShaders() {
       vertex_shader_);  // after linking, the shader is no longer needed - we delete it.
   glDeleteShader(
       fragment_shader_);  // after linking, the shader is no longer needed - we delete it.
+  vertex_shader_ = 0;
+  fragment_shader_ = 0;
 
   error_code = glGetError();
   if (error_code) {

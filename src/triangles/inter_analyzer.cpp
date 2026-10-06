@@ -34,8 +34,8 @@ void analyzer::InterAnalyzer::Sort() {
 }
 
 void analyzer::InterAnalyzer::AnalyzeIntersection() {
+
   size_t sz = triangles_.size();
-  std::cerr << "meow";
   for (size_t ind = 0; ind < sz; ++ind) {
     double max_x = triangles_[ind].GetMaxX() + triangles::kEps;
     double min_y = triangles_[ind].GetMinY() - triangles::kEps;
@@ -60,6 +60,4 @@ void analyzer::InterAnalyzer::AnalyzeIntersection() {
       }
     }
   }
-
-  std::cerr << "meow";
 }

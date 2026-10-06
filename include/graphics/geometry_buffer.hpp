@@ -10,7 +10,18 @@ class GeometryBuffer {
  public:
   GeometryBuffer(const GeometryBuffer& other) = delete;
 
-  GeometryBuffer(GeometryBuffer&& other) = delete;
+  GeometryBuffer(GeometryBuffer&& other)
+    : vertex_dim_(other.vertex_dim_),
+      color_dim_(other.color_dim_),
+      normal_dim_(other.normal_dim_),
+      vertex_count_(other.vertex_count_) {
+
+      vao_ = other.vao_;
+      vbo_ = other.vbo_;
+
+      other.vao_ = 0;
+      other.vbo_ = 0;
+  };
 
   explicit GeometryBuffer(const std::vector<float>& raw_data,
                           unsigned int vertex_dim, unsigned int color_dim,
@@ -74,7 +85,27 @@ class GeometryBuffer {
 
   GeometryBuffer& operator=(const GeometryBuffer& other) = delete;
 
-  GeometryBuffer& operator=(GeometryBuffer&& other) = delete;
+  GeometryBuffer& operator=(GeometryBuffer&& other) {
+    if (this == &other) {
+      return *this;
+    }
+
+    glDeleteBuffers(kBuffCount, &vbo_);
+    glDeleteVertexArrays(kBuffCount, &vao_);
+
+    vertex_dim_ = other.vertex_dim_;
+    color_dim_ = other.color_dim_;
+    normal_dim_ = other.normal_dim_;
+    vertex_count_ = other.vertex_count_;
+
+    vao_ = other.vao_;
+    vbo_ = other.vbo_;
+
+    other.vao_ = 0;
+    other.vbo_ = 0;
+
+    return *this;
+  };
 
   ~GeometryBuffer() {
     glDeleteBuffers(kBuffCount, &vbo_);

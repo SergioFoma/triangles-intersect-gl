@@ -19,6 +19,7 @@ const int kVertexes = 3;          // Point p_1, p_2, p_3
 const int kColors = 3;            // (r, g, b)
 const int kNormal = 3;            // (n_x, n_y, n_z)
 const int kSkyboxVer = 36;        // skybox vertexes number
+const float kSpeedCoeff = 2.0F;
 float last_mouse_x = 0.0F;
 float last_mouse_y = 0.0F;
 bool first_mouse = true;
@@ -70,22 +71,22 @@ render::SkyboxData CreateSkyboxObj(const std::vector<float>& raw_data,
   unsigned int no_colors = 0, no_normals = 0;
 
   render::RenderObject skybox_obj = {
-    std::make_unique<GeometryBuffer>(raw_data, kDimension,
+    GeometryBuffer(raw_data, kDimension,
                                      no_colors, no_normals,
                                      kSkyboxVer),
-    std::make_unique<Shader>(skybox_con.shader_con.vert_path,
+    Shader(skybox_con.shader_con.vert_path,
                              skybox_con.shader_con.frag_path),
                              model, normal_mat};
 
-  skybox_obj.geom_buff->Bind();
-  skybox_obj.geom_buff->SetCoordinates(skybox_con.shader_con.position_loc);
-  skybox_obj.geom_buff->Unbind();
+  skybox_obj.geom_buff.Bind();
+  skybox_obj.geom_buff.SetCoordinates(skybox_con.shader_con.position_loc);
+  skybox_obj.geom_buff.Unbind();
 
   unsigned int texture_id = LoadCubemap(skybox_con);
 
-  skybox_obj.shader->Use();
-  skybox_obj.shader->SetInt("skybox", 0);
-  skybox_obj.shader->Disable();
+  skybox_obj.shader.Use();
+  skybox_obj.shader.SetInt("skybox", 0);
+  skybox_obj.shader.Disable();
 
   render::SkyboxData skybox_data = {skybox_con, std::move(skybox_obj), texture_id};
 
@@ -151,19 +152,19 @@ render::SkyboxData CallSkyboxCreating(const render::SkyboxConfig& skybox_con) {
 void UpdateTrPos(render::RenderObject& tr_obj, const render::Camera& camera,
                  const render::LightConfig& light_con) {
 
-  tr_obj.shader->SetMat4("model", tr_obj.model);
-  tr_obj.shader->SetMat4("view", camera.view);
-  tr_obj.shader->SetMat4("projection", camera.projection);
-  tr_obj.shader->SetMat3("normalMatrix", tr_obj.normal_mat);
-  tr_obj.shader->SetVec3("light.lightColor", light_con.color);
-  tr_obj.shader->SetVec3("light.viewPos", camera.pos);
-  tr_obj.shader->SetVec3("light.direction", camera.front);
+  tr_obj.shader.SetMat4("model", tr_obj.model);
+  tr_obj.shader.SetMat4("view", camera.view);
+  tr_obj.shader.SetMat4("projection", camera.projection);
+  tr_obj.shader.SetMat3("normalMatrix", tr_obj.normal_mat);
+  tr_obj.shader.SetVec3("light.lightColor", light_con.color);
+  tr_obj.shader.SetVec3("light.viewPos", camera.pos);
+  tr_obj.shader.SetVec3("light.direction", camera.front);
 
-  tr_obj.shader->SetFloat("light.constant", light_con.constant);
-  tr_obj.shader->SetFloat("light.linear", light_con.linear);
-  tr_obj.shader->SetFloat("light.quadratic", light_con.quadratic);
-  tr_obj.shader->SetFloat("light.cutOff", glm::cos(glm::radians(light_con.cut_off)));
-  tr_obj.shader->SetFloat("light.outerCutOff", glm::cos(glm::radians(light_con.outer_cut_off)));
+  tr_obj.shader.SetFloat("light.constant", light_con.constant);
+  tr_obj.shader.SetFloat("light.linear", light_con.linear);
+  tr_obj.shader.SetFloat("light.quadratic", light_con.quadratic);
+  tr_obj.shader.SetFloat("light.cutOff", glm::cos(glm::radians(light_con.cut_off)));
+  tr_obj.shader.SetFloat("light.outerCutOff", glm::cos(glm::radians(light_con.outer_cut_off)));
 
   int error_code = glGetError();
   if (error_code) {
@@ -175,8 +176,8 @@ void UpdateSkybox(const render::RenderObject& skybox_obj, const render::Camera& 
 
   glm::mat4 view = glm::mat4(glm::mat3(camera.view));
 
-  skybox_obj.shader->SetMat4("view", view);
-  skybox_obj.shader->SetMat4("projection", camera.projection);
+  skybox_obj.shader.SetMat4("view", view);
+  skybox_obj.shader.SetMat4("projection", camera.projection);
 
   int error_code = glGetError();
   if (error_code) {
@@ -187,12 +188,12 @@ void UpdateSkybox(const render::RenderObject& skybox_obj, const render::Camera& 
 void DrawTriangles(render::RenderObject& tr_obj, const render::Camera& camera,
                    const render::LightConfig& light_con) {
 
-  tr_obj.shader->Use();
-  tr_obj.geom_buff->Bind();
+  tr_obj.shader.Use();
+  tr_obj.geom_buff.Bind();
   UpdateTrPos(tr_obj, camera, light_con);
-  tr_obj.geom_buff->Draw(GL_TRIANGLES);
-  tr_obj.geom_buff->Unbind();
-  tr_obj.shader->Disable();
+  tr_obj.geom_buff.Draw(GL_TRIANGLES);
+  tr_obj.geom_buff.Unbind();
+  tr_obj.shader.Disable();
 
   int error_code = glGetError();
   if (error_code) {
@@ -205,13 +206,13 @@ void DrawSkybox(render::SkyboxData& skybox_data,
 
   render::RenderObject& skybox_obj = skybox_data.obj;
 
-  skybox_obj.shader->Use();
-  skybox_obj.geom_buff->Bind();
+  skybox_obj.shader.Use();
+  skybox_obj.geom_buff.Bind();
   glBindTexture(GL_TEXTURE_CUBE_MAP, skybox_data.texture_id);
   UpdateSkybox(skybox_obj, camera);
-  skybox_obj.geom_buff->Draw(GL_TRIANGLES);
-  skybox_obj.geom_buff->Unbind();
-  skybox_obj.shader->Disable();
+  skybox_obj.geom_buff.Draw(GL_TRIANGLES);
+  skybox_obj.geom_buff.Unbind();
+  skybox_obj.shader.Disable();
 
   int error_code = glGetError();
   if (error_code) {
@@ -222,10 +223,15 @@ void DrawSkybox(render::SkyboxData& skybox_data,
 void ProcessInput(GLFWwindow* win, render::Camera& camera) {
   assert(win);
 
+  float speed_coeff = 1.0F;
+  if (glfwGetKey(win, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
+    speed_coeff = kSpeedCoeff;
+  }
+
   float current_time = glfwGetTime();
   camera.delta_time = current_time - camera.last_frame;
   camera.last_frame = current_time;
-  float camera_speed = camera.speed * camera.delta_time;
+  float camera_speed = speed_coeff * camera.speed * camera.delta_time;
 
   if (glfwGetKey(win, GLFW_KEY_W) == GLFW_PRESS) {
     camera.pos += camera_speed * camera.front;
@@ -293,17 +299,17 @@ render::RenderObject CreateTriangleObj(const std::vector<float>& raw_data,
   glm::mat3 normal_mat = glm::mat3(glm::transpose(glm::inverse(model)));
 
   render::RenderObject tr_obj = {
-      std::make_unique<GeometryBuffer>(raw_data, kDimension,
+      GeometryBuffer(raw_data, kDimension,
                                         kColors, kNormal,
                                         triangles_number * kVertexes),
-      std::make_unique<Shader>(shader_con.vert_path, shader_con.frag_path),
+      Shader(shader_con.vert_path, shader_con.frag_path),
       model, normal_mat};
 
-  tr_obj.geom_buff->Bind();
-  tr_obj.geom_buff->SetCoordinates(shader_con.position_loc);
-  tr_obj.geom_buff->SetColors(shader_con.color_loc);
-  tr_obj.geom_buff->SetNormal(shader_con.normal_loc);
-  tr_obj.geom_buff->Unbind();
+  tr_obj.geom_buff.Bind();
+  tr_obj.geom_buff.SetCoordinates(shader_con.position_loc);
+  tr_obj.geom_buff.SetColors(shader_con.color_loc);
+  tr_obj.geom_buff.SetNormal(shader_con.normal_loc);
+  tr_obj.geom_buff.Unbind();
 
   int error_code = glGetError();
   if (error_code) {
