@@ -29,8 +29,9 @@ InterCase GetIntersectionCase(VerticesOrientation orientations) {
 }  // namespace
 
 bool Triangle3D::DoesIntersect(const Triangle3D& other) const {
-  assert(other.IsValid());
-  assert(IsValid());
+  if (!IsValid() || !other.IsValid()) {
+    throw std::runtime_error("Non valid triangles in Triangle3D::DoesIntersect");
+  }
 
   Point3D p1 = vertices_[0]; Point3D q1 = vertices_[1]; Point3D r1 = vertices_[2];
   VerticesOrientation orientations = {other.GetPointOrientation(p1),

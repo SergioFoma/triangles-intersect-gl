@@ -1,65 +1,69 @@
-#include <algorithm>
 #include <tbb/parallel_sort.h>
+#include <algorithm>
+#include <cstdint>
 #include <numeric>
 #include <stdexcept>
 #include "basics.hpp"
 
 #include "inter_analyzer.hpp"
 
-analyzer::InterAnalyzer::InterAnalyzer(const analyzer::TriangleArr& triangles)
-  : triangles_(triangles) {
+namespace triangles {
+namespace {
 
+uint32_t expandBits(uint32_t v) {
+  v = (v * 0x00010001U) & 0xFF0000FFU;
+  v = (v * 0x00000101U) & 0x0F00F00FU;
+  v = (v * 0x00000011U) & 0xC30C30C3U;
+  v = (v * 0x00000005U) & 0x49249249U;
+  return v;
+}
+uint32_t morton3D(double x, double y, double z) {
+  x = std::min(std::max(x * 1024.0, 0.0), 1023.0);
+  y = std::min(std::max(y * 1024.0, 0.0), 1023.0);
+  z = std::min(std::max(z * 1024.0, 0.0), 1023.0);
+  uint32_t xx = expandBits(static_cast<uint32_t>(x));
+  uint32_t yy = expandBits(static_cast<uint32_t>(y));
+  uint32_t zz = expandBits(static_cast<uint32_t>(z));
+  return (xx * 4) + (yy * 2) + zz;
+}
+}  // namespace
+
+InterAnalyzer::InterAnalyzer(const TriangleArr& triangles)
+    : intersect_status_(triangles.size()), triangles_(triangles) {
   ConstructorBody();
 }
 
-analyzer::InterAnalyzer::InterAnalyzer(analyzer::TriangleArr&& triangles)
-  : triangles_(std::move(triangles)) {
-
+InterAnalyzer::InterAnalyzer(TriangleArr&& triangles)
+    : intersect_status_(triangles.size()), triangles_(std::move(triangles)) {
   ConstructorBody();
 }
 
-void analyzer::InterAnalyzer::ConstructorBody() {
-
-  size_t sz = triangles_.size();
-  intersect_status_.resize(sz);
-
-  Sort();
-
-  AnalyzeIntersection();
-}
-
-void analyzer::InterAnalyzer::Sort() {
-
-  tbb::parallel_sort(triangles_.begin(), triangles_.end(), kComparator);
-}
-
-void analyzer::InterAnalyzer::AnalyzeIntersection() {
-  size_t sz = triangles_.size();
-  std::cerr << "meow";
-  for (size_t ind = 0; ind < sz; ++ind) {
-    double max_x = triangles_[ind].GetMaxX() + triangles::kEps;
-    double min_y = triangles_[ind].GetMinY() - triangles::kEps;
-    double max_y = triangles_[ind].GetMaxY() + triangles::kEps;
-    double min_z = triangles_[ind].GetMinZ() - triangles::kEps;
-    double max_z = triangles_[ind].GetMaxZ() + triangles::kEps;
-
-    for (size_t next = ind + 1; next < sz; ++next) {
-      double curr_min_x = triangles_[next].GetMinX();
-      if (curr_min_x > max_x) break;
-
-      if (triangles_[next].GetMinY() > max_y ||
-          triangles_[next].GetMaxY() < min_y ||
-          triangles_[next].GetMinZ() > max_z ||
-          triangles_[next].GetMaxZ() < min_z) {
-        continue;
-      }
-
-      if (triangles_[ind].DoesIntersect(triangles_[next])) {
-        intersect_status_[ind] = true;
-        intersect_status_[next] = true;
-      }
-    }
+void InterAnalyzer::ConstructorBody() {
+  if (triangles_.empty()) {
+    return;
+  }
+  triangles::Box bounds{triangles_.front()};
+  for (size_t i = 1; i < triangles_.size(); ++i) {
+    bounds = bounds.Merge(triangles::Box{triangles_[i]});
   }
 
-  std::cerr << "meow";
+  const Point3D diag = bounds.max_ - bounds.min_;
+  const auto get_code = [min = bounds.min_, diag](const Triangle3D& triangle) {
+    const Point3D point =
+        Point3D{triangle.GetMinX(), triangle.GetMinY(), triangle.GetMinZ()} -
+        min;
+    return morton3D(diag.x_ == 0 ? 0 : point.x_ / diag.x_,
+                    diag.y_ == 0 ? 0 : point.y_ / diag.y_,
+                    diag.z_ == 0 ? 0 : point.z_ / diag.z_);
+  };
+  const auto comparator = [get_code](const Triangle3D& first,
+                                     const Triangle3D& second) {
+    return get_code(first) < get_code(second);
+  };
+
+  tbb::parallel_sort(triangles_.begin(), triangles_.end(), comparator);
 }
+
+void InterAnalyzer::AnalyzeIntersection() {
+}
+}  // namespace triangles

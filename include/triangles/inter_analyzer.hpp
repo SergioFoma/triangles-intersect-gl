@@ -4,8 +4,10 @@
 #include <vector>
 
 #include "triangle.hpp"
+#include "basics.hpp"
+#include "box.hpp"
 
-namespace analyzer {
+namespace triangles {
 
 using TriangleArr = std::vector<triangles::Triangle3D>;
 
@@ -13,7 +15,6 @@ class InterAnalyzer {
  public:
 
   explicit InterAnalyzer(TriangleArr&& triangles);
-
   explicit InterAnalyzer(const TriangleArr&  triangles);
 
   const TriangleArr& GetTriangles() const {
@@ -25,21 +26,12 @@ class InterAnalyzer {
   }
 
  private:
-
-  TriangleArr triangles_;
   std::vector<bool> intersect_status_;
-
-  static constexpr auto kComparator = [](const triangles::Triangle3D& first,
-                                         const triangles::Triangle3D& second) {
-      return first.GetMinX() < second.GetMinX();
-  };
-
-  void Sort();
+  TriangleArr triangles_;
 
   void AnalyzeIntersection();
-  
   void ConstructorBody();
 };
-} // namespace analyzer
+}
 
 #endif

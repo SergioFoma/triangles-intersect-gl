@@ -1,5 +1,8 @@
 include(GoogleTest)
-set(TEST_TARGET_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/triangle_test.cpp)
+set(TEST_TARGET_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/triangle_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/inter_analyzer_test.cpp
+)
 
 set(TEST_TARGET triangles_tests)
 add_executable(${TEST_TARGET})

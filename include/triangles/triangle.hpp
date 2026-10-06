@@ -52,22 +52,13 @@ class Triangle3D {
     return std::max({vertices_[0].z_, vertices_[1].z_, vertices_[2].z_});
   }
 
-  const Point3D& GetFirstPoint() const {
-    return vertices_[0];
-  }
+  const Point3D& GetFirstPoint() const { return vertices_[0]; }
+  const Point3D& GetSecondPoint() const { return vertices_[1]; }
+  const Point3D& GetThirdPoint() const { return vertices_[2]; }
 
-  const Point3D& GetSecondPoint() const {
-    return vertices_[1];
-  }
-
-  const Point3D& GetThirdPoint() const {
-    return vertices_[2];
-  }
   bool DoesIntersect(const Triangle3D& other) const;
 
-  const Surface& GetSurface() const {
-    return surface_;
-  }
+  const Surface& GetSurface() const { return surface_; }
 
  private:
   bool DoesIntersectCopl(const Triangle3D& other) const;
