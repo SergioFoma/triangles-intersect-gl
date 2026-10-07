@@ -100,7 +100,7 @@ int main(int argc, char** argv) {
   triangles::TriangleArr triangles = reader::ReadData(input_path);
 
   size_t triangles_number = triangles.size();
-  triangles::InterAnalyzer analyzer(std::move(triangles));
+  triangles::InterAnalyzer analyzer(triangles);
 
   if (!is_only_intersect) {
     utility::WinConfig win_con = CreateWinConfig();
@@ -113,10 +113,8 @@ int main(int argc, char** argv) {
     GLFWwindow* win = utility::InitGraphics(win_con);
     adapter::Adapter adapter(win, render_con, skybox_config);
 
-    const triangles::TriangleArr& tr_arr = analyzer.GetTriangles();
-    const std::vector<bool>& intersect_status = analyzer.GetInterStatuses();
     for (size_t ind = 0; ind < triangles_number; ++ind) {
-      adapter.ConvertTriangle(tr_arr[ind], intersect_status[ind]);
+      adapter.ConvertTriangle(tr_arr[ind].triangle, tr_arr[ind].intersect_status);
     }
 
     adapter.Draw();

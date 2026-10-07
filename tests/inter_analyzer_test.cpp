@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <array>
-#include <cstdint>
 #include <random>
 #include <gtest/gtest.h>
 #include "inter_analyzer.hpp"
@@ -10,74 +9,25 @@ using triangles::InterAnalyzer;
 using triangles::TriangleArr;
 using triangles::Triangle3D;
 
-// Independent bit-by-bit reference: x occupies bits 2, 5, ..., 29.
-uint32_t ReferenceMorton(const Triangle3D& triangle, const triangles::Box& bounds) {
-  const std::array<double, 3> point{
-      triangle.GetMinX(), triangle.GetMinY(), triangle.GetMinZ()};
-  const std::array<double, 3> low{bounds.min_.x_, bounds.min_.y_, bounds.min_.z_};
-  const std::array<double, 3> high{bounds.max_.x_, bounds.max_.y_, bounds.max_.z_};
-  uint32_t code = 0;
-  for (size_t axis = 0; axis < 3; ++axis) {
-    const double normalized = high[axis] == low[axis] ? 0 :
-        (point[axis] - low[axis]) / (high[axis] - low[axis]);
-    const auto coordinate = static_cast<uint32_t>(
-        std::clamp(normalized * 1024, 0.0, 1023.0));
-    for (unsigned bit = 0; bit < 10; ++bit) {
-      code |= ((coordinate >> bit) & 1U) << (3 * bit + 2 - axis);
+void ExpectBruteForceStatuses(const InterAnalyzer& analyzer, const TriangleArr& input) {
+  std::vector<bool> expected(input.size(), false);
+  for (size_t i = 0; i < input.size(); ++i) {
+    for (size_t j = i + 1; j < input.size(); ++j) {
+      if (input[i].DoesIntersect(input[j])) expected[i] = expected[j] = true;
     }
   }
-  return code;
-}
-
-auto VerticesKey(const Triangle3D& triangle) {
-  const auto& a = triangle.GetFirstPoint();
-  const auto& b = triangle.GetSecondPoint();
-  const auto& c = triangle.GetThirdPoint();
-  return std::array<double, 9>{a.x_, a.y_, a.z_, b.x_, b.y_, b.z_,
-                              c.x_, c.y_, c.z_};
-}
-
-void ExpectMortonOrder(const TriangleArr& input) {
-  for (bool move : {false, true}) {
-    SCOPED_TRACE(move);
-    const InterAnalyzer analyzer = move ? InterAnalyzer{TriangleArr(input)} :
-                                          InterAnalyzer{input};
-    const auto& result = analyzer.GetTriangles();
-    ASSERT_EQ(result.size(), input.size());
-    ASSERT_EQ(analyzer.GetInterStatuses().size(), input.size());
-    if (input.empty()) continue;
-    triangles::Box bounds{input.front()};
-    for (const auto& triangle : input) bounds = bounds.Merge(triangles::Box{triangle});
-    for (size_t i = 1; i < result.size(); ++i) {
-      EXPECT_LE(ReferenceMorton(result[i - 1], bounds), ReferenceMorton(result[i], bounds));
-    }
-    // Equal Morton codes need not be stable, but no triangle may be lost.
-    std::vector<std::array<double, 9>> before, after;
-    for (const auto& triangle : input) before.push_back(VerticesKey(triangle));
-    for (const auto& triangle : result) after.push_back(VerticesKey(triangle));
-    std::sort(before.begin(), before.end());
-    std::sort(after.begin(), after.end());
-    EXPECT_EQ(before, after);
+  for (size_t i = 0; i < input.size(); ++i) {
+    EXPECT_EQ(analyzer.DoesIntersect(i), expected[i]) << "original index=" << i;
   }
-}
-
-void ExpectBruteForceStatuses(const InterAnalyzer& analyzer) {
-  const auto& triangles = analyzer.GetTriangles();
-  std::vector<bool> expected(triangles.size(), false);
-  for (size_t i = 0; i < triangles.size(); ++i) {
-    for (size_t j = i + 1; j < triangles.size(); ++j) {
-      if (triangles[i].DoesIntersect(triangles[j])) expected[i] = expected[j] = true;
-    }
-  }
-  EXPECT_EQ(analyzer.GetInterStatuses(), expected);
+  EXPECT_THROW(analyzer.DoesIntersect(input.size()), std::out_of_range);
 }
 
 void ExpectBruteForce(const TriangleArr& input) {
-  ExpectBruteForceStatuses(InterAnalyzer{input});
-  ExpectBruteForceStatuses(InterAnalyzer{TriangleArr(input)});
+  ExpectBruteForceStatuses(InterAnalyzer{input}, input);
+  ExpectBruteForceStatuses(InterAnalyzer{TriangleArr(input)}, input);
 }
 
-TEST(InterAnalyzer, MortonOrderInterleavesAllThreeAxes) {
+TEST(InterAnalyzer, OriginalIndicesAcrossAllThreeAxes) {
   TriangleArr input;
   for (int code : {7, 3, 5, 1, 6, 2, 4, 0}) {
     const double x = (code & 4) ? 4 : 0;
@@ -87,14 +37,6 @@ TEST(InterAnalyzer, MortonOrderInterleavesAllThreeAxes) {
                        triangles::Point3D{x + 1, y, z},
                        triangles::Point3D{x, y + 1, z});
   }
-  const InterAnalyzer analyzer{input};
-  for (size_t i = 0; i < input.size(); ++i) {
-    const auto& point = analyzer.GetTriangles()[i].GetFirstPoint();
-    const size_t code = (point.x_ > 0 ? 4 : 0) |
-                        (point.y_ > 0 ? 2 : 0) |
-                        (point.z_ > 0 ? 1 : 0);
-    EXPECT_EQ(code, i);
-  }
   ExpectBruteForce(input);
 }
 
@@ -102,18 +44,14 @@ TEST(InterAnalyzer, RejectsInvalidTriangle) {
   EXPECT_THROW((InterAnalyzer{TriangleArr{Triangle3D{}}}), std::runtime_error);
 }
 
-TEST(InterAnalyzer, MortonOrderUsesMinimumCornerInsteadOfCenter) {
+TEST(InterAnalyzer, DifferentTriangleSizesPreserveOriginalIndices) {
   const Triangle3D wide{{0, 0, 0}, {100, 0, 0}, {0, 100, 0}};
   const Triangle3D small{{1, 1, 0}, {2, 1, 0}, {1, 2, 0}};
   const InterAnalyzer analyzer{TriangleArr{small, wide}};
-  EXPECT_DOUBLE_EQ(analyzer.GetTriangles().front().GetMinX(), 0);
-  EXPECT_DOUBLE_EQ(analyzer.GetTriangles().front().GetMaxX(), 100);
-  ExpectBruteForceStatuses(analyzer);
+  ExpectBruteForceStatuses(analyzer, TriangleArr{small, wide});
 }
 
 TEST(InterAnalyzer, EmptyAndSingleton) {
-  ExpectMortonOrder({});
-  ExpectMortonOrder({Triangle3D{{0, 0, 0}, {1, 0, 0}, {0, 1, 0}}});
   ExpectBruteForce({});
   ExpectBruteForce({Triangle3D{{0, 0, 0}, {1, 0, 0}, {0, 1, 0}}});
 }
@@ -137,7 +75,6 @@ TEST(InterAnalyzer, EqualMortonCodes) {
   for (size_t count : {7, 8, 9, 16, 17, 65}) {
     SCOPED_TRACE(count);
     ExpectBruteForce(TriangleArr(count, Triangle3D{{0, 0, 0}, {2, 0, 0}, {0, 2, 0}}));
-    ExpectMortonOrder(TriangleArr(count, Triangle3D{{0, 0, 0}, {2, 0, 0}, {0, 2, 0}}));
   }
 }
 
@@ -178,12 +115,14 @@ TEST(InterAnalyzer, MortonOrderDoesNotPermitEarlyExitAlongX) {
       Triangle3D{{0, 80, 0}, {0.1, 80, 0}, {0, 81, 0}},
       Triangle3D{{99, 0, 0}, {100, 0, 0}, {99, 1, 0}}};
   const InterAnalyzer analyzer{input};
-  EXPECT_EQ(analyzer.GetInterStatuses(), (std::vector<bool>{true, false, true, false}));
+  const std::vector<bool> expected{true, false, true, false};
+  for (size_t i = 0; i < input.size(); ++i) {
+    EXPECT_EQ(analyzer.DoesIntersect(i), expected[i]);
+  }
   ExpectBruteForce(input);
-  ExpectMortonOrder(input);
 }
 
-TEST(InterAnalyzer, MortonReferenceForSpatialAndFlatScenes) {
+TEST(InterAnalyzer, OriginalIndicesForSpatialAndFlatScenes) {
   std::mt19937 rng(67890);
   std::uniform_int_distribution<int> coordinate(-1024, 1024);
   // -1 is spatial; 0, 1, 2 fix the corresponding axis at a negative value.
@@ -201,7 +140,7 @@ TEST(InterAnalyzer, MortonReferenceForSpatialAndFlatScenes) {
                          triangles::Point3D{b[0], b[1], b[2]},
                          triangles::Point3D{c[0], c[1], c[2]});
     }
-    ExpectMortonOrder(input);
+    ExpectBruteForce(input);
   }
 }
 

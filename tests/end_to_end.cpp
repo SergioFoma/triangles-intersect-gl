@@ -71,7 +71,10 @@ int main() {
     triangles::TriangleArr triangles = reader::ReadData(input_data[ind]);
     triangles::InterAnalyzer analyzer(std::move(triangles));
 
-    const std::vector<bool>& intersect_status = analyzer.GetInterStatuses();
+    std::vector<bool> intersect_status(triangles.size());
+    for (size_t i = 0; i < triangles.size(); ++i) {
+      intersect_status[i] = analyzer.DoesIntersect(i);
+    }
     const std::vector<bool>& correct_status = ReadCorrectStatuses(output_data[ind]);
 
     assert(intersect_status.size() == correct_status.size());
