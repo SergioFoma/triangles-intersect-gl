@@ -138,7 +138,8 @@ bool InterAnalyzer::DoesIntersect(size_t triangle_index, size_t box_index) {
 
 void InterAnalyzer::AnalyzeIntersection() {
   for (size_t i = 0; i < triangles_.size(); ++i) {
-    intersect_status_[i] = DoesIntersect(i, root_);
+    if (!intersect_status_[i])
+      intersect_status_[i] = DoesIntersect(i, root_);
   }
 }
 }  // namespace triangles
