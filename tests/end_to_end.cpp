@@ -69,7 +69,7 @@ int main() {
 
   for (size_t ind = 0; ind < kTestsNumber; ++ind) {
     triangles::TriangleArr triangles = reader::ReadData(input_data[ind]);
-    triangles::InterAnalyzer analyzer(std::move(triangles));
+    triangles::InterAnalyzer analyzer(triangles);
 
     std::vector<bool> intersect_status(triangles.size());
     for (size_t i = 0; i < triangles.size(); ++i) {

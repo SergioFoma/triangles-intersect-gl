@@ -20,4 +20,7 @@ set(END_TO_END_TARGET end_to_end_testing)
 add_executable(${END_TO_END_TARGET})
 target_sources(${END_TO_END_TARGET} PRIVATE ${END_TO_END_SOURCES})
 target_include_directories(${END_TO_END_TARGET} PRIVATE ${INCLUDE})
-target_link_libraries(${END_TO_END_TARGET} PRIVATE triangles)
+target_link_libraries(${END_TO_END_TARGET} PRIVATE
+  triangles
+  #benchmark::benchmark
+)

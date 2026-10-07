@@ -43,6 +43,9 @@ add_subdirectory(${SRC})
 # === tests ===
 
 if (${BUILD_TESTING})
+    set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
+    set(BENCHMARK_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
+    #fetch_if_not_available(googlebenchmark https://github.com/google/benchmark.git)
     fetch_if_not_available(GTest https://github.com/google/googletest/archive/refs/tags/v1.15.2.zip)
     enable_testing()
     add_subdirectory(tests)
