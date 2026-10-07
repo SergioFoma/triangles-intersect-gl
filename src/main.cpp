@@ -114,7 +114,7 @@ int main(int argc, char** argv) {
     const analyzer::TriangleArr& tr_arr = analyzer.GetTriangles();
     const std::vector<bool>& intersect_status = analyzer.GetInterStatuses();
     for (size_t ind = 0; ind < triangles_number; ++ind) {
-      adapter.ConvertTriangle(tr_arr[ind].triangle, tr_arr[ind].intersect_status);
+      adapter.ConvertTriangle(triangles[ind], analyzer.DoesIntersect(ind));
     }
 
     adapter.Draw();
