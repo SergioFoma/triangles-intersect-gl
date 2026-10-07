@@ -131,6 +131,12 @@ Build/bin/triangles_tests
 Build/bin/end_to_end_testing
 ```
 
+Запуск ```google benchmark```:
+
+```bash
+Build/bin/benchmark_test
+```
+
 ## Collaborators 👤
 
 [pr1usf0x](https://github.com/pr1usf0x)
