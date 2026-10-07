@@ -36,8 +36,8 @@ InterAnalyzer::InterAnalyzer(const TriangleArr& triangles)
     : triangles_(triangles.size()) {
   for (size_t i = 0; i < triangles.size(); ++i) {
     triangles_[i] = {.triangle = triangles[i],
-                             .original_index = i,
-                             .intersect_status = false};
+                     .original_index = i,
+                     .intersect_status = false};
   }
   if (triangles_.empty()) {
     return;
@@ -48,10 +48,9 @@ InterAnalyzer::InterAnalyzer(const TriangleArr& triangles)
   SortTrianglesByIndex();
 }
 
-
 void InterAnalyzer::SortTrianglesByIndex() {
   assert(!triangles_.empty());
-  constexpr auto kComparator = [] (const AnalyzingTriangle& t1,
+  constexpr auto kComparator = [](const AnalyzingTriangle& t1,
                                   const AnalyzingTriangle& t2) {
     return t1.original_index < t2.original_index;
   };
@@ -79,8 +78,7 @@ void InterAnalyzer::SortTrianglesByMorton() {
     return k_get_key(t1.triangle.GetCenter()) >
            k_get_key(t2.triangle.GetCenter());
   };
-  tbb::parallel_sort(triangles_.begin(), triangles_.end(),
-                     k_comparator);
+  tbb::parallel_sort(triangles_.begin(), triangles_.end(), k_comparator);
 }
 
 void InterAnalyzer::ConstructTree() {
@@ -146,8 +144,12 @@ bool InterAnalyzer::CheckIntersection(size_t triangle_index, size_t box_index) {
 }
 
 void InterAnalyzer::AnalyzeIntersection() {
-  for (size_t i = 0; i < triangles_.size(); ++i) {
-    triangles_[i].intersect_status = CheckIntersection(i, root_);
-  }
+  tbb::parallel_for(tbb::blocked_range<size_t>{0, triangles_.size()},
+                    [&](tbb::blocked_range<size_t> r) {
+                      for (size_t i = r.begin(); i < r.end(); ++i) {
+                        triangles_[i].intersect_status =
+                            CheckIntersection(i, root_);
+                      }
+                    });
 }
 }  // namespace triangles

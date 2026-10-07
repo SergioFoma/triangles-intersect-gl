@@ -126,7 +126,7 @@ int main(int argc, char** argv) {
       adapter.Draw();
     }
   } catch (const std::exception& e) {
-    e.what();
+    std::cerr << e.what();
   }
 
   utility::CleanResources();
