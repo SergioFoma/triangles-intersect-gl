@@ -114,7 +114,7 @@ int main(int argc, char** argv) {
     adapter::Adapter adapter(win, render_con, skybox_config);
 
     for (size_t ind = 0; ind < triangles_number; ++ind) {
-      adapter.ConvertTriangle(tr_arr[ind].triangle, tr_arr[ind].intersect_status);
+      adapter.ConvertTriangle(triangles[ind], analyzer.DoesIntersect(ind));
     }
 
     adapter.Draw();
