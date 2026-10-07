@@ -1,6 +1,4 @@
 #include <CLI/CLI.hpp>
-#include <iostream>
-#include <fstream>
 
 #include "adapter.hpp"
 #include "utility.hpp"
@@ -86,9 +84,9 @@ utility::WinConfig CreateWinConfig() {
 
   return win_con;
 }
+} // namespace
 
-int ParseFlags(int argc, char** argv, std::pair<bool, std::string>& parse_result) {
-  assert(argv);
+int main(int argc, char** argv) {
 
   CLI::App app("Finding triangles intersection and rendering them");
   argv = app.ensure_utf8(argv);
@@ -98,26 +96,11 @@ int ParseFlags(int argc, char** argv, std::pair<bool, std::string>& parse_result
   app.add_flag("--only-intersection-analysis", is_only_intersect, "Analyzes only intersection");
   CLI11_PARSE(app, argc, argv);
 
-  parse_result = {is_only_intersect, input_path};
-  return 0;
-}
-
-} // namespace
-
-int main(int argc, char** argv) {
-  if (argc < 2) {
-    std::cout << "Not enough arguments!\n";
-    return 1;
-  }
-
-  std::pair<bool, std::string> parse_result;
-  ParseFlags(argc, argv, parse_result);
-
-  analyzer::TriangleArr triangles = reader::ReadData(parse_result.second);
+  analyzer::TriangleArr triangles = reader::ReadData(input_path);
   size_t triangles_number = triangles.size();
   analyzer::InterAnalyzer analyzer(std::move(triangles));
 
-  if (!parse_result.first) {
+  if (!is_only_intersect) {
     utility::WinConfig win_con = CreateWinConfig();
     render::LightConfig light_con = CreateLightConfig();
     render::CameraConfig camera_con = CreateCameraConfig(win_con);
