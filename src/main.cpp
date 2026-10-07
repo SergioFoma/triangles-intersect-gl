@@ -161,7 +161,7 @@ int main() {
 
   // ==============================================================
 
-  triangles::TriangleArr triangles = ReadData("materials/triangles_100000.txt");
+  triangles::TriangleArr triangles = ReadData("materials/triangles_1000000.txt");
   size_t triangles_number = triangles.size();
 
   std::cerr << "Before!\n";
