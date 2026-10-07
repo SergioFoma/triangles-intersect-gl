@@ -96,9 +96,11 @@ int main(int argc, char** argv) {
   app.add_flag("--only-intersection-analysis", is_only_intersect, "Analyzes only intersection");
   CLI11_PARSE(app, argc, argv);
 
-  analyzer::TriangleArr triangles = reader::ReadData(input_path);
+
+  triangles::TriangleArr triangles = reader::ReadData(input_path);
+
   size_t triangles_number = triangles.size();
-  analyzer::InterAnalyzer analyzer(std::move(triangles));
+  triangles::InterAnalyzer analyzer(std::move(triangles));
 
   if (!is_only_intersect) {
     utility::WinConfig win_con = CreateWinConfig();
@@ -111,7 +113,7 @@ int main(int argc, char** argv) {
     GLFWwindow* win = utility::InitGraphics(win_con);
     adapter::Adapter adapter(win, render_con, skybox_config);
 
-    const analyzer::TriangleArr& tr_arr = analyzer.GetTriangles();
+    const triangles::TriangleArr& tr_arr = analyzer.GetTriangles();
     const std::vector<bool>& intersect_status = analyzer.GetInterStatuses();
     for (size_t ind = 0; ind < triangles_number; ++ind) {
       adapter.ConvertTriangle(tr_arr[ind], intersect_status[ind]);

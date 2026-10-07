@@ -68,8 +68,8 @@ int main() {
   };
 
   for (size_t ind = 0; ind < kTestsNumber; ++ind) {
-    analyzer::TriangleArr triangles = reader::ReadData(input_data[ind]);
-    analyzer::InterAnalyzer analyzer(std::move(triangles));
+    triangles::TriangleArr triangles = reader::ReadData(input_data[ind]);
+    triangles::InterAnalyzer analyzer(std::move(triangles));
 
     const std::vector<bool>& intersect_status = analyzer.GetInterStatuses();
     const std::vector<bool>& correct_status = ReadCorrectStatuses(output_data[ind]);

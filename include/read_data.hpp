@@ -15,9 +15,9 @@ triangles::Point3D ReadPoint(std::istream& in);
 
 triangles::Triangle3D ReadTriangle(std::istream& in);
 
-analyzer::TriangleArr ReadData(std::istream& in);
+triangles::TriangleArr ReadData(std::istream& in);
 
-analyzer::TriangleArr ReadData(const std::string& file_name);
+triangles::TriangleArr ReadData(const std::string& file_name);
 } // namespace reader
 
 #endif

@@ -25,7 +25,7 @@ triangles::Triangle3D reader::ReadTriangle(std::istream& in) {
   return triangle;
 }
 
-analyzer::TriangleArr reader::ReadData(std::istream& in) {
+triangles::TriangleArr reader::ReadData(std::istream& in) {
 
   // failbit - format errorr
   // badbit  - system error
@@ -38,7 +38,7 @@ analyzer::TriangleArr reader::ReadData(std::istream& in) {
     throw std::runtime_error("Incorrect number (N) of triangles!");
   }
 
-  analyzer::TriangleArr triangles;
+  triangles::TriangleArr triangles;
   triangles.reserve(tmp_sz);
 
   for (unsigned int ind = 0; ind < tmp_sz; ++ind) {
@@ -48,7 +48,7 @@ analyzer::TriangleArr reader::ReadData(std::istream& in) {
   return triangles;
 }
 
-analyzer::TriangleArr reader::ReadData(const std::string& file_name) {
+triangles::TriangleArr reader::ReadData(const std::string& file_name) {
   std::ifstream file(file_name, std::ios::binary);
 
   if (!file.is_open()) {

@@ -1,0 +1,57 @@
+#ifndef BOX_HPP_
+#define BOX_HPP_
+
+#include <algorithm>
+
+#include "basics.hpp"
+#include "triangle.hpp"
+
+namespace triangles {
+
+struct Box {
+  Point3D min_;
+  Point3D max_;
+
+  Box() = default;
+  Box(const Point3D& min, const Point3D& max) : min_{min}, max_{max} {
+    if (!IsValid()) {
+      throw std::runtime_error("Non valid arguments in Box Ctor");
+    }
+  }
+
+  explicit Box(const Triangle3D& triangle) {
+    if (!triangle.IsValid()) {
+      throw std::runtime_error("Non valid triangle in BoxCtor");
+    }
+    min_ = {triangle.GetMinX(), triangle.GetMinY(), triangle.GetMinZ()};
+    max_ = {triangle.GetMaxX(), triangle.GetMaxY(), triangle.GetMaxZ()};
+  }
+
+  bool IsValid() const {
+    return min_.IsValid() && max_.IsValid() && min_.x_ <= max_.x_ &&
+           min_.y_ <= max_.y_ && min_.z_ <= max_.z_;
+  }
+
+  bool DoesIntersect(const Box& other) const {
+    if (!IsValid() || !other.IsValid()) {
+      throw std::runtime_error("Non valid triangles in Box::DoesIntersects");
+    }
+    return min_.x_ <= other.max_.x_ && other.min_.x_ <= max_.x_ &&
+           min_.y_ <= other.max_.y_ && other.min_.y_ <= max_.y_ &&
+           min_.z_ <= other.max_.z_ && other.min_.z_ <= max_.z_;
+  }
+
+  Box Merge(const Box& other) const {
+    if (!IsValid() || !other.IsValid()) {
+      throw std::runtime_error("Non valid box in Box::Merge");
+    }
+    return {{std::min(min_.x_, other.min_.x_), std::min(min_.y_, other.min_.y_),
+             std::min(min_.z_, other.min_.z_)},
+            {std::max(max_.x_, other.max_.x_), std::max(max_.y_, other.max_.y_),
+             std::max(max_.z_, other.max_.z_)}};
+  }
+};
+
+}  // namespace triangles
+
+#endif  // BOX_HPP_

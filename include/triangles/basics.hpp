@@ -29,8 +29,16 @@ struct Point3D {
   }
   void Print() const { std::cout << "Point: " << x_ << ' ' << y_ << ' ' << z_; }
 
+  Point3D operator+(const Point3D& other) const {
+    return {x_ + other.x_, y_ + other.y_, z_ + other.z_};
+  };
+
   Point3D operator-(const Point3D& other) const {
     return {x_ - other.x_, y_ - other.y_, z_ - other.z_};
+  };
+
+  Point3D operator/(double div) const {
+    return {x_ / div, y_ / div, z_ / div};
   };
 
   Point3D Cross(const Point3D& other) const {
