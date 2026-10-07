@@ -1,3 +1,4 @@
+#include <CLI/CLI.hpp>
 #include <iostream>
 #include <fstream>
 
@@ -85,37 +86,56 @@ utility::WinConfig CreateWinConfig() {
 
   return win_con;
 }
+
+int ParseFlags(int argc, char** argv, std::pair<bool, std::string>& parse_result) {
+  assert(argv);
+
+  CLI::App app("Finding triangles intersection and rendering them");
+  argv = app.ensure_utf8(argv);
+  std::string input_path;
+  app.add_option("-f,--input_file,input_name", input_path, "The input data file");
+  bool is_only_intersect = false;
+  app.add_flag("--only-intersection-analysis", is_only_intersect, "Analyzes only intersection");
+  CLI11_PARSE(app, argc, argv);
+
+  parse_result = {is_only_intersect, input_path};
+  return 0;
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
-
-  if (argc != 2) {
-    std::cout << "Incorrect number of arguments!";
+  if (argc < 2) {
+    std::cout << "Not enough arguments!\n";
     return 1;
   }
 
-  utility::WinConfig win_con = CreateWinConfig();
-  render::LightConfig light_con = CreateLightConfig();
-  render::CameraConfig camera_con = CreateCameraConfig(win_con);
-  render::ShaderConfig shader_config = CreateShaderConfig();
-  render::SkyboxConfig skybox_config = CreateSkyboxConfig();
-  render::RenderConfig render_con = {camera_con, light_con, shader_config};
+  std::pair<bool, std::string> parse_result;
+  ParseFlags(argc, argv, parse_result);
 
-  GLFWwindow* win = utility::InitGraphics(win_con);
-
-  analyzer::TriangleArr triangles = reader::ReadData(argv[1]);
+  analyzer::TriangleArr triangles = reader::ReadData(parse_result.second);
   size_t triangles_number = triangles.size();
-
   analyzer::InterAnalyzer analyzer(std::move(triangles));
-  adapter::Adapter adapter(win, render_con, skybox_config);
 
-  const analyzer::TriangleArr& tr_arr = analyzer.GetTriangles();
-  const std::vector<bool>& intersect_status = analyzer.GetInterStatuses();
-  for (size_t ind = 0; ind < triangles_number; ++ind) {
-    adapter.ConvertTriangle(tr_arr[ind], intersect_status[ind]);
+  if (!parse_result.first) {
+    utility::WinConfig win_con = CreateWinConfig();
+    render::LightConfig light_con = CreateLightConfig();
+    render::CameraConfig camera_con = CreateCameraConfig(win_con);
+    render::ShaderConfig shader_config = CreateShaderConfig();
+    render::SkyboxConfig skybox_config = CreateSkyboxConfig();
+    render::RenderConfig render_con = {camera_con, light_con, shader_config};
+
+    GLFWwindow* win = utility::InitGraphics(win_con);
+    adapter::Adapter adapter(win, render_con, skybox_config);
+
+    const analyzer::TriangleArr& tr_arr = analyzer.GetTriangles();
+    const std::vector<bool>& intersect_status = analyzer.GetInterStatuses();
+    for (size_t ind = 0; ind < triangles_number; ++ind) {
+      adapter.ConvertTriangle(tr_arr[ind], intersect_status[ind]);
+    }
+
+    adapter.Draw();
   }
-
-  adapter.Draw();
 
   utility::CleanResources();
 }
