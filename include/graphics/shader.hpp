@@ -14,7 +14,12 @@ class Shader {
  public:
   Shader(const Shader& other) = delete;
 
-  Shader(Shader&& other) = delete;
+  Shader(Shader&& other)
+    : vertex_shader_(other.vertex_shader_),
+      fragment_shader_(other.fragment_shader_),
+      shader_program_(other.shader_program_) {
+      other.shader_program_ = 0;
+  };
 
   Shader(const std::string& vert_path, const std::string& frag_path);
 
@@ -85,7 +90,17 @@ class Shader {
 
   Shader& operator=(const Shader& other) = delete;
 
-  Shader& operator=(Shader&& other) = delete;
+  Shader& operator=(Shader&& other) {
+    if (this == &other) {
+      return *this;
+    }
+
+    glDeleteProgram(shader_program_);
+    shader_program_ = other.shader_program_;
+    other.shader_program_ = 0;
+
+    return *this;
+  };
 
   ~Shader() { glDeleteProgram(shader_program_); }
 

@@ -1,27 +1,25 @@
+#include <CLI/CLI.hpp>
 #include <iostream>
 #include <fstream>
 
-#include "inter_analyzer.hpp"
 #include "adapter.hpp"
 #include "utility.hpp"
+#include "read_data.hpp"
 
 namespace {
 
-  constexpr unsigned int kLowBound = 0;
-  constexpr unsigned int kUpperBound = 1'000'000;
+render::LightConfig CreateLightConfig() {
+  glm::vec3 color = glm::vec3(1.0F);
+  float cut_off = 12.5F;
+  float outer_cut_off = 17.5F;
+  float constant = 1.0F;
+  float linear = 0.0014F;
+  float quadratic = 0.0007F;
 
-  render::LightConfig CreateLightConfig() {
-    glm::vec3 color = glm::vec3(1.0F);
-    float cut_off = 12.5F;
-    float outer_cut_off = 17.5F;
-    float constant = 1.0F;
-    float linear = 0.0014F;
-    float quadratic = 0.0007F;
+  render::LightConfig light = {color, cut_off, outer_cut_off,
+                      constant, linear, quadratic};
 
-    render::LightConfig light = {color, cut_off, outer_cut_off,
-                       constant, linear, quadratic};
-
-    return light;
+  return light;
 }
 
 render::CameraConfig CreateCameraConfig(const utility::WinConfig& win_con) {
@@ -89,95 +87,55 @@ utility::WinConfig CreateWinConfig() {
   return win_con;
 }
 
-  triangles::Point3D ReadPoint(std::istream& in) {
-    double x = NAN;
-    double y = NAN;
-    double z = NAN;
+int ParseFlags(int argc, char** argv, std::pair<bool, std::string>& parse_result) {
+  assert(argv);
 
-    in >> x >> y >> z;
+  CLI::App app("Finding triangles intersection and rendering them");
+  argv = app.ensure_utf8(argv);
+  std::string input_path;
+  app.add_option("-f,--input_file,input_name", input_path, "The input data file");
+  bool is_only_intersect = false;
+  app.add_flag("--only-intersection-analysis", is_only_intersect, "Analyzes only intersection");
+  CLI11_PARSE(app, argc, argv);
 
-    triangles::Point3D point(x, y, z);
-
-    return point;
-  }
-
-  triangles::Triangle3D ReadTriangle(std::istream& in) {
-
-    triangles::Point3D p_1 = ReadPoint(in);
-    triangles::Point3D p_2 = ReadPoint(in);
-    triangles::Point3D p_3 = ReadPoint(in);
-
-    triangles::Triangle3D triangle(p_1, p_2, p_3);
-
-    return triangle;
-  }
-
-triangles::TriangleArr ReadData(std::istream& in) {
-
-  // failbit - format errorr
-  // badbit  - system error
-  in.exceptions(std::istream::failbit | std::istream::badbit);
-
-  unsigned int tmp_sz = 0;
-  in >> tmp_sz;
-
-  if (kLowBound >= tmp_sz || tmp_sz > kUpperBound) {
-    throw std::runtime_error("Incorrect number (N) of triangles!");
-  }
-
-  triangles::TriangleArr triangles;
-  triangles.reserve(tmp_sz);
-
-  for (unsigned int ind = 0; ind < tmp_sz; ++ind) {
-    triangles.push_back(ReadTriangle(in));
-  }
-
-  return triangles;
+  parse_result = {is_only_intersect, input_path};
+  return 0;
 }
 
-triangles::TriangleArr ReadData(const std::string& file_name) {
-  std::ifstream file(file_name, std::ios::binary);
-
-  if (!file.is_open()) {
-    throw std::runtime_error("ReadData: error of opening file!");
-  }
-
-  return ReadData(file);
-}
 } // namespace
 
-int main() {
-
-  utility::WinConfig win_con = CreateWinConfig();
-  render::LightConfig light_con = CreateLightConfig();
-  render::CameraConfig camera_con = CreateCameraConfig(win_con);
-  render::ShaderConfig shader_config = CreateShaderConfig();
-  render::SkyboxConfig skybox_config = CreateSkyboxConfig();
-  render::RenderConfig render_con = {camera_con, light_con, shader_config};
-
-  // ============================= OPENGL =========================
-
-  GLFWwindow* win = utility::InitGraphics(win_con);
-
-  // ==============================================================
-
-  triangles::TriangleArr triangles = ReadData("materials/triangles_1000000.txt");
-  size_t triangles_number = triangles.size();
-
-  std::cerr << "Before!\n";
-  triangles::InterAnalyzer analyzer(std::move(triangles));
-  std::cerr << "After!\n";
-
-  adapter::Adapter adapter(win, render_con, skybox_config);
-
-  const triangles::TriangleArr& tr_arr = analyzer.GetTriangles();
-  const std::vector<bool>& intersect_status = analyzer.GetInterStatuses();
-  for (size_t ind = 0; ind < triangles_number; ++ind) {
-    const bool intersects = intersect_status[ind];
-    adapter.ConvertTriangle(tr_arr[ind], intersects);
+int main(int argc, char** argv) {
+  if (argc < 2) {
+    std::cout << "Not enough arguments!\n";
+    return 1;
   }
 
-  adapter.Draw();
+  std::pair<bool, std::string> parse_result;
+  ParseFlags(argc, argv, parse_result);
+
+  triangles::TriangleArr triangles = reader::ReadData(parse_result.second);
+  size_t triangles_number = triangles.size();
+  triangles::InterAnalyzer analyzer(std::move(triangles));
+
+  if (!parse_result.first) {
+    utility::WinConfig win_con = CreateWinConfig();
+    render::LightConfig light_con = CreateLightConfig();
+    render::CameraConfig camera_con = CreateCameraConfig(win_con);
+    render::ShaderConfig shader_config = CreateShaderConfig();
+    render::SkyboxConfig skybox_config = CreateSkyboxConfig();
+    render::RenderConfig render_con = {camera_con, light_con, shader_config};
+
+    GLFWwindow* win = utility::InitGraphics(win_con);
+    adapter::Adapter adapter(win, render_con, skybox_config);
+
+    const triangles::TriangleArr& tr_arr = analyzer.GetTriangles();
+    const std::vector<bool>& intersect_status = analyzer.GetInterStatuses();
+    for (size_t ind = 0; ind < triangles_number; ++ind) {
+      adapter.ConvertTriangle(tr_arr[ind], intersect_status[ind]);
+    }
+
+    adapter.Draw();
+  }
 
   utility::CleanResources();
 }
