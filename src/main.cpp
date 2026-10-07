@@ -123,6 +123,7 @@ int main(int argc, char** argv) {
         adapter.ConvertTriangle(triangles[ind], analyzer.DoesIntersect(ind));
       }
 
+      adapter.ConvertBoxLevels(analyzer.GetBoxLevels(), analyzer.GetBoxMortonRanges());
       adapter.Draw();
     }
   } catch (const std::exception& e) {

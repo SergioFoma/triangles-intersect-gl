@@ -51,6 +51,52 @@ TEST(InterAnalyzer, DifferentTriangleSizesPreserveOriginalIndices) {
   ExpectBruteForceStatuses(analyzer, TriangleArr{small, wide});
 }
 
+TEST(InterAnalyzer, BoxLevelsCoverOddSizedScene) {
+  TriangleArr input;
+  for (double x : {0.0, 3.0, 6.0, 9.0, 12.0}) {
+    input.emplace_back(triangles::Point3D{x, 0, 0},
+                       triangles::Point3D{x + 1, 0, 1},
+                       triangles::Point3D{x, 1, 0});
+  }
+  const InterAnalyzer analyzer{input};
+  const auto levels = analyzer.GetBoxLevels();
+  const auto ranges = analyzer.GetBoxMortonRanges();
+  ASSERT_EQ(ranges.size(), levels.size());
+  for (size_t level = 0; level < ranges.size(); ++level) {
+    ASSERT_EQ(ranges[level].size(), levels[level].size());
+    size_t end = 0;
+    for (const auto& range : ranges[level]) {
+      EXPECT_EQ(range.first, end);
+      EXPECT_GT(range.second, range.first);
+      end = range.second;
+    }
+    EXPECT_EQ(end, input.size());
+  }
+  for (size_t i = 0; i < ranges[0].size(); ++i) {
+    EXPECT_EQ(ranges[0][i].first, i);
+    EXPECT_EQ(ranges[0][i].second, i + 1);
+  }
+  ASSERT_EQ(levels.size(), 4);
+  EXPECT_EQ(levels[0].size(), 5);
+  EXPECT_EQ(levels[1].size(), 3);
+  EXPECT_EQ(levels[2].size(), 2);
+  ASSERT_EQ(levels[3].size(), 1);
+  EXPECT_DOUBLE_EQ(levels.back()[0].min_.x_, 0);
+  EXPECT_DOUBLE_EQ(levels.back()[0].max_.x_, 13);
+  for (size_t i = 0; i + 1 < levels.size(); ++i) {
+    for (const auto& child : levels[i]) {
+      EXPECT_TRUE(std::any_of(levels[i + 1].begin(), levels[i + 1].end(),
+        [&](const auto& parent) {
+          return parent.min_.x_ <= child.min_.x_ && parent.max_.x_ >= child.max_.x_ &&
+                 parent.min_.y_ <= child.min_.y_ && parent.max_.y_ >= child.max_.y_ &&
+                 parent.min_.z_ <= child.min_.z_ && parent.max_.z_ >= child.max_.z_;
+        }));
+    }
+  }
+  EXPECT_TRUE(InterAnalyzer{TriangleArr{}}.GetBoxLevels().empty());
+  EXPECT_EQ(InterAnalyzer{TriangleArr{input[0]}}.GetBoxLevels().size(), 1);
+}
+
 TEST(InterAnalyzer, EmptyAndSingleton) {
   ExpectBruteForce({});
   ExpectBruteForce({Triangle3D{{0, 0, 0}, {1, 0, 0}, {0, 1, 0}}});

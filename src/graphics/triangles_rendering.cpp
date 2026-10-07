@@ -257,9 +257,33 @@ void ProcessInput(GLFWwindow* win, render::Camera& camera) {
 }
 
 
+render::RenderObject CreateBoxObj(const std::vector<float>& data) {
+  render::RenderObject obj{GeometryBuffer(data, 3, 3, 3, data.size() / 9),
+    Shader("./shaders/box.vert", "./shaders/box.frag"), glm::mat4(1), glm::mat3(1)};
+  obj.geom_buff.Bind();
+  obj.geom_buff.SetCoordinates(0);
+  obj.geom_buff.SetColors(1);
+  obj.geom_buff.SetNormal(2);
+  obj.geom_buff.Unbind();
+  return obj;
+}
+
+void DrawBoxes(render::RenderObject& obj, const render::Camera& camera, bool morton_mode) {
+  obj.shader.Use();
+  obj.shader.SetInt("mortonMode", morton_mode);
+  obj.shader.SetMat4("view", camera.view);
+  obj.shader.SetMat4("projection", camera.projection);
+  obj.geom_buff.Bind();
+  obj.geom_buff.Draw(GL_LINES);
+  obj.geom_buff.Unbind();
+  obj.shader.Disable();
+}
+
 void RenderCycle(GLFWwindow* win, render::RenderObject& tr_obj,
                  const render::RenderConfig& render_con,
-                 render::SkyboxData& skybox_data) {
+                 render::SkyboxData& skybox_data,
+                 std::vector<render::RenderObject>& levels,
+                 const std::vector<std::vector<float>>& box_levels) {
   assert(win);
 
   float back_r = 0.0F, back_g = 0.0F, back_b = 0.0F, alpha = 1.0F;
@@ -268,17 +292,78 @@ void RenderCycle(GLFWwindow* win, render::RenderObject& tr_obj,
 
   glfwSetWindowUserPointer(win, &camera);  // save info about camera in window
 
-  while (glfwGetKey(win, GLFW_KEY_ESCAPE) != GLFW_PRESS) {
+  bool show_boxes = true, show_triangles = true, morton_mode = true, show_path = true;
+  size_t level = 0;
+  bool previous_m = false, previous_p = false;
+  bool previous_b = false, previous_t = false, previous_next = false, previous_back = false;
+  auto update_title = [&] {
+    const size_t count = levels.empty() ? 0 : box_levels[level].size() / (24 * 9);
+    const std::string title = "Boxes level " + std::to_string(level) + "/" +
+      std::to_string(levels.empty() ? 0 : levels.size() - 1) +
+      " | " + std::to_string(count) + " boxes | " + (morton_mode ? "Morton: blue(high) -> red(low)" : "Level colors") +
+      " | arrows: level | M: color | P: path | B/T: boxes/triangles | Esc";
+    glfwSetWindowTitle(win, title.c_str());
+  };
+  std::vector<render::RenderObject> paths;
+  paths.reserve(box_levels.size());
+  for (const auto& data : box_levels) {
+    std::vector<float> lines;
+    std::vector<float> previous;
+    for (size_t start = 0; start < data.size(); start += 24 * 9) {
+      glm::vec3 low(data[start], data[start+1], data[start+2]), high = low;
+      for (size_t j = start; j < start + 24 * 9; j += 9) {
+        const glm::vec3 p(data[j], data[j+1], data[j+2]);
+        low = glm::min(low, p); high = glm::max(high, p);
+      }
+      const auto center = (low + high) * 0.5F;
+      std::vector<float> vertex{center.x, center.y, center.z,
+        data[start+3], data[start+4], data[start+5],
+        data[start+6], data[start+7], data[start+8]};
+      if (!previous.empty()) {
+        lines.insert(lines.end(), previous.begin(), previous.end());
+        lines.insert(lines.end(), vertex.begin(), vertex.end());
+      }
+      previous = std::move(vertex);
+    }
+    paths.push_back(CreateBoxObj(lines));
+  }
+  update_title();
+  while (!glfwWindowShouldClose(win) && glfwGetKey(win, GLFW_KEY_ESCAPE) != GLFW_PRESS) {
+    const bool m = glfwGetKey(win, GLFW_KEY_M) == GLFW_PRESS;
+    const bool p = glfwGetKey(win, GLFW_KEY_P) == GLFW_PRESS;
+    if (m && !previous_m) { morton_mode = !morton_mode; update_title(); }
+    if (p && !previous_p) show_path = !show_path;
+    previous_m = m;
+    previous_p = p;
+    const bool b = glfwGetKey(win, GLFW_KEY_B) == GLFW_PRESS;
+    const bool t = glfwGetKey(win, GLFW_KEY_T) == GLFW_PRESS;
+    const bool next = glfwGetKey(win, GLFW_KEY_RIGHT) == GLFW_PRESS ||
+                      glfwGetKey(win, GLFW_KEY_G) == GLFW_PRESS;
+    const bool back = glfwGetKey(win, GLFW_KEY_LEFT) == GLFW_PRESS;
+    if (b && !previous_b) show_boxes = !show_boxes;
+    if (t && !previous_t) show_triangles = !show_triangles;
+    if (next && !previous_next && level + 1 < levels.size()) { ++level; update_title(); }
+    if (back && !previous_back && level > 0) { --level; update_title(); }
+    previous_b = b;
+    previous_t = t;
+    previous_next = next;
+    previous_back = back;
     glClearColor(back_r, back_g, back_b, alpha);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     ProcessInput(win, camera);
 
-    DrawTriangles(tr_obj, camera, render_con.light_con);
+    if (show_triangles) DrawTriangles(tr_obj, camera, render_con.light_con);
 
     glDepthFunc(GL_LEQUAL);
     DrawSkybox(skybox_data, camera);
     glDepthFunc(GL_LESS);
+
+    // Keep the wireframes visible even where triangles occlude their edges.
+    glDisable(GL_DEPTH_TEST);
+    if (show_boxes && !levels.empty()) DrawBoxes(levels[level], camera, morton_mode);
+    if (show_path && morton_mode && !paths.empty()) DrawBoxes(paths[level], camera, true);
+    glEnable(GL_DEPTH_TEST);
 
 
     glfwSwapBuffers(win);
@@ -324,14 +409,39 @@ render::ErrorType render::RenderTriangles(GLFWwindow* win,
                                   size_t triangles_number,
                                   const std::vector<float>& triangles,
                                   const render::RenderConfig& render_con,
-                                  const render::SkyboxConfig& skybox_con) {
+                                  const render::SkyboxConfig& skybox_con,
+                                  const std::vector<std::vector<float>>& box_levels) {
   assert(win);
 
   render::RenderObject tr_obj = CreateTriangleObj(triangles, render_con.shader_con,
                                                   triangles_number);
   render::SkyboxData skybox_data = CallSkyboxCreating(skybox_con);
 
-  RenderCycle(win, tr_obj, render_con, skybox_data);
+  std::vector<render::RenderObject> levels;
+  levels.reserve(box_levels.size());
+  for (const auto& data : box_levels) levels.push_back(CreateBoxObj(data));
+  auto fitted = render_con;
+  if (!triangles.empty()) {
+    glm::vec3 low(triangles[0], triangles[1], triangles[2]), high = low;
+    for (size_t i = 0; i < triangles.size(); i += 9) {
+      const glm::vec3 point(triangles[i], triangles[i + 1], triangles[i + 2]);
+      low = glm::min(low, point);
+      high = glm::max(high, point);
+    }
+    const glm::vec3 center = (low + high) * 0.5F;
+    const float radius = std::max(glm::length(high - low) * 0.5F, 0.1F);
+    const float angle = glm::radians(fitted.camera_con.fovy) * 0.5F;
+    const float limiting_angle = std::min(angle, std::atan(std::tan(angle) * fitted.camera_con.aspect));
+    const float distance = radius / std::sin(limiting_angle) * 1.15F;
+    fitted.camera_con.pos = center + glm::vec3(0, 0, distance);
+    fitted.camera_con.near = std::max(radius * 0.001F, 0.0001F);
+    fitted.camera_con.far = distance + radius * 10.0F;
+    fitted.camera_con.speed = radius;
+  }
+  std::cout << "Left/Right: box level (0 = triangles, last = entire scene).\n"
+               "M: Morton/level colors; P: Morton path; B: boxes; T: triangles.\n"
+               "Move: WASD, mouse; Shift: faster; Esc: close.\n";
+  RenderCycle(win, tr_obj, fitted, skybox_data, levels, box_levels);
 
   if (glGetError()) {
     throw std::runtime_error("RenderTriangles has an error!");

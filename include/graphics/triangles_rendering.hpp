@@ -159,7 +159,8 @@ render::ErrorType RenderTriangles(GLFWwindow* win,
                                   size_t triangles_number,
                                   const std::vector<float>& triangles,
                                   const render::RenderConfig& render_con,
-                                  const render::SkyboxConfig& skybox_con);
+                                  const render::SkyboxConfig& skybox_con,
+                                  const std::vector<std::vector<float>>& box_levels);
 }  // namespace render
 
 #endif

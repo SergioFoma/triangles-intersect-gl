@@ -114,6 +114,32 @@ void InterAnalyzer::ConstructTree() {
   root_ = boxes_.size() - 1;
 }
 
+std::vector<std::vector<Box>> InterAnalyzer::GetBoxLevels() const {
+  std::vector<std::vector<Box>> result;
+  std::vector<size_t> heights(boxes_.size(), 0);
+  for (size_t i = 0; i < boxes_.size(); ++i) {
+    const auto& node = boxes_[i];
+    if (node.node_l != -1) {
+      heights[i] = heights[node.node_l] + 1;
+    }
+    if (result.size() <= heights[i]) result.resize(heights[i] + 1);
+    result[heights[i]].push_back(node.box);
+  }
+  return result;
+}
+
+std::vector<std::vector<std::pair<size_t, size_t>>> InterAnalyzer::GetBoxMortonRanges() const {
+  std::vector<std::vector<std::pair<size_t, size_t>>> result;
+  std::vector<size_t> heights(boxes_.size(), 0);
+  for (size_t i = 0; i < boxes_.size(); ++i) {
+    const auto& node = boxes_[i];
+    if (node.node_l != -1) heights[i] = heights[node.node_l] + 1;
+    if (result.size() <= heights[i]) result.resize(heights[i] + 1);
+    result[heights[i]].emplace_back(node.l_triangle, node.r_triangle);
+  }
+  return result;
+}
+
 bool InterAnalyzer::DoesIntersect(size_t original_index) const {
   if (original_index >= triangles_.size()) {
     throw std::out_of_range("Triangle index is out of range");

@@ -5,6 +5,7 @@
 
 #include "triangles_rendering.hpp"
 #include "triangle.hpp"
+#include "box.hpp"
 
 namespace adapter {
 
@@ -19,11 +20,15 @@ class Adapter {
 
   void ConvertTriangle(const triangles::Triangle3D& triangle, bool intersect_status);
 
+  void ConvertBoxLevels(const std::vector<std::vector<triangles::Box>>& levels,
+      const std::vector<std::vector<std::pair<size_t, size_t>>>& ranges);
+
   void Draw();
 
  private:
 
   std::vector<float> raw_data_;
+  std::vector<std::vector<float>> box_levels_;
   size_t triangles_number_ = 0;
 
   GLFWwindow* win_;

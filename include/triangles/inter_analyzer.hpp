@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <vector>
+#include <utility>
 
 #include "basics.hpp"
 #include "box.hpp"
@@ -17,6 +18,11 @@ class InterAnalyzer {
   explicit InterAnalyzer(const TriangleArr& triangles);
 
   bool DoesIntersect(size_t original_index) const;
+
+  // Level 0 contains leaves; each following level merges the previous one.
+  std::vector<std::vector<Box>> GetBoxLevels() const;
+  // Half-open leaf rank ranges in the actual descending Morton order.
+  std::vector<std::vector<std::pair<size_t, size_t>>> GetBoxMortonRanges() const;
 
  private:
   struct Node {
