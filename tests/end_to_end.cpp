@@ -34,7 +34,9 @@ void ComparingValues(const std::vector<bool>& intersect_status,
                      const std::vector<bool>& correct_status,
                      const std::string& file_name) {
   bool flag = true;
-  for (int ind = 0; ind < correct_status.size() && flag; ++ind) {
+  size_t status_number = correct_status.size();
+
+  for (size_t ind = 0; ind < status_number && flag; ++ind) {
     flag = (intersect_status[ind] == correct_status[ind]);
   }
 

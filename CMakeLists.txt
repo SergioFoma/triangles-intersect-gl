@@ -33,7 +33,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 find_package(OpenGL REQUIRED)
 find_package(glfw3 REQUIRED)
-fetch_if_not_available(TBB https://github.com/uxlfoundation/oneTBB/archive/refs/heads/master.zip)
+find_package(TBB REQUIRED)
 fetch_if_not_available(cli11 https://github.com/CLIUtils/CLI11/archive/refs/tags/v2.7.2.zip)
 
 # === add_executables ===
