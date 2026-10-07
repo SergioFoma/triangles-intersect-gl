@@ -42,19 +42,18 @@ void ExpectMortonOrder(const TriangleArr& input) {
     SCOPED_TRACE(move);
     const InterAnalyzer analyzer = move ? InterAnalyzer{TriangleArr(input)} :
                                           InterAnalyzer{input};
-    const auto& result = analyzer.GetTriangles();
+    const auto& result = analyzer.GetIndexedTriangles();
     ASSERT_EQ(result.size(), input.size());
-    ASSERT_EQ(analyzer.GetInterStatuses().size(), input.size());
     if (input.empty()) continue;
     triangles::Box bounds{input.front()};
     for (const auto& triangle : input) bounds = bounds.Merge(triangles::Box{triangle});
     for (size_t i = 1; i < result.size(); ++i) {
-      EXPECT_LE(ReferenceMorton(result[i - 1], bounds), ReferenceMorton(result[i], bounds));
+      EXPECT_LE(ReferenceMorton(result[i - 1].triangle, bounds), ReferenceMorton(result[i].triangle, bounds));
     }
     // Equal Morton codes need not be stable, but no triangle may be lost.
     std::vector<std::array<double, 9>> before, after;
     for (const auto& triangle : input) before.push_back(VerticesKey(triangle));
-    for (const auto& triangle : result) after.push_back(VerticesKey(triangle));
+    for (const auto& triangle : result) after.push_back(VerticesKey(triangle.triangle));
     std::sort(before.begin(), before.end());
     std::sort(after.begin(), after.end());
     EXPECT_EQ(before, after);
@@ -62,14 +61,18 @@ void ExpectMortonOrder(const TriangleArr& input) {
 }
 
 void ExpectBruteForceStatuses(const InterAnalyzer& analyzer) {
-  const auto& triangles = analyzer.GetTriangles();
+  const auto& triangles = analyzer.GetIndexedTriangles();
   std::vector<bool> expected(triangles.size(), false);
   for (size_t i = 0; i < triangles.size(); ++i) {
     for (size_t j = i + 1; j < triangles.size(); ++j) {
-      if (triangles[i].DoesIntersect(triangles[j])) expected[i] = expected[j] = true;
+      if (triangles[i].triangle.DoesIntersect(triangles[j].triangle)) expected[i] = expected[j] = true;
     }
   }
-  EXPECT_EQ(analyzer.GetInterStatuses(), expected);
+  for (size_t i = 0; i < triangles.size(); ++i) {
+    EXPECT_EQ(triangles[i].intersect_status, expected[i]);
+    EXPECT_EQ(analyzer.CheckIntersection(triangles[i].original_index), expected[i]);
+  }
+  EXPECT_THROW(analyzer.CheckIntersection(triangles.size()), std::out_of_range);
 }
 
 void ExpectBruteForce(const TriangleArr& input) {
@@ -89,7 +92,7 @@ TEST(InterAnalyzer, MortonOrderInterleavesAllThreeAxes) {
   }
   const InterAnalyzer analyzer{input};
   for (size_t i = 0; i < input.size(); ++i) {
-    const auto& point = analyzer.GetTriangles()[i].GetFirstPoint();
+    const auto& point = analyzer.GetIndexedTriangles()[i].triangle.GetFirstPoint();
     const size_t code = (point.x_ > 0 ? 4 : 0) |
                         (point.y_ > 0 ? 2 : 0) |
                         (point.z_ > 0 ? 1 : 0);
@@ -106,8 +109,8 @@ TEST(InterAnalyzer, MortonOrderUsesMinimumCornerInsteadOfCenter) {
   const Triangle3D wide{{0, 0, 0}, {100, 0, 0}, {0, 100, 0}};
   const Triangle3D small{{1, 1, 0}, {2, 1, 0}, {1, 2, 0}};
   const InterAnalyzer analyzer{TriangleArr{small, wide}};
-  EXPECT_DOUBLE_EQ(analyzer.GetTriangles().front().GetMinX(), 0);
-  EXPECT_DOUBLE_EQ(analyzer.GetTriangles().front().GetMaxX(), 100);
+  EXPECT_DOUBLE_EQ(analyzer.GetIndexedTriangles().front().triangle.GetMinX(), 0);
+  EXPECT_DOUBLE_EQ(analyzer.GetIndexedTriangles().front().triangle.GetMaxX(), 100);
   ExpectBruteForceStatuses(analyzer);
 }
 
@@ -178,7 +181,10 @@ TEST(InterAnalyzer, MortonOrderDoesNotPermitEarlyExitAlongX) {
       Triangle3D{{0, 80, 0}, {0.1, 80, 0}, {0, 81, 0}},
       Triangle3D{{99, 0, 0}, {100, 0, 0}, {99, 1, 0}}};
   const InterAnalyzer analyzer{input};
-  EXPECT_EQ(analyzer.GetInterStatuses(), (std::vector<bool>{true, false, true, false}));
+  const std::vector<bool> expected{true, false, true, false};
+  for (const auto& triangle : analyzer.GetIndexedTriangles()) {
+    EXPECT_EQ(triangle.intersect_status, expected[triangle.original_index]);
+  }
   ExpectBruteForce(input);
   ExpectMortonOrder(input);
 }

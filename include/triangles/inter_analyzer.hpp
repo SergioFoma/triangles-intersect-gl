@@ -13,12 +13,10 @@ namespace triangles {
 using TriangleArr = std::vector<triangles::Triangle3D>;
 class InterAnalyzer {
  public:
-  explicit InterAnalyzer(TriangleArr&& triangles);
+
   explicit InterAnalyzer(const TriangleArr& triangles);
 
-  const TriangleArr& GetTriangles() const { return triangles_; }
-
-  const std::vector<bool>& GetInterStatuses() const { return intersect_status_; }
+  bool DoesIntersect(size_t original_index) const;
 
  private:
   struct Node {
@@ -28,16 +26,21 @@ class InterAnalyzer {
     size_t l_triangle;
     size_t r_triangle;
   };
-  std::vector<bool> intersect_status_;
+  struct AnalyzingTriangle {
+    Triangle3D triangle;
+    size_t original_index;
+    bool intersect_status = false;
+  };
+
   std::vector<Node> boxes_;
-  TriangleArr triangles_;
+  std::vector<AnalyzingTriangle> triangles_;
   size_t root_;
 
+  void SortTrianglesByIndex();
   void AnalyzeIntersection();
-  void ConstructorBody();
   void SortTrianglesByMorton();
   void ConstructTree();
-  bool DoesIntersect(size_t triangle_index, size_t box_index);
+  bool CheckIntersection(size_t triangle_index, size_t box_index);
 
 };
 }  // namespace triangles
