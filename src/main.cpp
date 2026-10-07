@@ -161,22 +161,23 @@ int main() {
 
   // ==============================================================
 
-  triangles::TriangleArr triangles = ReadData("materials/triangles_10000.txt");
+  triangles::TriangleArr triangles = ReadData("materials/triangles_100000.txt");
   size_t triangles_number = triangles.size();
 
   std::cerr << "Before!\n";
   triangles::InterAnalyzer analyzer(std::move(triangles));
   std::cerr << "After!\n";
 
-  // adapter::Adapter adapter(win, render_con, skybox_config);
+  adapter::Adapter adapter(win, render_con, skybox_config);
 
-  // const analyzer::TriangleArr& tr_arr = analyzer.GetTriangles();
-  // const std::vector<bool>& intersect_status = analyzer.GetInterStatuses();
-  // for (size_t ind = 0; ind < triangles_number; ++ind) {
-  //   adapter.ConvertTriangle(tr_arr[ind], intersect_status[ind]);
-  // }
+  const triangles::TriangleArr& tr_arr = analyzer.GetTriangles();
+  const std::vector<bool>& intersect_status = analyzer.GetInterStatuses();
+  for (size_t ind = 0; ind < triangles_number; ++ind) {
+    const bool intersects = intersect_status[ind];
+    adapter.ConvertTriangle(tr_arr[ind], intersects);
+  }
 
-  // adapter.Draw();
+  adapter.Draw();
 
   utility::CleanResources();
 }

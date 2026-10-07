@@ -36,10 +36,9 @@ struct Box {
     if (!IsValid() || !other.IsValid()) {
       throw std::runtime_error("Non valid triangles in Box::DoesIntersects");
     }
-    return IsValid() && other.IsValid() && min_.x_ <= other.max_.x_ &&
-           other.min_.x_ <= max_.x_ && min_.y_ <= other.max_.y_ &&
-           other.min_.y_ <= max_.y_ && min_.z_ <= other.max_.z_ &&
-           other.min_.z_ <= max_.z_;
+    return min_.x_ <= other.max_.x_ && other.min_.x_ <= max_.x_ &&
+           min_.y_ <= other.max_.y_ && other.min_.y_ <= max_.y_ &&
+           min_.z_ <= other.max_.z_ && other.min_.z_ <= max_.z_;
   }
 
   Box Merge(const Box& other) const {
