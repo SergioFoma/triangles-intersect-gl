@@ -78,8 +78,7 @@ void InterAnalyzer::SortTrianglesByMorton() {
     return k_get_key(t1.triangle.GetCenter()) >
            k_get_key(t2.triangle.GetCenter());
   };
-  tbb::parallel_sort(triangles_.begin(), triangles_.end(),
-                     k_comparator);
+  tbb::parallel_sort(triangles_.begin(), triangles_.end(), k_comparator);
 }
 */
 
