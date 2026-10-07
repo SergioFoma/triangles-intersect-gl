@@ -112,7 +112,6 @@ int main(int argc, char** argv) {
 
     GLFWwindow* win = utility::InitGraphics(win_con);
     adapter::Adapter adapter(win, render_con, skybox_config);
-
     for (size_t ind = 0; ind < triangles_number; ++ind) {
       adapter.ConvertTriangle(triangles[ind], analyzer.DoesIntersect(ind));
     }
