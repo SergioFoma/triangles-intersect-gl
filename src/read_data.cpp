@@ -26,7 +26,6 @@ triangles::Triangle3D reader::ReadTriangle(std::istream& in) {
 }
 
 triangles::TriangleArr reader::ReadData(std::istream& in) {
-
   // failbit - format errorr
   // badbit  - system error
   in.exceptions(std::istream::failbit | std::istream::badbit);
@@ -43,6 +42,15 @@ triangles::TriangleArr reader::ReadData(std::istream& in) {
 
   for (unsigned int ind = 0; ind < tmp_sz; ++ind) {
     triangles.push_back(ReadTriangle(in));
+  }
+
+  in.exceptions(std::ios_base::goodbit);
+
+  float flag = 0.0F;
+  in >> flag;
+  if(!in.eof()) {
+    throw std::runtime_error("ReadData: Incorrect number"
+                             "of triangles is specified!");
   }
 
   return triangles;
