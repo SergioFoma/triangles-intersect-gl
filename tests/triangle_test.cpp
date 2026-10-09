@@ -322,6 +322,141 @@ TEST(TriangleIntersection, LargeExactlyRepresentableTranslation) {
   }
 }
 
+// All coordinates below are dyadic rationals. Power-of-two scaling preserves
+// the geometry exactly in double, so expected answers do not depend on a
+// floating-point reference implementation. Even at 2^-14 every triangle's
+// cross-product length exceeds the constructor's absolute kEps cutoff.
+const IntersectionCase kExtremeCases[] = {
+    {"CoplanarIdentical", kSpatialReference, kSpatialReference, true},
+    {"CoplanarContained", kSpatialReference,
+     {{{1, 1, 0}, {2, 1, 0}, {1, 2, 0}}}, true},
+    {"CoplanarEdgeCrossings",
+     {{{-3, -1, 0}, {3, -1, 0}, {0, 3, 0}}},
+     {{{-3, 1, 0}, {3, 1, 0}, {0, -3, 0}}}, true},
+    {"CoplanarSharedEdge", kSpatialReference,
+     {{{0, 0, 0}, {4, 0, 0}, {0, -4, 0}}}, true},
+    {"CoplanarPartialSharedEdge", kSpatialReference,
+     {{{1, 0, 0}, {3, 0, 0}, {1, -2, 0}}}, true},
+    {"CoplanarSharedVertex", kSpatialReference,
+     {{{4, 0, 0}, {6, 0, 0}, {4, 2, 0}}}, true},
+    {"CoplanarDisjointOverlappingBoxes", kSpatialReference,
+     {{{3, 3, 0}, {5, 3, 0}, {3, 5, 0}}}, false},
+    {"CoplanarSmallGapAtVertex", kSpatialReference,
+     {{{4.125, 0, 0}, {6.125, 0, 0}, {4.125, 2, 0}}}, false},
+    {"CoplanarSmallGapAtDiagonal", kSpatialReference,
+     {{{2.125, 2.125, 0}, {4.125, 2.125, 0}, {2.125, 4.125, 0}}}, false},
+    // At x=1 the reference's z=0 slice is [0, 3]. The other slice is
+    // [y0, (y0+y1)/2], giving an independent inclusive-interval oracle.
+    {"SpatialCrossing", kSpatialReference,
+     {{{1, 0.5, -1}, {1, 0.5, 1}, {1, 2.5, 1}}}, true},
+    {"SpatialPartialSliceOverlap", kSpatialReference,
+     {{{1, 2, -1}, {1, 2, 1}, {1, 6, 1}}}, true},
+    {"SpatialDisjointSlices", kSpatialReference,
+     {{{1, 4, -1}, {1, 4, 1}, {1, 6, 1}}}, false},
+    {"SpatialSmallGapAtEdge", kSpatialReference,
+     {{{1, 3.125, -1}, {1, 3.125, 1}, {1, 5, 1}}}, false},
+    {"SpatialSliceTouchesEdge", kSpatialReference,
+     {{{1, 3, -1}, {1, 3, 1}, {1, 5, 1}}}, true},
+    {"SpatialSharedEdge", kSpatialReference,
+     {{{0, 0, 0}, {4, 0, 0}, {0, 0, 4}}}, true},
+    {"SpatialVertexOnInterior", kSpatialReference,
+     {{{1, 1, 0}, {1, 1, 2}, {3, 1, 2}}}, true},
+    {"SpatialVertexOnPlaneOutside", kSpatialReference,
+     {{{5, 0, 0}, {5, 2, 2}, {7, 0, 2}}}, false},
+    {"SpatialParallelPlanes", kSpatialReference,
+     {{{0, 0, 1}, {4, 0, 1}, {0, 4, 1}}}, false},
+    {"SpatialNearlyParallelCrossing", kSpatialReference,
+     {{{0, 0, -0.125}, {4, 0, 0.375}, {0, 4, -0.125}}}, true},
+    {"SpatialNearlyParallelSeparated", kSpatialReference,
+     {{{0, 0, 0.125}, {4, 0, 0.625}, {0, 4, 0.125}}}, false},
+};
+
+struct ExtremeScale {
+  const char* name;
+  double factor;
+};
+
+const ExtremeScale kExtremeScales[] = {
+    {"TinyNearCutoff", 0x1p-14},
+    {"Tiny", 0x1p-12},
+    {"UnitControl", 1},
+    {"Huge", 0x1p30},
+    {"HugeFiniteIntermediates", 0x1p100},
+    // Coordinates and cross products remain finite; squaring the normal
+    // overflows at 2^300, and cubic determinants overflow at 2^400.
+    {"NormalSquaredOverflow", 0x1p300},
+    {"DeterminantOverflow", 0x1p400},
+};
+
+using ExtremeParam = std::tuple<IntersectionCase, ExtremeScale, Transform>;
+class ExtremeTriangleIntersection : public testing::TestWithParam<ExtremeParam> {};
+
+TEST_P(ExtremeTriangleIntersection, AllVertexAndArgumentOrders) {
+  const auto& [test, scale, transform] = GetParam();
+  const auto apply = [&](Vertices vertices) {
+    vertices = ApplyTransform(vertices, transform);
+    for (auto& p : vertices) {
+      p = {p.x_ * scale.factor, p.y_ * scale.factor, p.z_ * scale.factor};
+    }
+    return vertices;
+  };
+  ExpectAllOrders(apply(test.first), apply(test.second), test.expected);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    ExtremeScales, ExtremeTriangleIntersection,
+    testing::Combine(testing::ValuesIn(kExtremeCases), testing::ValuesIn(kExtremeScales),
+                     testing::Values(Transform::Identity, Transform::YZ,
+                                     Transform::XZ, Transform::Tilted)),
+    [](const testing::TestParamInfo<ExtremeParam>& info) {
+      return std::string(std::get<0>(info.param).name) + "_" +
+             std::get<1>(info.param).name + "_" + TransformName(std::get<2>(info.param));
+    });
+
+// Side lengths differ by about 10^13. The tiny offsets are still exactly
+// representable at the large triangle's diagonal, including the miss cases.
+constexpr double kTinySide = 0x1p-14;
+constexpr double kHugeSide = 0x1p30;
+constexpr double kHugeMid = kHugeSide / 2;
+const Vertices kHugeReference{{{0, 0, 0}, {kHugeSide, 0, 0}, {0, kHugeSide, 0}}};
+const IntersectionCase kMixedSizeCases[] = {
+    {"CoplanarTinyInsideHuge", kHugeReference,
+     {{{kTinySide, kTinySide, 0}, {3*kTinySide, kTinySide, 0},
+       {kTinySide, 3*kTinySide, 0}}}, true},
+    {"CoplanarTinyOutsideDiagonal", kHugeReference,
+     {{{kHugeMid+kTinySide, kHugeMid+kTinySide, 0},
+       {kHugeMid+3*kTinySide, kHugeMid+kTinySide, 0},
+       {kHugeMid+kTinySide, kHugeMid+3*kTinySide, 0}}}, false},
+    {"CoplanarTinyTouchesDiagonal", kHugeReference,
+     {{{kHugeMid, kHugeMid, 0}, {kHugeMid+2*kTinySide, kHugeMid, 0},
+       {kHugeMid, kHugeMid+2*kTinySide, 0}}}, true},
+    {"CoplanarTinySharesEdge", kHugeReference,
+     {{{0, 0, 0}, {2*kTinySide, 0, 0}, {0, -2*kTinySide, 0}}}, true},
+    {"SpatialTinyPiercesHuge", kHugeReference,
+     {{{kTinySide, kTinySide, -kTinySide}, {kTinySide, kTinySide, kTinySide},
+       {3*kTinySide, kTinySide, kTinySide}}}, true},
+    {"SpatialTinyMissesDiagonal", kHugeReference,
+     {{{kHugeMid+kTinySide, kHugeMid+kTinySide, -kTinySide},
+       {kHugeMid+kTinySide, kHugeMid+kTinySide, kTinySide},
+       {kHugeMid+3*kTinySide, kHugeMid+kTinySide, kTinySide}}}, false},
+    {"SpatialTinyTouchesVertex", kHugeReference,
+     {{{0, 0, 0}, {-2*kTinySide, 0, 2*kTinySide},
+       {0, -2*kTinySide, 2*kTinySide}}}, true},
+    {"SpatialTinyParallelSeparated", kHugeReference,
+     {{{kTinySide, kTinySide, 2*kTinySide}, {3*kTinySide, kTinySide, 2*kTinySide},
+       {kTinySide, 3*kTinySide, 2*kTinySide}}}, false},
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    MixedExtremeSizes, TriangleIntersection,
+    testing::Combine(testing::ValuesIn(kMixedSizeCases),
+                     testing::Values(Transform::Identity, Transform::YZ,
+                                     Transform::XZ, Transform::Tilted)),
+    [](const testing::TestParamInfo<IntersectionParam>& info) {
+      return std::string(std::get<0>(info.param).name) + "_" +
+             TransformName(std::get<1>(info.param));
+    });
+
 TEST(Triangle3D, PreservesVertexCoordinates) {
   const Triangle3D triangle{{-4, 2, 3}, {1, -2, 5}, {0, 7, -1}};
   const std::array<Point3D, 3> actual{

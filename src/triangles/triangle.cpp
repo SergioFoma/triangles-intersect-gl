@@ -158,9 +158,9 @@ bool Triangle3D::CheckSideIntersection(const Triangle3D& other,
 ///////////////////////////////////////////////////////////////////////////////
 
   return GetDeterminant4x4(vertices[0], vertices[1], other_vertices[0],
-                           other_vertices[1]) < kEps &&
-         GetDeterminant4x4(vertices[0], vertices[2], other_vertices[2],
-                           other_vertices[0]) < kEps;
+                           other_vertices[1]) <= kEps &&
+        GetDeterminant4x4(vertices[0], vertices[2], other_vertices[2],
+                           other_vertices[0]) <= kEps;
 }
 
 // ============================== COPLANAR CASE ===============================

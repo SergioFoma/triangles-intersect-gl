@@ -1,6 +1,7 @@
 #ifndef BASICS_HPP_
 #define BASICS_HPP_
 
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
 #include <iostream>
@@ -12,8 +13,16 @@ namespace triangles {
 
 const double kEps = 1e-9;
 
-inline bool IsZero(double value) {
-  return std::abs(value) < kEps;
+inline bool IsZero(double v) {
+  return std::abs(v) < kEps;
+}
+
+inline bool IsEqual(double v1, double v2) {
+  double max_abs = std::max(std::abs(v1), std::abs(v2));
+  double min_abs = std::min(std::abs(v1), std::abs(v2));
+  if (IsZero(max_abs))
+    return true;
+  return (max_abs - min_abs) / max_abs < kEps;
 }
 
 inline bool HasSameSign(double a, double b, double c) {
@@ -54,11 +63,7 @@ struct Point3D {
   }
 };
 
-enum class Orientation : uint8_t {
-  kNegative,
-  kCoplanar,
-  kPositive
-};
+enum class Orientation : uint8_t { kNegative, kCoplanar, kPositive };
 
 struct Surface {
   Point3D norm_;
@@ -78,32 +83,33 @@ struct Surface {
                ((p2.x_ - p1.x_) * (p3.z_ - p1.z_));
     double c = ((p2.x_ - p1.x_) * (p3.y_ - p1.y_)) -
                ((p2.y_ - p1.y_) * (p3.x_ - p1.x_));
+
     double norm = std::sqrt((a * a) + (b * b) + (c * c));
     if (IsZero(norm)) {
       norm_ = {NAN, NAN, NAN};
       d_ = NAN;
       return;
     }
-    a = -a / norm; b = -b / norm; c = -c / norm;
+    a = -a / norm;
+    b = -b / norm;
+    c = -c / norm;
     double d = -(a * p1.x_) - (b * p1.y_) - (c * p1.z_);
     norm_ = {a, b, c};
     d_ = d;
   }
 
-  bool IsValid() const {
-    return norm_.IsValid() && std::isfinite(d_);
-  }
+  bool IsValid() const { return norm_.IsValid() && std::isfinite(d_); }
 
   Orientation GetPointOrientation(const Point3D& point) const {
     const double distance = norm_.Dot(point) + d_;
-    if (IsZero(distance)) {
+    if (IsZero(distance / std::sqrt((point.x_ * point.x_) + (point.y_ * point.y_) +
+                                    (point.z_ * point.z_)))) {
       return Orientation::kCoplanar;
     }
-    return distance > 0 ? Orientation::kPositive
-                        : Orientation::kNegative;
+    return distance > 0 ? Orientation::kPositive : Orientation::kNegative;
   }
 };
 
-} // namespace triangles
+}  // namespace triangles
 
 #endif  // BASICS_HPP_
