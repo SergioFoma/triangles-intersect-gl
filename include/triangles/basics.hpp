@@ -84,7 +84,7 @@ struct Surface {
     double c = ((p2.x_ - p1.x_) * (p3.y_ - p1.y_)) -
                ((p2.y_ - p1.y_) * (p3.x_ - p1.x_));
 
-    double norm = std::sqrt((a * a) + (b * b) + (c * c));
+    double norm = std::hypot(a, b, c);
     if (IsZero(norm)) {
       norm_ = {NAN, NAN, NAN};
       d_ = NAN;
