@@ -60,10 +60,6 @@ class Triangle3D {
   const Point3D& GetSecondPoint() const { return vertices_[1]; }
   const Point3D& GetThirdPoint() const { return vertices_[2]; }
 
-  const Point3D& GetFirstPoint() const {
-    return vertices_[0];
-  }
-
   bool DoesIntersect(const Triangle3D& other) const;
 
   const Surface& GetSurface() const { return surface_; }

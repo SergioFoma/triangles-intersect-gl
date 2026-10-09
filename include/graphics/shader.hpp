@@ -78,28 +78,6 @@ class Shader {
     if (glGetError()) throw std::runtime_error("SetInt has an error!");
   }
 
-  void SetFloat(const std::string& name, float val) const {
-    const char* name_ptr = name.c_str();
-
-    assert(name_ptr);
-
-    int val_loc = glGetUniformLocation(shader_program_, name_ptr);
-    glUniform1f(val_loc, val);
-
-    if (glGetError()) throw std::runtime_error("SetFloat has an error!");
-  }
-
-  void SetInt(const std::string& name, int val) const {
-    const char* name_ptr = name.c_str();
-
-    assert(name_ptr);
-
-    int val_loc = glGetUniformLocation(shader_program_, name_ptr);
-    glUniform1i(val_loc, val);
-
-    if (glGetError()) throw std::runtime_error("SetInt has an error!");
-  }
-
   void Use() const { glUseProgram(shader_program_); }
 
   void Disable() const { glUseProgram(kDisable); }

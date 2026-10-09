@@ -7,11 +7,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-#include "glm/matrix.hpp"
-
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
-
 #include <cassert>
 #include <memory>
 #include <utility>
@@ -102,7 +97,6 @@ render::SkyboxData CreateSkyboxObj(const std::vector<float>& raw_data,
 
   return skybox_data;
 }
-
 
 
 render::SkyboxData CallSkyboxCreating(const render::SkyboxConfig& skybox_con) {
@@ -382,4 +376,3 @@ void utility::detail::MouseCallback(GLFWwindow* win, double xpos, double ypos) {
   camera.front.y = std::sin(pitch_rad);
   camera.front.z = std::cos(pitch_rad) * std::sin(yaw_rad);
 }
-

@@ -122,11 +122,6 @@ struct SkyboxData {
   RenderObject obj;
   unsigned int texture_id = 0;
 
-struct SkyboxData {
-  SkyboxConfig config;
-  RenderObject obj;
-  unsigned int texture_id = 0;
-
   SkyboxData(SkyboxConfig config, RenderObject obj, unsigned int id)
     : config(std::move(config)), obj(std::move(obj)), texture_id(id) {}
 
@@ -166,16 +161,5 @@ render::ErrorType RenderTriangles(GLFWwindow* win,
                                   const render::RenderConfig& render_con,
                                   const render::SkyboxConfig& skybox_con);
 }  // namespace render
-
-void ProcessInput(GLFWwindow* win, render::Camera& camera);
-
-render::SkyboxData CallSkyboxCreating(const render::SkyboxConfig& skybox_con);
-
-render::RenderObject CreateTriangleObj(const std::vector<float>& raw_data,
-                                       const render::ShaderConfig& shader_con, 
-                                       size_t triangles_number);
-
-render::SkyboxData CreateSkyboxObj(const std::vector<float>& raw_data,
-                                     const render::SkyboxConfig& skybox_con);
 
 #endif

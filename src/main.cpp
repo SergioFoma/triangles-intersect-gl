@@ -86,21 +86,7 @@ utility::WinConfig CreateWinConfig() {
   return win_con;
 }
 
-int main(int argc, char** argv) {
-
-  CLI::App app("Finding triangles intersection and rendering them");
-  argv = app.ensure_utf8(argv);
-  std::string input_path;
-  app.add_option("-f,--input_file,input_name", input_path, "The input data file");
-  bool is_only_intersect = false;
-  app.add_flag("--only-intersection-analysis", is_only_intersect, "Analyzes only intersection");
-  CLI11_PARSE(app, argc, argv);
-
-  analyzer::TriangleArr triangles = reader::ReadData(input_path);
-  size_t triangles_number = triangles.size();
-  analyzer::InterAnalyzer analyzer(std::move(triangles));
-
-  if (!is_only_intersect) {
+adapter::Adapter InitAdapter() {
     utility::WinConfig win_con = CreateWinConfig();
     render::LightConfig light_con = CreateLightConfig();
     render::CameraConfig camera_con = CreateCameraConfig(win_con);
@@ -111,11 +97,9 @@ int main(int argc, char** argv) {
     GLFWwindow* win = utility::InitGraphics(win_con);
     adapter::Adapter adapter(win, render_con, skybox_config);
 
-    const analyzer::TriangleArr& tr_arr = analyzer.GetTriangles();
-    const std::vector<bool>& intersect_status = analyzer.GetInterStatuses();
-    for (size_t ind = 0; ind < triangles_number; ++ind) {
-      adapter.ConvertTriangle(triangles[ind], analyzer.DoesIntersect(ind));
-    }
+    return adapter;
+}
+} // namespace
 
 int main(int argc, char** argv) {
 
@@ -142,7 +126,7 @@ int main(int argc, char** argv) {
       adapter.Draw();
     }
   } catch (const std::exception& e) {
-    e.what();
+    std::cerr << e.what();
   }
 
   utility::CleanResources();
