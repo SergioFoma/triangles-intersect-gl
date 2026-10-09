@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <stdexcept>
 
 #include "basics.hpp"
@@ -24,6 +25,9 @@ class Triangle3D {
                                    "Triangle3D::Triangle3D"};
       throw prog_error::ProgError(std::move(inf));
     }
+
+    center_coord_ = (p1 / 3 + p2 / 3 + p3 / 3);
+    metric_ = GetPrecisionByVertices(p1, p2, p3);
   }
 
   bool IsValid() const {
@@ -31,8 +35,8 @@ class Triangle3D {
            vertices_[2].IsValid() && surface_.IsValid();
   }
 
-  Orientation GetPointOrientation(const Point3D& point) const {
-    return surface_.GetPointOrientation(point);
+  Orientation GetPointOrientation(const Point3D& point, double metric) const {
+    return surface_.GetPointOrientation(point, metric);
   }
 
   double GetMinX() const {
@@ -56,9 +60,9 @@ class Triangle3D {
     return std::max({vertices_[0].z_, vertices_[1].z_, vertices_[2].z_});
   }
 
-  Point3D GetCenter() const {
-    return (vertices_[0] / 3.0) + (vertices_[1] / 3.0) + (vertices_[2] / 3.0);
-  }
+  const Point3D& GetCenter() const { return center_coord_; }
+
+  double GetPrecisionBySides() const { return metric_; }
 
   const Point3D& GetFirstPoint() const { return vertices_[0]; }
   const Point3D& GetSecondPoint() const { return vertices_[1]; }
@@ -69,16 +73,21 @@ class Triangle3D {
   const Surface& GetSurface() const { return surface_; }
 
  private:
-  bool DoesIntersectCopl(const Triangle3D& other) const;
-  bool DoesIntersectNonCopl(const Triangle3D& other) const;
+  bool DoesIntersectCopl(const Triangle3D& other, double metric) const;
+  bool DoesIntersectNonCopl(const Triangle3D& other, double metric) const;
   bool CheckOtherTriangle(const Triangle3D& other,
-                          VerticesOrientation orientations) const;
+                          VerticesOrientation orientations,
+                          double metric) const;
   bool CheckSideIntersection(const Triangle3D& other,
                              VerticesOrientation orientations,
-                             VerticesOrientation other_orientations) const;
-  bool CheckCoplSeparation(const Triangle3D& other) const;
+                             VerticesOrientation other_orientations,
+                             double metric) const;
+  bool CheckCoplSeparation(const Triangle3D& other, double metric) const;
 
   Vertices vertices_{};
+  double metric_{};
+  Vertices vertices_rel_{};
+  Point3D center_coord_;
   struct Surface surface_;
 };
 

@@ -13,20 +13,8 @@ namespace triangles {
 
 const double kEps = 1e-9;
 
-inline bool IsZero(double v) {
-  return std::abs(v) < kEps;
-}
-
-inline bool IsEqual(double v1, double v2) {
-  double max_abs = std::max(std::abs(v1), std::abs(v2));
-  double min_abs = std::min(std::abs(v1), std::abs(v2));
-  if (IsZero(max_abs))
-    return true;
-  return (max_abs - min_abs) / max_abs < kEps;
-}
-
-inline bool HasSameSign(double a, double b, double c) {
-  return ((a >= 0) == (b >= 0)) && ((b >= 0) == (c >= 0));
+inline bool IsZero(double v, double precision = 1.0F) {
+  return std::abs(v) < kEps * precision;
 }
 
 struct Point3D {
@@ -65,6 +53,16 @@ struct Point3D {
 
 enum class Orientation : uint8_t { kNegative, kCoplanar, kPositive };
 
+static double GetPrecisionByVertices(const Point3D& p1, const Point3D& p2,
+                                     const Point3D& p3) {
+  const Point3D side1 = p2 - p1;
+  const Point3D side2 = p3 - p2;
+  const Point3D side3 = p1 - p3;
+  return std::hypot(std::hypot(side1.x_, side1.y_, side1.z_),
+                    std::hypot(side2.x_, side2.y_, side2.z_),
+                    std::hypot(side3.x_, side3.y_, side3.z_));
+}
+
 struct Surface {
   Point3D norm_;
   double d_{NAN};
@@ -85,7 +83,9 @@ struct Surface {
                ((p2.y_ - p1.y_) * (p3.x_ - p1.x_));
 
     double norm = std::hypot(a, b, c);
-    if (IsZero(norm)) {
+    double metric = GetPrecisionByVertices(p1, p2, p3);
+
+    if (IsZero(norm, metric)) {
       norm_ = {NAN, NAN, NAN};
       d_ = NAN;
       return;
@@ -100,10 +100,10 @@ struct Surface {
 
   bool IsValid() const { return norm_.IsValid() && std::isfinite(d_); }
 
-  Orientation GetPointOrientation(const Point3D& point) const {
+  Orientation GetPointOrientation(const Point3D& point,
+                                  double precision = 1.0F) const {
     const double distance = norm_.Dot(point) + d_;
-    if (IsZero(distance / std::sqrt((point.x_ * point.x_) + (point.y_ * point.y_) +
-                                    (point.z_ * point.z_)))) {
+    if (IsZero(distance, precision)) {
       return Orientation::kCoplanar;
     }
     return distance > 0 ? Orientation::kPositive : Orientation::kNegative;

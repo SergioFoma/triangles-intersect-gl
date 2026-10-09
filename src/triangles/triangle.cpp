@@ -1,20 +1,20 @@
 #include <cassert>
+#include <cmath>
 #include <cstddef>
 #include <utility>
 
-#include "triangle.hpp"
 #include "basics.hpp"
+<<<<<<< HEAD
 #include "prog_error.hpp"
+=======
+#include "triangle.hpp"
+>>>>>>> 036cebd (Fix scale-dependence)
 
 namespace triangles {
 
 namespace {
 
-enum class InterCase {
-  kNoIntersection,
-  kCoplanar,
-  kCanBeIntersection
-};
+enum class InterCase { kNoIntersection, kCoplanar, kCanBeIntersection };
 
 InterCase GetIntersectionCase(VerticesOrientation orientations) {
   if (orientations[0] == Orientation::kCoplanar &&
@@ -38,17 +38,20 @@ bool Triangle3D::DoesIntersect(const Triangle3D& other) const {
     throw prog_error::ProgError(std::move(inf));
   }
 
-  Point3D p1 = vertices_[0]; Point3D q1 = vertices_[1]; Point3D r1 = vertices_[2];
-  VerticesOrientation orientations = {other.GetPointOrientation(p1),
-                                      other.GetPointOrientation(q1),
-                                      other.GetPointOrientation(r1)};
+  double metric = std::hypot(metric_, other.metric_);
+  Point3D p1 = vertices_[0];
+  Point3D q1 = vertices_[1];
+  Point3D r1 = vertices_[2];
+  VerticesOrientation orientations = {other.GetPointOrientation(p1, metric),
+                                      other.GetPointOrientation(q1, metric),
+                                      other.GetPointOrientation(r1, metric)};
   switch (GetIntersectionCase(orientations)) {
     case InterCase::kNoIntersection:
       return false;
     case InterCase::kCanBeIntersection:
-      return CheckOtherTriangle(other, orientations);
+      return CheckOtherTriangle(other, orientations, metric);
     case InterCase::kCoplanar:
-      return DoesIntersectCopl(other);
+      return DoesIntersectCopl(other, metric);
     default:
       assert(0 && "No such case.");
       std::unreachable();
@@ -58,7 +61,8 @@ bool Triangle3D::DoesIntersect(const Triangle3D& other) const {
 // ============================= NON COPLANAR CASE ============================
 
 bool Triangle3D::CheckOtherTriangle(const Triangle3D& other,
-                                    VerticesOrientation orientations) const {
+                                    VerticesOrientation orientations,
+                                    double metric) const {
   assert(other.IsValid());
   assert(IsValid());
 
@@ -66,17 +70,18 @@ bool Triangle3D::CheckOtherTriangle(const Triangle3D& other,
   Point3D q2 = other.vertices_[1];
   Point3D r2 = other.vertices_[2];
 
-  VerticesOrientation other_orientations = {GetPointOrientation(p2),
-                                            GetPointOrientation(q2),
-                                            GetPointOrientation(r2)};
+  VerticesOrientation other_orientations = {GetPointOrientation(p2, metric),
+                                            GetPointOrientation(q2, metric),
+                                            GetPointOrientation(r2, metric)};
 
   switch (GetIntersectionCase(other_orientations)) {
     case InterCase::kNoIntersection:
       return false;
     case InterCase::kCanBeIntersection:
-      return CheckSideIntersection(other, orientations, other_orientations);
+      return CheckSideIntersection(other, orientations, other_orientations,
+                                   metric);
     case InterCase::kCoplanar:
-      return DoesIntersectCopl(other);
+      return DoesIntersectCopl(other, metric);
     default:
       assert(0 && "No such case.");
       std::unreachable();
@@ -117,7 +122,7 @@ bool CanonicalizeVertices(Vertices& vertices,
   }
   return false;
 }
-}
+}  // namespace
 
 namespace {
 // [a, b, c, d] :=
@@ -128,25 +133,25 @@ namespace {
 
 double GetDeterminant4x4(const Point3D& a, const Point3D& b, const Point3D& c,
                          const Point3D& d) {
-  return ((a.x_ - d.x_) *
-          ((b.y_ - d.y_) * (c.z_ - d.z_) - (b.z_ - d.z_) * (c.y_ - d.y_))) -
-         ((a.y_ - d.y_) *
-          ((b.x_ - d.x_) * (c.z_ - d.z_) - (b.z_ - d.z_) * (c.x_ - d.x_))) +
-         ((a.z_ - d.z_) *
-          ((b.x_ - d.x_) * (c.y_ - d.y_) - (b.y_ - d.y_) * (c.x_ - d.x_)));
+  Point3D size_1 = a - d;
+  Point3D size_2 = b - d;
+  Point3D size_3 = c - d;
+  return size_1.Dot(size_2.Cross(size_3));
 }
-}
+}  // namespace
 
 bool Triangle3D::CheckSideIntersection(const Triangle3D& other,
                                        VerticesOrientation orientations,
-                                       VerticesOrientation other_orientations) const {
+                                       VerticesOrientation other_orientations,
+                                       double metric) const {
   Vertices vertices = vertices_;
   Vertices other_vertices = other.vertices_;
 
-///////////////////////////// canonization ////////////////////////////////////
+  ///////////////////////////// canonization ////////////////////////////////////
 
   const bool reverse_other_plane = CanonicalizeVertices(vertices, orientations);
-  const bool reverse_plane = CanonicalizeVertices(other_vertices, other_orientations);
+  const bool reverse_plane =
+      CanonicalizeVertices(other_vertices, other_orientations);
 
   if (reverse_other_plane) {
     std::swap(other_vertices[1], other_vertices[2]);
@@ -155,30 +160,28 @@ bool Triangle3D::CheckSideIntersection(const Triangle3D& other,
     std::swap(vertices[1], vertices[2]);
   }
 
-///////////////////////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////////////
 
   return GetDeterminant4x4(vertices[0], vertices[1], other_vertices[0],
-                           other_vertices[1]) <= kEps &&
-        GetDeterminant4x4(vertices[0], vertices[2], other_vertices[2],
-                           other_vertices[0]) <= kEps;
+                           other_vertices[1]) <= metric * kEps &&
+         GetDeterminant4x4(vertices[0], vertices[2], other_vertices[2],
+                           other_vertices[0]) <= metric * kEps;
 }
 
 // ============================== COPLANAR CASE ===============================
 
 namespace {
-enum class Side {
-  kUndefined,
-  kPositive,
-  kNegative
-};
+enum class Side { kUndefined, kPositive, kNegative };
 
-Side GetSide(double dist) {
-  if (IsZero(dist)) return Side::kUndefined;
+Side GetSide(double dist, double metric) {
+  if (IsZero(dist, metric))
+    return Side::kUndefined;
   return dist > 0 ? Side::kPositive : Side::kNegative;
 }
-} // namespace
+}  // namespace
 
-bool Triangle3D::CheckCoplSeparation(const Triangle3D& other) const {
+bool Triangle3D::CheckCoplSeparation(const Triangle3D& other,
+                                     double metric) const {
   for (size_t i = 0; i < 3; ++i) {
     Point3D side_vector = vertices_[(i + 1) % 3] - vertices_[i];
     Point3D normal_to_side = side_vector.Cross(surface_.norm_);
@@ -187,19 +190,22 @@ bool Triangle3D::CheckCoplSeparation(const Triangle3D& other) const {
     bool does_separate = false;
     for (size_t j = 0; j < 3; ++j) {
       double dist = normal_to_side.Dot(other.vertices_[j] - vertices_[i]);
-      Side other_side = GetSide(dist);
+      Side other_side = GetSide(dist, metric);
       if (other_side == Side::kUndefined || other_side == vert_side) {
         does_separate = true;
         break;
       }
     }
-    if (!does_separate) return true;
+    if (!does_separate)
+      return true;
   }
   return false;
 }
 
-bool Triangle3D::DoesIntersectCopl(const Triangle3D& other) const {
-  return !(CheckCoplSeparation(other) || other.CheckCoplSeparation(*this));
+bool Triangle3D::DoesIntersectCopl(const Triangle3D& other,
+                                   double metric) const {
+  return !(CheckCoplSeparation(other, metric) ||
+           other.CheckCoplSeparation(*this, metric));
 }
 
 }  // namespace triangles
