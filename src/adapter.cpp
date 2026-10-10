@@ -11,7 +11,7 @@ glm::vec3 adapter::Adapter::GetNormal(const triangles::Triangle3D& triangle) con
   triangles::Surface surface = triangle.GetSurface();
   triangles::Point3D& norm = surface.norm_;
 
-  if (triangle.GetTriangleType() != triangles::TriangleType::kDefault) {
+  if (triangle.GetTriangleType() != triangles::Triangle3D::TriangleType::kDefault) {
     norm = {0.0F, 0.0F, 0.0F};
   }
 
@@ -100,11 +100,11 @@ void adapter::Adapter::ConvertShape(const triangles::Triangle3D& triangle,
 
   glm::vec3 normal = GetNormal(triangle);
 
-  const triangles::TriangleType& tr_type = triangle.GetTriangleType();
+  const triangles::Triangle3D::TriangleType& tr_type = triangle.GetTriangleType();
 
-  if (tr_type == triangles::TriangleType::kDefault) {
+  if (tr_type == triangles::Triangle3D::TriangleType::kDefault) {
     ConvertTriangle(triangle, intersect_status, normal);
-  } else if (tr_type == triangles::TriangleType::kLine) {
+  } else if (tr_type == triangles::Triangle3D::TriangleType::kLine) {
     ConvertLine(triangle, intersect_status, normal);
   } else {
     ConvertPoint(triangle, intersect_status, normal);

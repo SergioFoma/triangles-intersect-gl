@@ -2,6 +2,7 @@
 #define BOX_HPP_
 
 #include <algorithm>
+#include <cassert>
 
 #include "basics.hpp"
 #include "triangle.hpp"
@@ -16,18 +17,18 @@ struct Box {
   Box() = default;
   Box(const Point3D& min, const Point3D& max) : min_{min}, max_{max} {
     if (!IsValid()) {
-      prog_error::ErrorInfo inf = {prog_error::ErrorCode::kBox,
-                                   "Non valid arguments in Box Ctor",
-                                   "Box::Box"};
+      prog_error::ErrorInfo inf = {.code=prog_error::ErrorCode::kBox,
+                                   .err_msg="Non valid arguments in Box Ctor",
+                                   .func_name="Box::Box"};
       throw prog_error::ProgError(std::move(inf));
     }
   }
 
   explicit Box(const Triangle3D& triangle) {
     if (!triangle.IsValid()) {
-      prog_error::ErrorInfo inf = {prog_error::ErrorCode::kBox,
-                                   "Non valid triangle in Box Ctor",
-                                   "Box::Box"};
+      prog_error::ErrorInfo inf = {.code=prog_error::ErrorCode::kBox,
+                                   .err_msg="Non valid triangle in Box Ctor",
+                                   .func_name="Box::Box"};
       throw prog_error::ProgError(std::move(inf));
     }
     min_ = {triangle.GetMinX(), triangle.GetMinY(), triangle.GetMinZ()};
@@ -40,24 +41,18 @@ struct Box {
   }
 
   bool DoesIntersect(const Box& other) const {
-    if (!IsValid() || !other.IsValid()) {
-      prog_error::ErrorInfo inf = {prog_error::ErrorCode::kBox,
-                                   "Non valid triangles",
-                                   "Box::DoesIntersect"};
-      throw prog_error::ProgError(std::move(inf));
-    }
+    assert(IsValid());
+    assert(other.IsValid());
+
     return min_.x_ <= other.max_.x_ + kEps && other.min_.x_ <= max_.x_ + kEps &&
            min_.y_ <= other.max_.y_ + kEps && other.min_.y_ <= max_.y_ + kEps &&
            min_.z_ <= other.max_.z_ + kEps && other.min_.z_ <= max_.z_ + kEps;
   }
 
   Box Merge(const Box& other) const {
-    if (!IsValid() || !other.IsValid()) {
-      prog_error::ErrorInfo inf = {prog_error::ErrorCode::kBox,
-                                   "Non valid box",
-                                   "Box::Merge"};
-      throw prog_error::ProgError(std::move(inf));
-    }
+    assert(IsValid());
+    assert(other.IsValid());
+
     return {{std::min(min_.x_, other.min_.x_), std::min(min_.y_, other.min_.y_),
              std::min(min_.z_, other.min_.z_)},
             {std::max(max_.x_, other.max_.x_), std::max(max_.y_, other.max_.y_),

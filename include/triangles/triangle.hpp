@@ -14,8 +14,6 @@
 
 namespace triangles {
 
-enum class TriangleType { kDefault, kLine, kPoint };
-
 using Vertices = std::array<Point3D, 3>;
 using VerticesOrientation = std::array<Orientation, 3>;
 
@@ -24,15 +22,15 @@ class Triangle3D {
   Triangle3D() = default;
   Triangle3D(Point3D p1, Point3D p2, Point3D p3) : vertices_{p1, p2, p3} {
     if (!IsValid()) {
-      prog_error::ErrorInfo inf = {prog_error::ErrorCode::kTriangle,
-                                   "Non valid arguments in Triangle Ctor",
-                                   "Triangle3D::Triangle3D"};
+      prog_error::ErrorInfo inf = {.code=prog_error::ErrorCode::kTriangle,
+                                   .err_msg="Non valid arguments in Triangle Ctor",
+                                   .func_name="Triangle3D::Triangle3D"};
       throw prog_error::ProgError(std::move(inf));
     }
 
     center_coord_ = (p1 / 3 + p2 / 3 + p3 / 3);
     metric_ = GetPrecisionByVertices(p1, p2, p3);
-    type_ = GetTriangleType();
+    type_ = CalculateTriangleType();
 
     Point3D min = {GetMinX(), GetMinY(), GetMinZ()};
     Point3D max = {GetMaxX(), GetMaxY(), GetMaxZ()};
@@ -83,7 +81,8 @@ class Triangle3D {
     return std::max({vertices_[0].z_, vertices_[1].z_, vertices_[2].z_});
   }
 
-  TriangleType GetTriangleType() const;
+  enum class TriangleType { kDefault, kLine, kPoint };
+  TriangleType GetTriangleType() const { return type_; };
 
   const Point3D& GetCenter() const { return center_coord_; }
 
@@ -101,6 +100,8 @@ class Triangle3D {
     return Surface{};
   }
 
+  TriangleType GetTriangleType() { return type_; }
+
  private:
 
   bool DoesIntersectCopl(const Triangle3D& other, double metric) const;
@@ -116,7 +117,8 @@ class Triangle3D {
   bool DoesTriangleIntersect(const Triangle3D& other, double metric) const;
   bool DoesLineIntersect(const Triangle3D& other, double metric) const;
   bool DoesPointIntersect(const Triangle3D& other) const;
-  bool CheckPointTriangleIntersection(const Triangle3D& other);
+  bool CheckPointTriangleIntersection(const Triangle3D& other) const;
+  TriangleType CalculateTriangleType() const;
 
   TriangleType type_;
   Vertices vertices_{};

@@ -79,9 +79,9 @@ struct Surface {
   Surface() = default;
   Surface(const Point3D& p1, const Point3D& p2, const Point3D& p3) {
     if (!(p1.IsValid() && p2.IsValid() && p3.IsValid())) {
-     prog_error::ErrorInfo inf = {prog_error::ErrorCode::kBasics,
-                                   "Non valid arguments in Triangle Ctor",
-                                   "Surface::Surface"};
+     prog_error::ErrorInfo inf = {.code=prog_error::ErrorCode::kBasics,
+                                   .err_msg="Non valid arguments in Triangle Ctor",
+                                   .func_name="Surface::Surface"};
       throw prog_error::ProgError(std::move(inf));
     }
     double a = ((p2.y_ - p1.y_) * (p3.z_ - p1.z_)) -

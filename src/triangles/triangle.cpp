@@ -29,18 +29,18 @@ InterCase GetIntersectionCase(VerticesOrientation orientations) {
 
 // ============================== TRIANGLE TYPE ==============================
 
-triangles::TriangleType Triangle3D::GetTriangleType() const {
+Triangle3D::TriangleType Triangle3D::CalculateTriangleType() const {
 
   if (vertices_[0].IsEqual(vertices_[1]) &&
       vertices_[1].IsEqual(vertices_[2]) && vertices_[2].IsEqual(vertices_[1]))
-    return triangles::TriangleType::kPoint;
+    return TriangleType::kPoint;
 
   const Point3D side1 = vertices_[1] - vertices_[0];
   const Point3D side2 = vertices_[2] - vertices_[0];
   if (side1.Cross(side2).IsEqual({0, 0, 0}, metric_))
-    return triangles::TriangleType::kLine;
+    return TriangleType::kLine;
 
-  return triangles::TriangleType::kDefault;
+  return TriangleType::kDefault;
 }
 
 // ========================== TRIANGLE INTERSECTION ==========================
@@ -52,11 +52,11 @@ bool Triangle3D::DoesIntersect(const Triangle3D& other) const {
   double metric = std::hypot(metric_, other.metric_);
 
   switch (type_) {
-    case triangles::TriangleType::kDefault:
+    case TriangleType::kDefault:
       return DoesTriangleIntersect(other, metric);
-    case triangles::TriangleType::kLine:
+    case TriangleType::kLine:
       return DoesLineIntersect(other, metric);
-    case triangles::TriangleType::kPoint:
+    case TriangleType::kPoint:
       return DoesPointIntersect(other);
     default:
       assert(0 && "No such type");
@@ -71,7 +71,7 @@ bool Triangle3D::DoesTriangleIntersect(const Triangle3D& other,
   assert(other.IsValid());
   assert(IsValid());
 
-  if (other.type_ != triangles::TriangleType::kDefault)
+  if (other.type_ != TriangleType::kDefault)
     return other.DoesIntersect(*this);
 
   Point3D p1 = vertices_[0];
@@ -256,54 +256,55 @@ bool Triangle3D::DoesLineIntersect(const Triangle3D& other,
   assert(other.IsValid());
   assert(IsValid());
 
+  // if (type_)
+
+
   return false;
 }
 
 // ================================ POINT CASE ================================
 
-bool Triangle3D::CheckPointTriangleIntersection(const Triangle3D& other) {
+bool Triangle3D::CheckPointTriangleIntersection(const Triangle3D& other) const {
   assert(other.IsValid());
   assert(IsValid());
 
-#ifdef six_seven
+  const Point3D& point = std::get<Point3D>(geometry_);
+  const Surface& surface = std::get<Surface>(other.geometry_);
+  double metric = other.metric_;
+
+  if (surface.GetPointOrientation(point, metric) != Orientation::kCoplanar) {
+    return false;
+  }
+
   for (size_t i = 0; i < 3; ++i) {
     Point3D side_vector = other.vertices_[(i + 1) % 3] - other.vertices_[i];
-    Point3D normal_to_side =
-        side_vector.Cross(std::get<Surface>(geometry_).norm_);
-    const Side vert_side = Side::kPositive;
+    double side_length =
+        std::hypot(side_vector.x_, side_vector.y_, side_vector.z_);
+    side_vector = side_vector / side_length;
+    Point3D normal_to_side = side_vector.Cross(surface.norm_);
+    double dist = normal_to_side.Dot(point - other.vertices_[i]);
 
-    bool does_separate = false;
-    for (size_t j = 0; j < 3; ++j) {
-      double dist = normal_to_side.Dot(other.vertices_[j] - vertices_[i]);
-      Side other_side = GetSide(dist, metric);
-      if (other_side == Side::kUndefined || other_side == vert_side) {
-        does_separate = true;
-        break;
-      }
+    if (GetSide(dist, metric) == Side::kNegative) {
+      return false;
     }
-    if (!does_separate)
-      return true;
   }
-#endif
-  return false;
+
+  return true;
 }
 
 bool Triangle3D::DoesPointIntersect(const Triangle3D& other) const {
   assert(other.IsValid());
   assert(IsValid());
 
-  //if (other.type_ == TriangleType::kDefault) {
-  //  bool is_coplanar = std::get<Surface>(geometry_).GetPointOrientation(
-  //                         std::get<Point3D>(geometry_), other.metric_) ==
-  //                     Orientation::kCoplanar;
-    // return is_coplanar&&
-  //}
+  if (other.type_ == TriangleType::kDefault) {
+    return CheckPointTriangleIntersection(other);
+  }
   if (other.type_ == TriangleType::kPoint) {
     return std::get<Point3D>(geometry_).IsEqual(
         std::get<Point3D>(other.geometry_));
   }
   if (other.type_ == TriangleType::kLine) {
-    return std::get<Line>(geometry_).LiesOn(std::get<Point3D>(other.geometry_));
+    return std::get<Line>(other.geometry_).LiesOn(std::get<Point3D>(geometry_));
   }
 
   return false;
