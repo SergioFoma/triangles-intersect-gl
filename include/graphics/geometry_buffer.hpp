@@ -6,6 +6,8 @@
 #include <vector>
 #include <stdexcept>
 
+#include "prog_error.hpp"
+
 class GeometryBuffer {
  public:
   GeometryBuffer(const GeometryBuffer& other) = delete;
@@ -41,27 +43,47 @@ class GeometryBuffer {
 
     Unbind();
 
-    if (glGetError()) throw std::runtime_error("GeometryBuffer has an error!");
+    if (glGetError()) {
+      prog_error::ErrorInfo inf = {prog_error::ErrorCode::kGeomBuff,
+                                   "Error of creating geom buffer",
+                                   "GeometryBuffer::GeometryBuffer"};
+      throw prog_error::ProgError(std::move(inf));
+    }
   }
 
   void Bind() const {
     glBindVertexArray(vao_);
     glBindBuffer(GL_ARRAY_BUFFER, vbo_);
 
-    if (glGetError()) throw std::runtime_error("Bind has an error!");
+    if (glGetError()) {
+      prog_error::ErrorInfo inf = {prog_error::ErrorCode::kGeomBuff,
+                                   "Error of binding",
+                                   "GeometryBuffer::Bind"};
+      throw prog_error::ProgError(std::move(inf));
+    }
   }
 
   void Unbind() const {
     glBindBuffer(GL_ARRAY_BUFFER, kUnbind);
     glBindVertexArray(kUnbind);
 
-    if (glGetError()) throw std::runtime_error("Undind has an error!");
+    if (glGetError()) {
+      prog_error::ErrorInfo inf = {prog_error::ErrorCode::kGeomBuff,
+                                   "Error of undinding",
+                                   "GeometryBuffer::Unbind"};
+      throw prog_error::ProgError(std::move(inf));
+    }
   }
 
   void Draw(GLenum mode) const {
     glDrawArrays(mode, kStartIndex, vertex_count_);
 
-    if (glGetError()) throw std::runtime_error("Draw has an error!");
+    if (glGetError()) {
+      prog_error::ErrorInfo inf = {prog_error::ErrorCode::kGeomBuff,
+                                   "Error of drawing",
+                                   "GeometryBuffer::Draw"};
+      throw prog_error::ProgError(std::move(inf));
+    }
   }
 
   void SetCoordinates(int location) const {
@@ -131,7 +153,12 @@ class GeometryBuffer {
                           mul_coeff * sizeof(float), start_pos);
     glEnableVertexAttribArray(location);
 
-    if (glGetError()) throw std::runtime_error("SetAttribute has an error!");
+    if (glGetError()) {
+      prog_error::ErrorInfo inf = {prog_error::ErrorCode::kGeomBuff,
+                                   "Error of setting attributes",
+                                   "GeometryBuffer::SetAttribute"};
+      throw prog_error::ProgError(std::move(inf));
+    }
   }
 };
 

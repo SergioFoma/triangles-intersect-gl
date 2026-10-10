@@ -3,6 +3,8 @@
 #include <fstream>
 #include <sstream>
 
+#include "prog_error.hpp"
+
 Shader::Shader(const std::string& vert_path, const std::string& frag_path) {
   std::string vertex_str = ReadShader(vert_path);
   std::string frag_str = ReadShader(frag_path);
@@ -21,7 +23,10 @@ Shader::Shader(const std::string& vert_path, const std::string& frag_path) {
   glGetShaderiv(vertex_shader_, GL_COMPILE_STATUS, &error_code);
 
   if (!error_code) {
-    throw std::runtime_error("Vertex shader compilation error!");
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kShader,
+                                   "Error of vertex sahder compilation",
+                                   "Shader::Shader"};
+    throw prog_error::ProgError(std::move(inf));
   }
 
   fragment_shader_ = glCreateShader(GL_FRAGMENT_SHADER);
@@ -30,7 +35,10 @@ Shader::Shader(const std::string& vert_path, const std::string& frag_path) {
   glGetShaderiv(fragment_shader_, GL_COMPILE_STATUS, &error_code);
 
   if (!error_code) {
-    throw std::runtime_error("Fragment shader compilation error!");
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kGeomBuff,
+                                   "Error of fragment shader compilation!",
+                                   "Shader::Shader"};
+    throw prog_error::ProgError(std::move(inf));
   }
 
   LinkShaders();
@@ -40,7 +48,10 @@ std::string Shader::ReadShader(const std::string& file_path) const {
   std::ifstream shader_config(file_path);
 
   if (!shader_config) {
-    throw std::runtime_error("Shader opening error!");
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kShader,
+                                  "Error of opening shader",
+                                  "Shader::ReadShader"};
+    throw prog_error::ProgError(std::move(inf));
   }
 
   std::stringstream ss;
@@ -50,7 +61,10 @@ std::string Shader::ReadShader(const std::string& file_path) const {
 
   int error_code = glGetError();
   if (error_code) {
-    throw std::runtime_error("ReadShader has an error!");
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kShader,
+                                  "Error of reading shader",
+                                  "Shader::ReadShader"};
+    throw prog_error::ProgError(std::move(inf));
   }
 
   return str;
@@ -66,7 +80,10 @@ unsigned int Shader::LinkShaders() {
   glGetProgramiv(shader_program_, GL_LINK_STATUS, &error_code);
 
   if (!error_code) {
-    throw std::runtime_error("Shader linking error!");
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kShader,
+                                   "Error of shader linking",
+                                   "Shader::LinkShaders"};
+    throw prog_error::ProgError(std::move(inf));
   }
 
   glDeleteShader(
@@ -78,12 +95,10 @@ unsigned int Shader::LinkShaders() {
 
   error_code = glGetError();
   if (error_code) {
-    throw std::runtime_error("LinkShaders has an error!");
-  }
-
-  error_code = glGetError();
-  if (error_code) {
-    throw std::runtime_error("LinkShaders has an error!");
+      prog_error::ErrorInfo inf = {prog_error::ErrorCode::kShader,
+                                   "Error of linking shaders",
+                                   "Shader::LinkShaders"};
+      throw prog_error::ProgError(std::move(inf));
   }
 
   return shader_program_;

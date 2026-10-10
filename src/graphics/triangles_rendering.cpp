@@ -55,7 +55,10 @@ unsigned int LoadCubemap(const render::SkyboxConfig& skybox_con) {
 
   int error_code = glGetError();
   if (error_code) {
-    throw std::runtime_error("LoadCubemap has an error!");
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kRendering,
+                                   "Error of load cubemap!",
+                                   "LoadCubemap"};
+    throw prog_error::ProgError(std::move(inf));
   }
 
   return texture_id;
@@ -92,7 +95,10 @@ render::SkyboxData CreateSkyboxObj(const std::vector<float>& raw_data,
 
   int error_code = glGetError();
   if (error_code) {
-    throw std::runtime_error("CreateSkyboxObj has an error!");
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kRendering,
+                                   "Error of creating SkyboxObj",
+                                   "CreateSkyboxObj"};
+    throw prog_error::ProgError(std::move(inf));
   }
 
   return skybox_data;
@@ -168,7 +174,10 @@ void UpdateTrPos(render::RenderObject& tr_obj, const render::Camera& camera,
 
   int error_code = glGetError();
   if (error_code) {
-    throw std::runtime_error("UpdateTrPos has an error!");
+   prog_error::ErrorInfo inf = {prog_error::ErrorCode::kRendering,
+                                "Error of updating triangle pos",
+                                "UpdateTrPos"};
+    throw prog_error::ProgError(std::move(inf));
   }
 }
 
@@ -181,7 +190,10 @@ void UpdateSkybox(const render::RenderObject& skybox_obj, const render::Camera& 
 
   int error_code = glGetError();
   if (error_code) {
-    throw std::runtime_error("UpdateSkybox has an error!");
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kRendering,
+                                   "Error of Uodate skybox",
+                                   "UodateSkybox"};
+    throw prog_error::ProgError(std::move(inf));
   }
 }
 
@@ -197,7 +209,10 @@ void DrawTriangles(render::RenderObject& tr_obj, const render::Camera& camera,
 
   int error_code = glGetError();
   if (error_code) {
-    throw std::runtime_error("DrawTriangles has an error!");
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kRendering,
+                                   "Error of Draw Triangles",
+                                   "DrawTriangles"};
+    throw prog_error::ProgError(std::move(inf));
   }
 }
 
@@ -216,7 +231,10 @@ void DrawSkybox(render::SkyboxData& skybox_data,
 
   int error_code = glGetError();
   if (error_code) {
-    throw std::runtime_error("DrawSkybox has an error!");
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kRendering,
+                                   "Error of draw skybox",
+                                   "DrawSkybox"};
+    throw prog_error::ProgError(std::move(inf));
   }
 }
 
@@ -252,7 +270,10 @@ void ProcessInput(GLFWwindow* win, render::Camera& camera) {
 
   int error_code = glGetError();
   if (error_code) {
-    throw std::runtime_error("ProcessInput has an error!");
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kRendering,
+                                   "Error of parse input data",
+                                   "ProcessInput"};
+    throw prog_error::ProgError(std::move(inf));
   }
 }
 
@@ -285,7 +306,10 @@ void RenderCycle(GLFWwindow* win, render::RenderObject& tr_obj,
     glfwPollEvents();
 
     if (glGetError()) {
-      throw std::runtime_error("RenderCycle has an error!");
+      prog_error::ErrorInfo inf = {prog_error::ErrorCode::kRendering,
+                                   "Error of redeting cycle",
+                                   "RenderCycle"};
+      throw prog_error::ProgError(std::move(inf));
     }
   }
 }
@@ -313,7 +337,10 @@ render::RenderObject CreateTriangleObj(const std::vector<float>& raw_data,
 
   int error_code = glGetError();
   if (error_code) {
-    throw std::runtime_error("CreateTriangleObj has an error!");
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kRendering,
+                                   "Error of creating triangle object",
+                                   "CreateTrangleObj"};
+    throw prog_error::ProgError(std::move(inf));
   }
 
   return tr_obj;
@@ -334,7 +361,10 @@ render::ErrorType render::RenderTriangles(GLFWwindow* win,
   RenderCycle(win, tr_obj, render_con, skybox_data);
 
   if (glGetError()) {
-    throw std::runtime_error("RenderTriangles has an error!");
+      prog_error::ErrorInfo inf = {prog_error::ErrorCode::kRendering,
+                                   "Error of rendering Triangles",
+                                   "RenderTriangles"};
+      throw prog_error::ProgError(std::move(inf));
   }
 
   return render::ErrorType::kCorrect;

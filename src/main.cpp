@@ -67,9 +67,7 @@ struct Resource {
   }
 
   Resource(const std::string& resource_paths): texture_sides(kTextureNumber) {
-    std::cout << resource_paths << '\n';
     std::filesystem::path abs_path = GetAbsPath(resource_paths);
-    std::cout << "abs = " << abs_path.string() << '\n';
     for (const auto& file: std::filesystem::directory_iterator(abs_path)) {
       const auto& filepath = file.path();
       const auto& filename = file.path().filename();
