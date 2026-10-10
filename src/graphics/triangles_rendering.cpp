@@ -335,7 +335,6 @@ render::ErrorType render::RenderTriangles(GLFWwindow* win,
 
   if (glGetError()) {
     throw std::runtime_error("RenderTriangles has an error!");
-    return render::ErrorType::kError;
   }
 
   return render::ErrorType::kCorrect;
