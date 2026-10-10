@@ -4,6 +4,8 @@
 #include <iostream>
 #include <stdexcept>
 
+#include "prog_error.hpp"
+
 namespace {
 const int kLowerLeftX = 0;
 const int kLowerLeftY = 0;
@@ -15,7 +17,10 @@ void FrameBufferSizeCallback(GLFWwindow* win, int width, int height) {
 
   int error_code = glGetError();
   if (error_code) {
-    throw std::runtime_error("FrameBufferSizeCallback has an error!");
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kUtility,
+                                   "Error of frame buffer callback",
+                                   "FrameBufferSizeCallback"};
+    throw prog_error::ProgError(std::move(inf));
   }
 }
 
@@ -28,7 +33,10 @@ void CallbackSettings(GLFWwindow* win) {
 
   int error_code = glGetError();
   if (error_code) {
-    throw std::runtime_error("CallbackSettings has an error!");
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kUtility,
+                                   "Error of callback settings",
+                                   "CallbackSettings"};
+    throw prog_error::ProgError(std::move(inf));
   }
 }
 } // namespace
@@ -40,12 +48,18 @@ GLFWwindow* utility::InitGraphics(const utility::WinConfig& win_con) {
 
   if (!win) {
     utility::CleanResources();
-    throw std::runtime_error("CreateWindow: returned null ptr!\n");
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kUtility,
+                                   "Error of creating window",
+                                   "InitFraphics"};
+    throw prog_error::ProgError(std::move(inf));
   }
 
   if (utility::InitGlad() != utility::ErrorType::kCorrect) {
     utility::CleanResources();
-    throw std::runtime_error("InitGlad: returned negative value!\n");
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kUtility,
+                                   "Error of init glad",
+                                   "InitGraphics"};
+    throw prog_error::ProgError(std::move(inf));
   }
 
   utility::ConfigureViewing(win);

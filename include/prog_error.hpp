@@ -10,7 +10,16 @@ enum class ErrorCode {
   kCorrect      = 0,
   kGeomBuff     = 1,
   kShader       = 2,
-  kRendering    = 3
+  kRendering    = 3,
+  kUtility      = 4,
+  kAnalyzer     = 5,
+  kTriangle     = 6,
+  kAdapter      = 7,
+  kMain         = 8,
+  kReadData     = 9,
+  kTest         = 10,
+  kBasics       = 11,
+  kBox          = 12
 };
 
 struct ErrorInfo {

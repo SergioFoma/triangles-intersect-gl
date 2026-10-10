@@ -1,6 +1,7 @@
 #include <fstream>
 
 #include "read_data.hpp"
+#include "prog_error.hpp"
 
 triangles::Point3D reader::ReadPoint(std::istream& in) {
   double x = NAN;
@@ -34,7 +35,10 @@ triangles::TriangleArr reader::ReadData(std::istream& in) {
   in >> tmp_sz;
 
   if (!(reader::kLowBound < tmp_sz && tmp_sz <= reader::kUpperBound)) {
-    throw std::runtime_error("Incorrect number (N) of triangles!");
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kReadData,
+                                   "Incorrect input data",
+                                   "reader::ReadData"};
+    throw prog_error::ProgError(std::move(inf));
   }
 
   triangles::TriangleArr triangles;
@@ -49,8 +53,10 @@ triangles::TriangleArr reader::ReadData(std::istream& in) {
   float flag = 0.0F;
   in >> flag;
   if(!in.eof()) {
-    throw std::runtime_error("ReadData: Incorrect number"
-                             "of triangles is specified!");
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kReadData,
+                                   "Incorrect number of triangles",
+                                   "reader::ReadData"};
+    throw prog_error::ProgError(std::move(inf));
   }
 
   return triangles;
@@ -60,7 +66,10 @@ triangles::TriangleArr reader::ReadData(const std::string& file_name) {
   std::ifstream file(file_name, std::ios::binary);
 
   if (!file.is_open()) {
-    throw std::runtime_error("ReadData: error of opening file!");
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kReadData,
+                                   "Error of opening file",
+                                   "reader::ReadData"};
+    throw prog_error::ProgError(std::move(inf));
   }
 
   return ReadData(file);

@@ -9,6 +9,7 @@
 #include "triangle.hpp"
 
 #include "inter_analyzer.hpp"
+#include "prog_error.hpp"
 
 namespace triangles {
 namespace {
@@ -116,7 +117,10 @@ void InterAnalyzer::ConstructTree() {
 
 bool InterAnalyzer::DoesIntersect(size_t original_index) const {
   if (original_index >= triangles_.size()) {
-    throw std::out_of_range("Triangle index is out of range");
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kAnalyzer,
+                                   "Triangle index is out of range",
+                                   "InterAnalyzer::DoesIntersect"};
+    throw prog_error::ProgError(std::move(inf));
   }
   return triangles_[original_index].intersect_status;
 }

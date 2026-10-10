@@ -4,6 +4,7 @@
 
 #include "triangle.hpp"
 #include "basics.hpp"
+#include "prog_error.hpp"
 
 namespace triangles {
 
@@ -31,7 +32,10 @@ InterCase GetIntersectionCase(VerticesOrientation orientations) {
 
 bool Triangle3D::DoesIntersect(const Triangle3D& other) const {
   if (!IsValid() || !other.IsValid()) {
-    throw std::runtime_error("Non valid triangles in Triangle3D::DoesIntersect");
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kTriangle,
+                                   "Non valid triangles",
+                                   "Triangle3D::DoesIntersect"};
+    throw prog_error::ProgError(std::move(inf));
   }
 
   Point3D p1 = vertices_[0]; Point3D q1 = vertices_[1]; Point3D r1 = vertices_[2];

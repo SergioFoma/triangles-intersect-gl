@@ -8,4 +8,4 @@ add_library(graphics STATIC ${GRAPHICS_SRC})
 target_link_libraries(graphics PUBLIC OpenGL::GL
     glfw
     ${CMAKE_DL_LIBS})
-target_include_directories(graphics PUBLIC ${INCLUDE}/graphics ${INCLUDE})
+target_include_directories(graphics PUBLIC  ${INCLUDE} ${INCLUDE}/graphics)

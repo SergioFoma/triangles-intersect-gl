@@ -2,6 +2,7 @@
 #include "glm/ext/quaternion_geometric.hpp"
 #include "inter_analyzer.hpp"
 #include "triangle.hpp"
+#include "prog_error.hpp"
 
 glm::vec3 adapter::Adapter::GetNormal(const triangles::Triangle3D& triangle) const {
 
@@ -66,6 +67,9 @@ void adapter::Adapter::Draw() {
                                   triangles_number_, raw_data_,
                                   render_con_, skybox_con_);
   if (error_code != render::ErrorType::kCorrect) {
-    throw std::runtime_error("Adapter::Draw: error of Rendering Triangles!");
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kAdapter,
+                                   "Error of rendering triangles!",
+                                   "Adapter::ConvertTriangle"};
+    throw prog_error::ProgError(std::move(inf));
   }
 }

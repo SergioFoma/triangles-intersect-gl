@@ -7,6 +7,7 @@
 #include "adapter.hpp"
 #include "utility.hpp"
 #include "read_data.hpp"
+#include "prog_error.hpp"
 
 namespace {
 
@@ -36,7 +37,10 @@ std::filesystem::path GetAbsPath(const std::string& resource_paths) {
 
   std::filesystem::path resources(resource_paths);
    if (!std::filesystem::exists(resources)) {
-    throw std::runtime_error("GetResourcePaths: Resource folder doesn't find!");
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kMain,
+                                   "Error of finding resource folder",
+                                   "GetAbsPath"};
+    throw prog_error::ProgError(std::move(inf));
   }
 
   std::filesystem::path current_wrc = std::filesystem::current_path();
@@ -67,26 +71,34 @@ struct Resource {
   }
 
   Resource(const std::string& resource_paths): texture_sides(kTextureNumber) {
-    std::filesystem::path abs_path = GetAbsPath(resource_paths);
-    for (const auto& file: std::filesystem::directory_iterator(abs_path)) {
-      const auto& filepath = file.path();
-      const auto& filename = file.path().filename();
-      if (texture_map.find(filename) != texture_map.end()) {
-        texture_sides[texture_map.at(filename.string())] = file.path().string();
-        continue;
-      }
+  std::filesystem::path abs_path = GetAbsPath(resource_paths);
+  for (const auto& file: std::filesystem::directory_iterator(abs_path)) {
+    const auto& filepath = file.path();
+    const auto& filename = file.path().filename();
+    if (texture_map.find(filename) != texture_map.end()) {
+      texture_sides[texture_map.at(filename.string())] = file.path().string();
+      continue;
+    }
 
-      std::string filename_str = filename.string();
-      std::string filepath_str = filepath.string();
-      if (filename_str == "triangle.vert")      triangle_vert = filepath_str;
-      else if (filename_str == "triangle.frag") triangle_frag = filepath_str;
-      else if (filename_str == "skybox.vert")   skybox_vert   = filepath_str;
-      else if (filename_str == "skybox.frag")   skybox_frag   = filepath_str;
-      else throw std::runtime_error("Resource constructor: Unknown file!");
+    std::string filename_str = filename.string();
+    std::string filepath_str = filepath.string();
+    if (filename_str == "triangle.vert")      triangle_vert = filepath_str;
+    else if (filename_str == "triangle.frag") triangle_frag = filepath_str;
+    else if (filename_str == "skybox.vert")   skybox_vert   = filepath_str;
+    else if (filename_str == "skybox.frag")   skybox_frag   = filepath_str;
+    else {
+      prog_error::ErrorInfo inf = {prog_error::ErrorCode::kMain,
+                                  "Unknown file!",
+                                  "Resource::Resource"};
+      throw prog_error::ProgError(std::move(inf));
+    }
   }
 
     if (texture_sides.size() != kTextureNumber) {
-      throw std::runtime_error("Resource constructor: Files for texture havn't been found!");
+      prog_error::ErrorInfo inf = {prog_error::ErrorCode::kMain,
+                                   "Files for texture havn't been found!",
+                                   "Resource::Resource"};
+      throw prog_error::ProgError(std::move(inf));
     }
   }
 };
@@ -208,9 +220,11 @@ int main(int argc, char** argv) {
 
       adapter.Draw();
     }
-  } catch (const std::exception& e) {
-    std::cerr << e.what();
+  } catch (const prog_error::ProgError& e) {
+    const prog_error::ErrorInfo& info = e.GetErrorInfo();
+    std::cerr << "Error in " << info.func_name << "\nLog: " << e.what() << '\n';
+    utility::CleanResources();
+    return static_cast<int>(info.code);
   }
-
   utility::CleanResources();
 }

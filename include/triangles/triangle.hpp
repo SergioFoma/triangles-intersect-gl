@@ -6,6 +6,7 @@
 #include <stdexcept>
 
 #include "basics.hpp"
+#include "prog_error.hpp"
 
 namespace triangles {
 
@@ -18,7 +19,10 @@ class Triangle3D {
   Triangle3D(Point3D p1, Point3D p2, Point3D p3)
       : vertices_{p1, p2, p3}, surface_{p1, p2, p3} {
     if (!IsValid()) {
-      throw std::runtime_error("Non valid arguments in Triangle Ctor");
+      prog_error::ErrorInfo inf = {prog_error::ErrorCode::kTriangle,
+                                   "Non valid arguments in Triangle Ctor",
+                                   "Triangle3D::Triangle3D"};
+      throw prog_error::ProgError(std::move(inf));
     }
   }
 

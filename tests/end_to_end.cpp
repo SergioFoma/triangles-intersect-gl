@@ -7,6 +7,7 @@
 #include <cassert>
 
 #include "read_data.hpp"
+#include "prog_error.hpp"
 
 namespace {
 
@@ -16,7 +17,10 @@ std::vector<bool> ReadCorrectStatuses(const std::string& file_name) {
   std::ifstream file(file_name, std::ios::binary);
 
   if (!file.is_open()) {
-    throw std::runtime_error("ReadCorrectStatuses: error of opening file!");
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kTest,
+                                   "Error of opening file",
+                                   "ReadCorrectStatuses"};
+    throw prog_error::ProgError(std::move(inf));
   }
 
   std::vector<bool> correct_status;
