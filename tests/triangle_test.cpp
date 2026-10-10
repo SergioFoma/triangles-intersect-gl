@@ -12,7 +12,7 @@
 namespace {
 
 // Contact at an edge or vertex counts as intersection. Degenerate triangles
-// are rejected by the constructor, not treated as points or segments.
+// are accepted as points or closed segments spanning their vertices.
 
 using triangles::Point3D;
 using triangles::Triangle3D;
@@ -493,20 +493,22 @@ TEST(Triangle3D, RejectsEveryNonFiniteCoordinateAndVertex) {
   }
 }
 
-TEST(Triangle3D, RejectsDegenerateTrianglesInEveryOrder) {
+TEST(Triangle3D, AcceptsDegenerateTrianglesInEveryOrder) {
   const Vertices cases[] = {
       {{{0, 0, 0}, {0, 0, 0}, {0, 0, 0}}},
       {{{1, 2, 3}, {1, 2, 3}, {4, 5, 6}}},
       {{{0, 0, 0}, {1, 0, 0}, {2, 0, 0}}},
       {{{-1, -2, -3}, {0, 0, 0}, {1, 2, 3}}},
-      {{{0, 0, 0}, {1, 0, 0}, {1, triangles::kEps / 2, 0}}},
   };
   for (size_t c = 0; c < std::size(cases); ++c) {
     for (const auto& order : kOrders) {
       SCOPED_TRACE(testing::Message() << "case=" << c << " order="
                                      << order[0] << order[1] << order[2]);
       const auto& p = cases[c];
-      EXPECT_THROW((Triangle3D{p[order[0]], p[order[1]], p[order[2]]}), std::runtime_error);
+      ASSERT_NO_THROW({
+        const Triangle3D triangle(p[order[0]], p[order[1]], p[order[2]]);
+        EXPECT_TRUE(triangle.IsValid());
+      });
     }
   }
 }
@@ -514,5 +516,129 @@ TEST(Triangle3D, RejectsDegenerateTrianglesInEveryOrder) {
 TEST(Triangle3D, AcceptsThinTriangleAboveDegeneracyThreshold) {
   EXPECT_TRUE((Triangle3D{{0, 0, 0}, {1, 0, 0}, {1, 2 * triangles::kEps, 0}}).IsValid());
 }
+
+TEST(Triangle3D, AcceptsPointTriangles) {
+  const std::array<Point3D, 4> points{{{0, 0, 0}, {1, 2, 3}, {-4, 5, -6},
+                                      {0x1p40, -0x1p40, 0x1p40}}};
+  for (const auto& point : points) {
+    SCOPED_TRACE(testing::Message() << "point=" << point.x_ << ',' << point.y_
+                                   << ',' << point.z_);
+    EXPECT_DOUBLE_EQ(triangles::GetPrecisionByVertices(point, point, point), 0.0);
+    ASSERT_NO_THROW({
+      const Triangle3D triangle(point, point, point);
+      EXPECT_TRUE(triangle.IsValid());
+    });
+  }
+}
+
+TEST(Triangle3D, AcceptsLineTrianglesAtDifferentScalesAndOrders) {
+  const Vertices lines[] = {
+      {{{-1, 0, 0}, {0, 0, 0}, {2, 0, 0}}},
+      {{{0, -1, 0}, {0, 0, 0}, {0, 2, 0}}},
+      {{{0, 0, -1}, {0, 0, 0}, {0, 0, 2}}},
+      {{{-1, -2, -3}, {0, 0, 0}, {2, 4, 6}}},
+      {{{8, -4, 2}, {9, -2, 5}, {11, 2, 11}}},
+      {{{1, 2, 3}, {1, 2, 3}, {4, 5, 6}}},
+  };
+  for (size_t c = 0; c < std::size(lines); ++c) {
+    for (double scale : {0x1p-10, 1.0, 0x1p30, 0x1p100, 0x1p300, 0x1p400}) {
+      auto points = lines[c];
+      for (auto& point : points) {
+        point = {point.x_ * scale, point.y_ * scale, point.z_ * scale};
+      }
+      for (const auto& order : kOrders) {
+        SCOPED_TRACE(testing::Message() << "case=" << c << " scale=" << scale
+                                       << " order=" << order[0] << order[1]
+                                       << order[2]);
+        const auto& a = points[order[0]];
+        const auto& b = points[order[1]];
+        const auto& d = points[order[2]];
+        ASSERT_NO_THROW({
+          const Triangle3D triangle(a, b, d);
+          EXPECT_TRUE(triangle.IsValid());
+        });
+      }
+    }
+  }
+}
+
+Vertices AsPoint(const Point3D& point) {
+  return {{point, point, point}};
+}
+
+Vertices AsSegment(const Point3D& first, const Point3D& last) {
+  return {{first, first / 2.0 + last / 2.0, last}};
+}
+
+const Vertices kSegmentReference = AsSegment({-2, 0, 0}, {2, 0, 0});
+const IntersectionCase kDegenerateCases[] = {
+    {"PointsCoincide", AsPoint({1, 2, 3}), AsPoint({1, 2, 3}), true},
+    {"PointsDiffer", AsPoint({1, 2, 3}), AsPoint({1, 2, 4}), false},
+    {"PointsAtOrigin", AsPoint({0, 0, 0}), AsPoint({0, 0, 0}), true},
+    {"PointInsideSegment", AsPoint({0, 0, 0}), kSegmentReference, true},
+    {"PointAtSegmentEndpoint", AsPoint({2, 0, 0}), kSegmentReference, true},
+    {"PointBeyondSegment", AsPoint({3, 0, 0}), kSegmentReference, false},
+    {"PointOffSegmentLine", AsPoint({0, 1, 0}), kSegmentReference, false},
+    {"SegmentsIdentical", kSegmentReference, kSegmentReference, true},
+    {"SegmentsOverlap", kSegmentReference, AsSegment({1, 0, 0}, {3, 0, 0}), true},
+    {"SegmentContained", kSegmentReference, AsSegment({-1, 0, 0}, {1, 0, 0}), true},
+    {"SegmentsTouchAtEndpoint", kSegmentReference, AsSegment({2, 0, 0}, {3, 0, 0}), true},
+    {"SegmentsCollinearDisjoint", kSegmentReference, AsSegment({3, 0, 0}, {4, 0, 0}), false},
+    {"SegmentsCross", kSegmentReference, AsSegment({0, -2, 0}, {0, 2, 0}), true},
+    {"SegmentsParallelDisjoint", kSegmentReference, AsSegment({-2, 1, 0}, {2, 1, 0}), false},
+    {"SegmentsSkew", kSegmentReference, AsSegment({0, -2, 1}, {0, 2, 1}), false},
+    {"SegmentLinesCrossOutsideSegments", kSegmentReference,
+     AsSegment({3, -2, 0}, {3, 2, 0}), false},
+    {"SegmentWithDuplicateVertex", {{{-2, 0, 0}, {2, 0, 0}, {-2, 0, 0}}},
+     AsSegment({0, -2, 0}, {0, 2, 0}), true},
+    {"ObliqueSegmentsCross", AsSegment({-1, -1, -1}, {1, 1, 1}),
+     AsSegment({-1, 1, 0}, {1, -1, 0}), true},
+    {"PointInsideTriangle", AsPoint({1, 1, 0}), kSpatialReference, true},
+    {"PointOnTriangleEdge", AsPoint({2, 0, 0}), kSpatialReference, true},
+    {"PointAtTriangleVertex", AsPoint({0, 0, 0}), kSpatialReference, true},
+    {"PointOutsideTriangle", AsPoint({3, 3, 0}), kSpatialReference, false},
+    {"PointOutsideTrianglePlane", AsPoint({1, 1, 1}), kSpatialReference, false},
+    {"SegmentCrossesTriangleInPlane", AsSegment({-1, 1, 0}, {4, 1, 0}),
+     kSpatialReference, true},
+    {"SegmentInsideTriangle", AsSegment({0.5, 1, 0}, {1.5, 1, 0}),
+     kSpatialReference, true},
+    {"SegmentOnTriangleEdge", AsSegment({0, 0, 0}, {4, 0, 0}),
+     kSpatialReference, true},
+    {"SegmentOutsideTriangleInPlane", AsSegment({3, 3, 0}, {5, 3, 0}),
+     kSpatialReference, false},
+    {"SegmentPiercesTriangle", AsSegment({1, 1, -1}, {1, 1, 1}),
+     kSpatialReference, true},
+    {"SegmentTouchesTriangleVertex", AsSegment({0, 0, 0}, {0, 0, 2}),
+     kSpatialReference, true},
+    {"SegmentPiercesPlaneOutsideTriangle", AsSegment({3, 3, -1}, {3, 3, 1}),
+     kSpatialReference, false},
+    {"SegmentStopsBeforeTrianglePlane", AsSegment({1, 1, 1}, {1, 1, 2}),
+     kSpatialReference, false},
+    {"SegmentParallelToTrianglePlane", AsSegment({0, 1, 1}, {2, 1, 1}),
+     kSpatialReference, false},
+    {"PointsDifferOnlyX", AsPoint({1, 2, 3}), AsPoint({2, 2, 3}), false},
+    {"PointsDifferOnlyY", AsPoint({1, 2, 3}), AsPoint({1, 3, 3}), false},
+    {"PointAtFirstSegmentEndpoint", AsPoint({-2, 0, 0}), kSegmentReference, true},
+    {"PointBeforeSegment", AsPoint({-3, 0, 0}), kSegmentReference, false},
+    {"PointInsideObliqueSegment", AsPoint({0, 0, 0}),
+     AsSegment({-1, -2, -3}, {2, 4, 6}), true},
+    {"SegmentsEndpointOnInterior", kSegmentReference,
+     AsSegment({0, 0, 0}, {0, 2, 0}), true},
+    {"SegmentsNonCollinearSharedEndpoint", kSegmentReference,
+     AsSegment({2, 0, 0}, {2, 2, 2}), true},
+    {"SegmentsSupportingLinesCrossBeyondSecond", kSegmentReference,
+     AsSegment({0, 1, 0}, {0, 2, 0}), false},
+    {"SegmentsBothDuplicateVertices", {{{-2, 0, 0}, {-2, 0, 0}, {2, 0, 0}}},
+     {{{0, -2, 0}, {0, 2, 0}, {0, 2, 0}}}, true},
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    DegenerateGeometry, TriangleIntersection,
+    testing::Combine(testing::ValuesIn(kDegenerateCases),
+                     testing::Values(Transform::Identity, Transform::YZ, Transform::XZ)),
+    [](const testing::TestParamInfo<IntersectionParam>& info) {
+      return std::string(std::get<0>(info.param).name) + "_" +
+             TransformName(std::get<1>(info.param));
+    });
 
 }  // namespace

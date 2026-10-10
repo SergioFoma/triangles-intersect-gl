@@ -1,10 +1,8 @@
 #ifndef INTER_ANALYZER_HPP_
 #define INTER_ANALYZER_HPP_
 
-#include <algorithm>
 #include <vector>
 
-#include "basics.hpp"
 #include "box.hpp"
 #include "triangle.hpp"
 

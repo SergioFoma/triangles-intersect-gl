@@ -46,7 +46,6 @@ struct Box {
                                    "Box::DoesIntersect"};
       throw prog_error::ProgError(std::move(inf));
     }
-    // here is no sense to add epsilon-comparator, because before that there were no calculations
     return min_.x_ <= other.max_.x_ + kEps && other.min_.x_ <= max_.x_ + kEps &&
            min_.y_ <= other.max_.y_ + kEps && other.min_.y_ <= max_.y_ + kEps &&
            min_.z_ <= other.max_.z_ + kEps && other.min_.z_ <= max_.z_ + kEps;

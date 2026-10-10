@@ -4,7 +4,10 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <optional>
 #include <stdexcept>
+#include <utility>
+#include <variant>
 
 #include "basics.hpp"
 #include "prog_error.hpp"
@@ -17,8 +20,7 @@ using VerticesOrientation = std::array<Orientation, 3>;
 class Triangle3D {
  public:
   Triangle3D() = default;
-  Triangle3D(Point3D p1, Point3D p2, Point3D p3)
-      : vertices_{p1, p2, p3}, surface_{p1, p2, p3} {
+  Triangle3D(Point3D p1, Point3D p2, Point3D p3) : vertices_{p1, p2, p3} {
     if (!IsValid()) {
       prog_error::ErrorInfo inf = {prog_error::ErrorCode::kTriangle,
                                    "Non valid arguments in Triangle Ctor",
@@ -28,15 +30,34 @@ class Triangle3D {
 
     center_coord_ = (p1 / 3 + p2 / 3 + p3 / 3);
     metric_ = GetPrecisionByVertices(p1, p2, p3);
+    type_ = GetTriangleType();
+
+    Point3D min = {GetMinX(), GetMinY(), GetMinZ()};
+    Point3D max = {GetMaxX(), GetMaxY(), GetMaxZ()};
+
+    switch (type_) {
+      case TriangleType::kDefault:
+        geometry_ = Surface{p1, p2, p3};
+        break;
+      case TriangleType::kLine:
+        geometry_ = Line{min, max};
+        break;
+      case TriangleType::kPoint:
+        geometry_ = Point3D{center_coord_};
+        break;
+      default:
+        assert(0 && "No such member of the class");
+        std::unreachable();
+    }
   }
 
   bool IsValid() const {
     return vertices_[0].IsValid() && vertices_[1].IsValid() &&
-           vertices_[2].IsValid() && surface_.IsValid();
+           vertices_[2].IsValid();
   }
 
   Orientation GetPointOrientation(const Point3D& point, double metric) const {
-    return surface_.GetPointOrientation(point, metric);
+    return std::get<Surface>(geometry_).GetPointOrientation(point, metric);
   }
 
   double GetMinX() const {
@@ -70,9 +91,15 @@ class Triangle3D {
 
   bool DoesIntersect(const Triangle3D& other) const;
 
-  const Surface& GetSurface() const { return surface_; }
+  Surface GetSurface() const {
+    if (geometry_.index() == 0)
+      return std::get<Surface>(geometry_);
+    return Surface{};
+  }
 
  private:
+  enum class TriangleType { kDefault, kLine, kPoint };
+
   bool DoesIntersectCopl(const Triangle3D& other, double metric) const;
   bool DoesIntersectNonCopl(const Triangle3D& other, double metric) const;
   bool CheckOtherTriangle(const Triangle3D& other,
@@ -83,14 +110,19 @@ class Triangle3D {
                              VerticesOrientation other_orientations,
                              double metric) const;
   bool CheckCoplSeparation(const Triangle3D& other, double metric) const;
+  bool DoesTriangleIntersect(const Triangle3D& other, double metric) const;
+  bool DoesLineIntersect(const Triangle3D& other, double metric) const;
+  bool DoesPointIntersect(const Triangle3D& other) const;
+  bool CheckPointTriangleIntersection(const Triangle3D& other);
+  TriangleType GetTriangleType() const;
 
+  TriangleType type_;
   Vertices vertices_{};
   double metric_{};
-  Vertices vertices_rel_{};
   Point3D center_coord_;
-  struct Surface surface_;
+  using GeometryShapes = std::variant<Surface, Line, Point3D>;
+  GeometryShapes geometry_;
 };
-
 }  // namespace triangles
 
 #endif  // TRIANGLES_TRIANGLE_HPP_

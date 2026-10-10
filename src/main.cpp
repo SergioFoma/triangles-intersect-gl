@@ -188,9 +188,6 @@ int main(int argc, char** argv) {
     triangles::TriangleArr triangles = reader::ReadData(input_path);
     triangles::InterAnalyzer analyzer(triangles);
 
-    for (size_t i = 0; i < triangles.size(); ++i)
-      std::cout << analyzer.DoesIntersect(i) << "\n";
-
     if (!is_only_intersect) {
       adapter::Adapter adapter = InitAdapter(resource_paths, argv[0]);
 
