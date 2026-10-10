@@ -1,7 +1,6 @@
 #include <CLI/CLI.hpp>
 #include <stdexcept>
 #include <string>
-#include <filesystem>
 #include <unordered_map>
 
 #include "adapter.hpp"
@@ -33,22 +32,6 @@ const std::unordered_map<std::string, unsigned int> texture_map = {
   {"bkg1_front.png" , texture_id::kFront}
 };
 
-std::filesystem::path GetAbsPath(const std::string& resource_paths) {
-
-  std::filesystem::path resources(resource_paths);
-   if (!std::filesystem::exists(resources)) {
-    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kMain,
-                                   "Error of finding resource folder",
-                                   "GetAbsPath"};
-    throw prog_error::ProgError(std::move(inf));
-  }
-
-  std::filesystem::path current_wrc = std::filesystem::current_path();
-  std::filesystem::path abs_path = std::filesystem::relative(resources, current_wrc);
-
-  return abs_path;
-}
-
 struct Resource {
   std::vector<std::string> texture_sides;
   std::string triangle_vert;
@@ -57,13 +40,8 @@ struct Resource {
   std::string skybox_frag;
 
   static std::string GetDefaultPath(const std::string& bin_path) {
-    // /..triangles-intersect-gl/Build/bin/Triangle_intersect
-    // triangles-intersect-gl/Build/bin/triangle_intersect --> Build/bin
-    // triangles-intersect-gl/Build/bin --> Build
-    // triangles-intersect-gl/Build --> triangles-intersect-gl
 
-    std::filesystem::path bin = GetAbsPath(bin_path);
-    std::filesystem::path root = bin.parent_path().parent_path().parent_path();
+    std::filesystem::path root = reader::GetAbsRootPath(bin_path);
     std::filesystem::path def = root / "resource";
 
     std::string def_str = def.string();
@@ -71,7 +49,7 @@ struct Resource {
   }
 
   Resource(const std::string& resource_paths): texture_sides(kTextureNumber) {
-  std::filesystem::path abs_path = GetAbsPath(resource_paths);
+  std::filesystem::path abs_path = reader::GetAbsPath(resource_paths);
   for (const auto& file: std::filesystem::directory_iterator(abs_path)) {
     const auto& filepath = file.path();
     const auto& filename = file.path().filename();

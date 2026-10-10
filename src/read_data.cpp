@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <fstream>
 
 #include "read_data.hpp"
@@ -73,4 +74,40 @@ triangles::TriangleArr reader::ReadData(const std::string& file_name) {
   }
 
   return ReadData(file);
+}
+
+std::filesystem::path reader::GetAbsPath(const std::string& resource_paths) {
+
+  std::filesystem::path resources(resource_paths);
+   if (!std::filesystem::exists(resources)) {
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kMain,
+                                   "Error of finding resource folder",
+                                   "GetAbsPath"};
+    throw prog_error::ProgError(std::move(inf));
+  }
+
+  std::filesystem::path current_wrc = std::filesystem::current_path();
+  std::filesystem::path abs_path = std::filesystem::relative(resources, current_wrc);
+
+  return abs_path;
+}
+
+std::filesystem::path reader::GetAbsRootPath(const std::string& relative_bin_paths) {
+  // .../root/Build/bin/triangle_intersect -->  .../root/Build/bin/
+  // .../root/Build/bin/ --> .../root/Build
+  // .../root/Build --> .../root/
+
+  std::filesystem::path bin_path = reader::GetAbsPath(relative_bin_paths);
+  std::filesystem::path root_path = bin_path.parent_path().parent_path().parent_path();
+
+  return root_path;
+}
+
+std::string reader::GetAbsMaterials(const std::string& relative_bin_path) {
+
+  std::filesystem::path root_path = reader::GetAbsRootPath(relative_bin_path);
+  std::filesystem::path materials = root_path / "materials";
+  std::string materials_str = materials.string();
+
+  return materials_str;
 }
