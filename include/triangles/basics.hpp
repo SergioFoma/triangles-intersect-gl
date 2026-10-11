@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <stdexcept>
+#include <cstdint>
 
 #include "prog_error.hpp"
 
