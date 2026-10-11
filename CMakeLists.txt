@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
 
 option(BUILD_TESTING "Build test" OFF)
+option(BUILD_BENCHMARK "Build benchmark" OFF)
 
 # === functions ===
 
@@ -40,17 +41,22 @@ fetch_if_not_available(cli11 https://github.com/CLIUtils/CLI11/archive/refs/tags
 
 add_subdirectory(${SRC})
 
-# === tests ===
+# == benchmark ==
+# ВАЖНО: скачивается ДО add_subdirectory(tests), иначе target benchmark::benchmark
+# ещё не существует, когда tests/CMakeLists.txt его использует.
 
-if (${BUILD_TESTING})
+if (${BUILD_BENCHMARK})
     set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
     set(BENCHMARK_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
     fetch_if_not_available(googlebenchmark https://github.com/google/benchmark/archive/refs/tags/v1.9.5.zip)
+endif()
+
+# === tests ===
+
+if (${BUILD_TESTING})
     fetch_if_not_available(GTest https://github.com/google/googletest/archive/refs/tags/v1.15.2.zip)
     enable_testing()
     add_subdirectory(tests)
 endif()
 
-
 enable_testing()
-

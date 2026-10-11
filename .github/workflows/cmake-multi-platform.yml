@@ -1,25 +1,26 @@
-# This starter workflow is for a CMake project running on multiple platforms. There is a different starter workflow if you just want a single platform.
-# See: https://github.com/actions/starter-workflows/blob/main/ci/cmake-single-platform.yml
 name: CMake on multiple platforms
 
 on:
   push:
     branches:
-      #- 'main'
       - 'dev'
   pull_request:
     branches:
-      #- 'main'
       - 'dev'
+
+# Новый пуш в ту же ветку отменяет предыдущий незавершённый прогон —
+# не тратим раннеры на устаревшие коммиты.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
 
     strategy:
-      # Set fail-fast to false to ensure that feedback is delivered for all matrix combinations. Consider changing this to true when your workflow is stable.
       fail-fast: false
-
       matrix:
         os: [ubuntu-latest, windows-latest]
         build_type: [Release]
@@ -44,109 +45,110 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 1
 
     # ----------------------------------------------------------------
-    # 1. LINUX (Ubuntu): Быстрая установка через apt-get
+    # LINUX: apt-зависимости + ccache (переиспользуем компиляцию между
+    # прогонами: меняется только то, что реально перекомпилировано).
     # ----------------------------------------------------------------
     - name: Install Dependencies (Linux)
       if: matrix.os == 'ubuntu-latest'
       run: |
-        sudo apt-get update
-        # Устанавливаем OpenGL (Mesa), GLFW и TBB
-        sudo apt-get install -y libgl1-mesa-dev libglu1-mesa-dev xorg-dev libglfw3-dev libtbb-dev
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq --no-install-recommends \
+          libgl1-mesa-dev libglu1-mesa-dev xorg-dev libglfw3-dev libtbb-dev
 
-    # ----------------------------------------------------------------
-    # 2. WINDOWS: Кэширование и установка через vcpkg
-    # ----------------------------------------------------------------
-    - name: Restore vcpkg Cache (Windows)
-      if: matrix.os == 'windows-latest'
-      uses: actions/cache@v4
+    - name: Restore ccache (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      uses: actions/cache/restore@v4
       with:
-        path: |
-          ~/.vcpkg
-          C:/vcpkg/downloads
-          C:/vcpkg/installed
-        key: ${{ runner.os }}-vcpkg-glfw-tbb-benchmark-v3
-        restore-keys: |
-          ${{ runner.os }}-vcpkg-
+        path: ~/.cache/ccache
+        key: ccache-${{ matrix.c_compiler }}-${{ github.run_id }}
+        restore-keys: ccache-${{ matrix.c_compiler }}-
 
-    # Системный OpenGL на Windows встроен по умолчанию в Windows SDK.
-    # Через vcpkg ставим GLFW, TBB и benchmark (benchmark нужен, чтобы
-    # не скачивать и не конфигурировать googlebenchmark 1.9.5 через
-    # FetchContent: он не совместим с CMake 4.x на MSVC — см. ниже).
+    # ----------------------------------------------------------------
+    # WINDOWS: vcpkg с бинарным кэшем x-gha. Провайдер x-gha сохраняет
+    # каждое собранное бинарное средство пакета отдельным GitHub-кэшем:
+    # после первого прогона glfw3/tbb скачиваются готовыми за секунды,
+    # без пересборки из исходников и без тяжёлого кэша всего /vcpkg.
+    # ----------------------------------------------------------------
     - name: Install Dependencies (Windows)
       if: matrix.os == 'windows-latest'
+      shell: bash
+      env:
+        VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
       run: |
-        vcpkg install glfw3:x64-windows tbb:x64-windows benchmark:x64-windows
+        vcpkg install glfw3:x64-windows tbb:x64-windows
 
-    # MSVC-окружение + Ninja вместо MSBuild: заметно ускоряет сборку на Windows
-    # (MSBuild переключается между конфигурациями и хуже параллелит компиляцию).
+    # MSVC-окружение + Ninja вместо MSBuild — заметно быстрее.
     - name: Setup MSVC dev environment (Windows)
       if: matrix.os == 'windows-latest'
       uses: ilammy/msvc-dev-cmd@v1
 
     - name: Set reusable strings
-      # Turn repeated input strings (such as the build output directory) into step outputs. These step outputs can be used throughout the workflow file.
       id: strings
       shell: bash
       run: |
         echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
 
     # ----------------------------------------------------------------
-    # googlebenchmark 1.9.5 не конфигурируется с CMake 4.x + MSVC
-    # ("Failed to determine the source files for the regular expression
-    # backend") и роняет весь Configure на Windows, хотя в CI benchmark_test
-    # не собирается и не запускается. Код проекта править нельзя, поэтому
-    # обходим FetchContent так:
-    #  - benchmark ставится через vcpkg (шаг Install Dependencies выше);
-    #  - сюда пишем крошечный googlebenchmarkConfig.cmake: find_package(googlebenchmark)
-    #    находится, FetchContent не запускается, target benchmark::benchmark
-    #    подтягивается из vcpkg — тесты собираются как обычно.
+    # Кэш исходников FetchContent (CLI11, GTest): не качаем zip каждый раз.
     # ----------------------------------------------------------------
-    - name: Create googlebenchmark shim config (Windows)
-      if: matrix.os == 'windows-latest'
-      shell: bash
-      run: |
-        mkdir -p "$GITHUB_WORKSPACE/cmake-shims/googlebenchmark"
-        cat > "$GITHUB_WORKSPACE/cmake-shims/googlebenchmark/googlebenchmarkConfig.cmake" <<'SHIM'
-        include(CMakeFindDependencyMacro)
-        find_dependency(benchmark CONFIG REQUIRED)
-        SHIM
+    - name: Restore FetchContent sources
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ github.workspace }}/fc-src
+        key: fc-src-${{ matrix.os }}-${{ matrix.c_compiler }}-${{ hashFiles('**/CMakeLists.txt') }}
+        restore-keys: |
+          fc-src-${{ matrix.os }}-${{ matrix.c_compiler }}-
+          fc-src-
 
-    # Windows: glfw3/TBB ставятся через vcpkg, поэтому нужен его toolchain-файл,
-    # иначе find_package(glfw3) проваливается на Configure.
+    # ----------------------------------------------------------------
+    # Общие аргументы cmake:
+    #  - тесты ON, benchmark OFF (в CI он не нужен — проект разделил опции);
+    #  - Linux: ccache как ланчер компилятора;
+    #  - Windows: toolchain vcpkg;
+    #  - FetchContent кладёт исходники в кэшируемый fc-src.
+    # ----------------------------------------------------------------
     - name: Compute extra CMake args
       id: extra
       shell: bash
       run: |
+        base="-DBUILD_TESTING=ON -DBUILD_BENCHMARK=OFF -DFETCHCONTENT_BASE_DIR=${{ github.workspace }}/fc-src"
         if [ "${{ matrix.os }}" = "windows-latest" ]; then
-          echo "toolchain=-DCMAKE_TOOLCHAIN_FILE=${VCPKG_INSTALLATION_ROOT}/scripts/buildsystems/vcpkg.cmake -Dgooglebenchmark_DIR=${{ github.workspace }}\\cmake-shims\\googlebenchmark" >> "$GITHUB_OUTPUT"
+          echo "cmake_args=${base} -DCMAKE_TOOLCHAIN_FILE=${VCPKG_INSTALLATION_ROOT}/scripts/buildsystems/vcpkg.cmake" >> "$GITHUB_OUTPUT"
         else
-          echo "toolchain=" >> "$GITHUB_OUTPUT"
+          echo "cmake_args=${base} -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache" >> "$GITHUB_OUTPUT"
         fi
 
     - name: Configure CMake
-      # Ninja (одно-конфигурационный генератор) + тесты на всех платформах
       run: >
         cmake -B ${{ steps.strings.outputs.build-output-dir }}
         -G Ninja
         -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
         -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
         -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-        -DBUILD_TESTING=ON
-        ${{ steps.extra.outputs.toolchain }}
+        ${{ steps.extra.outputs.cmake_args }}
         -S ${{ github.workspace }}
 
     - name: Build
-      # Собираем только нужные цели: приложение, юнит-тесты и end-to-end.
-      # benchmark_test намеренно не собирается — он не запускается в CI.
+      # benchmark_test не собирается (BUILD_BENCHMARK=OFF) — в CI он не нужен.
       run: >
         cmake --build ${{ steps.strings.outputs.build-output-dir }}
         --parallel
         --target triangle_intersect triangles_tests end_to_end_testing
 
-    # End-to-end: статусы пересечений по всем файлам в materials/ — обязательный шаг.
-    # Программа сама вычисляет путь к materials/ относительно себя — запускать можно откуда угодно.
+    # Кэш FetchContent-исходников обновляем после успешной сборки.
+    - name: Save FetchContent sources
+      if: success()
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ github.workspace }}/fc-src
+        key: fc-src-${{ matrix.os }}-${{ matrix.c_compiler }}-${{ hashFiles('**/CMakeLists.txt') }}
+
+    # End-to-end: обязательный (все 6 пар файлов из materials/ проходят).
+    # Программа сама вычисляет путь к materials/ относительно себя.
     - name: Run end-to-end tests
       shell: bash
       run: |
@@ -157,9 +159,8 @@ jobs:
           ./end_to_end_testing
         fi
 
-    # Юнит-тесты Google Test. continue-on-error: в группе InterAnalyzer/Triangle3D
-    # есть устаревшие/падающие тесты — шаг нужен, чтобы видеть статус,
-    # но он не блокирует CI, пока тесты не приведены в порядок.
+    # Юнит-тесты Google Test. continue-on-error: часть тестов устарела и
+    # допиливается отдельно — шаг показывает статус, но не блокирует CI.
     - name: Run unit tests (Google Test)
       shell: bash
       continue-on-error: true
@@ -170,3 +171,12 @@ jobs:
         else
           ./triangles_tests
         fi
+
+    # ccache сохраняем в конце (только Linux): даже если тесты «красные»,
+    # кэш полезного состояния сборки успевает записаться.
+    - name: Save ccache (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      uses: actions/cache/save@v4
+      with:
+        path: ~/.cache/ccache
+        key: ccache-${{ matrix.c_compiler }}-${{ github.run_id }}
