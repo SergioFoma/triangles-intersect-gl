@@ -7,6 +7,7 @@
 #include <stdexcept>
 #include <vector>
 
+#include "prog_error.hpp"
 #include "triangles/triangle.hpp"
 
 namespace {
@@ -36,9 +37,9 @@ TEST(Triangle3D, DefaultTriangleIsInvalid) {
 TEST(Triangle3D, RejectsInvalidVertices) {
   const double infinity = std::numeric_limits<double>::infinity();
   EXPECT_THROW((Triangle3D{{0, 0, 0}, triangles::Point3D{}, {0, 1, 0}}),
-               std::runtime_error);
+               prog_error::ProgError);
   EXPECT_THROW((Triangle3D{{0, 0, 0}, {1, 0, 0}, {0, infinity, 0}}),
-               std::runtime_error);
+               prog_error::ProgError);
 }
 
 constexpr std::array<std::array<int, 3>, 6> kOrders{{
@@ -487,7 +488,7 @@ TEST(Triangle3D, RejectsEveryNonFiniteCoordinateAndVertex) {
         std::array<double*, 3> coordinates{
             &points[vertex].x_, &points[vertex].y_, &points[vertex].z_};
         *coordinates[axis] = value;
-        EXPECT_THROW((Triangle3D{points[0], points[1], points[2]}), std::runtime_error);
+        EXPECT_THROW((Triangle3D{points[0], points[1], points[2]}), prog_error::ProgError);
       }
     }
   }

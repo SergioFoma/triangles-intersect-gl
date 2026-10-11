@@ -3,6 +3,7 @@
 #include <random>
 #include <gtest/gtest.h>
 #include "inter_analyzer.hpp"
+#include "prog_error.hpp"
 
 namespace {
 using triangles::InterAnalyzer;
@@ -19,7 +20,7 @@ void ExpectBruteForceStatuses(const InterAnalyzer& analyzer, const TriangleArr& 
   for (size_t i = 0; i < input.size(); ++i) {
     EXPECT_EQ(analyzer.DoesIntersect(i), expected[i]) << "original index=" << i;
   }
-  EXPECT_THROW(analyzer.DoesIntersect(input.size()), std::out_of_range);
+  EXPECT_THROW(analyzer.DoesIntersect(input.size()), prog_error::ProgError);
 }
 
 void ExpectBruteForce(const TriangleArr& input) {
@@ -41,7 +42,7 @@ TEST(InterAnalyzer, OriginalIndicesAcrossAllThreeAxes) {
 }
 
 TEST(InterAnalyzer, RejectsInvalidTriangle) {
-  EXPECT_THROW((InterAnalyzer{TriangleArr{Triangle3D{}}}), std::runtime_error);
+  EXPECT_THROW((InterAnalyzer{TriangleArr{Triangle3D{}}}), prog_error::ProgError);
 }
 
 TEST(InterAnalyzer, DifferentTriangleSizesPreserveOriginalIndices) {
