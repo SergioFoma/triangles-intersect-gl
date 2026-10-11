@@ -1,5 +1,6 @@
 #include <filesystem>
 #include <fstream>
+#include <cmath>
 
 #include "read_data.hpp"
 #include "prog_error.hpp"

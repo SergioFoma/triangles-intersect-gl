@@ -57,7 +57,7 @@ struct Resource {
   for (const auto& file: std::filesystem::directory_iterator(abs_path)) {
     const auto& filepath = file.path();
     const auto& filename = file.path().filename();
-    if (texture_map.find(filename) != texture_map.end()) {
+    if (texture_map.find(filename.string()) != texture_map.end()) {
       texture_sides[texture_map.at(filename.string())] = file.path().string();
       continue;
     }
