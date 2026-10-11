@@ -110,12 +110,12 @@ render::CameraConfig CreateCameraConfig(const utility::WinConfig& win_con) {
   float speed = 3.0F;
   float aspect = static_cast<float>(win_con.width) / static_cast<float>(win_con.height);
   float fovy = 45.0F;
-  float near = 0.1F;
-  float far = 100.0F;
+  float near_plane = 0.1F;
+  float far_plane = 100.0F;
   float mouse_sensitivity = 0.1F;
 
   render::CameraConfig camera = {pos, front, up, speed, aspect,
-                         fovy, near, far, mouse_sensitivity};
+                         fovy, near_plane, far_plane, mouse_sensitivity};
 
   return camera;
 }
