@@ -246,6 +246,69 @@ bool Triangle3D::DoesIntersectCopl(const Triangle3D& other,
 
 // ================================ LINE CASE =================================
 
+bool Triangle3D::CheckLineTriangleIntersection(const Triangle3D& other,
+                                               double metric) const {
+  assert(other.IsValid());
+  assert(IsValid());
+
+  const Line& line = std::get<Line>(geometry_);
+  const Surface& surface = std::get<Surface>(other.geometry_);
+  const Orientation a = surface.GetPointOrientation(line.a_, metric);
+  const Orientation b = surface.GetPointOrientation(line.b_, metric);
+
+  return a == Orientation::kCoplanar && b == Orientation::kCoplanar
+             ? CheckLineTriangleIntersectionCopl(other, metric)
+             : CheckLineTriangleIntersectionNonCopl(other, a, b);
+}
+
+bool Triangle3D::CheckLineTriangleIntersectionCopl(const Triangle3D& other,
+                                                   double metric) const {
+  const Line& line = std::get<Line>(geometry_);
+  const Surface& surface = std::get<Surface>(other.geometry_);
+
+  for (size_t i = 0; i < 3; ++i) {
+    Point3D side_vector = other.vertices_[(i + 1) % 3] - other.vertices_[i];
+    Point3D normal_to_side = side_vector.Cross(surface.norm_);
+    Side first =
+        GetSide(normal_to_side.Dot(line.a_ - other.vertices_[i]), metric);
+    Side second =
+        GetSide(normal_to_side.Dot(line.b_ - other.vertices_[i]), metric);
+    if (first == Side::kNegative && second == Side::kNegative)
+      return false;
+  }
+
+  Point3D normal_to_line = (line.b_ - line.a_).Cross(surface.norm_);
+  Side first =
+      GetSide(normal_to_line.Dot(other.vertices_[0] - line.a_), metric);
+  if (first == Side::kUndefined)
+    return true;
+  for (size_t i = 1; i < 3; ++i) {
+    if (GetSide(normal_to_line.Dot(other.vertices_[i] - line.a_), metric) !=
+        first)
+      return true;
+  }
+  return false;
+}
+
+bool Triangle3D::CheckLineTriangleIntersectionNonCopl(const Triangle3D& other,
+                                                      Orientation a,
+                                                      Orientation b) const {
+  if (a == b)
+    return false;
+
+  const Line& line = std::get<Line>(geometry_);
+  const Surface& surface = std::get<Surface>(other.geometry_);
+  Point3D point = line.a_;
+  if (b == Orientation::kCoplanar) {
+    point = line.b_;
+  } else if (a != Orientation::kCoplanar) {
+    double dist_a = surface.norm_.Dot(line.a_) + surface.d_;
+    double dist_b = surface.norm_.Dot(line.b_) + surface.d_;
+    point = line.a_ + (line.b_ - line.a_) / ((dist_a - dist_b) / dist_a);
+  }
+  return Triangle3D{point, point, point}.CheckPointTriangleIntersection(other);
+}
+
 bool Triangle3D::DoesLineIntersect(const Triangle3D& other,
                                    double metric) const {
   assert(other.IsValid());
@@ -253,13 +316,13 @@ bool Triangle3D::DoesLineIntersect(const Triangle3D& other,
 
   switch (other.type_) {
     case TriangleType::kDefault:
-      return false;
+      return CheckLineTriangleIntersection(other, metric);
     case TriangleType::kLine:
       return std::get<Line>(geometry_).CheckIntersection(
           std::get<Line>(other.geometry_), metric);
     case TriangleType::kPoint:
-      return std::get<Line>(geometry_)
-          .LiesOn(std::get<Point3D>(other.geometry_), metric_);
+      return std::get<Line>(geometry_).LiesOn(
+          std::get<Point3D>(other.geometry_), metric);
     default:
       assert(0 && "No such member of the class");
       std::unreachable();
