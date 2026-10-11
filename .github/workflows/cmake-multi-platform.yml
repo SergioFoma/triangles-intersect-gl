@@ -66,17 +66,18 @@ jobs:
           ~/.vcpkg
           C:/vcpkg/downloads
           C:/vcpkg/installed
-        key: ${{ runner.os }}-vcpkg-glfw-tbb-v2
+        key: ${{ runner.os }}-vcpkg-glfw-tbb-benchmark-v3
         restore-keys: |
           ${{ runner.os }}-vcpkg-
 
     # Системный OpenGL на Windows встроен по умолчанию в Windows SDK.
-    # Через vcpkg ставим только GLFW и TBB.
+    # Через vcpkg ставим GLFW, TBB и benchmark (benchmark нужен, чтобы
+    # не скачивать и не конфигурировать googlebenchmark 1.9.5 через
+    # FetchContent: он не совместим с CMake 4.x на MSVC — см. ниже).
     - name: Install Dependencies (Windows)
       if: matrix.os == 'windows-latest'
       run: |
-        vcpkg install glfw3:x64-windows
-        vcpkg install tbb:x64-windows
+        vcpkg install glfw3:x64-windows tbb:x64-windows benchmark:x64-windows
 
     # MSVC-окружение + Ninja вместо MSBuild: заметно ускоряет сборку на Windows
     # (MSBuild переключается между конфигурациями и хуже параллелит компиляцию).
@@ -92,21 +93,40 @@ jobs:
         echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
 
     # ----------------------------------------------------------------
+    # googlebenchmark 1.9.5 не конфигурируется с CMake 4.x + MSVC
+    # ("Failed to determine the source files for the regular expression
+    # backend") и роняет весь Configure на Windows, хотя в CI benchmark_test
+    # не собирается и не запускается. Код проекта править нельзя, поэтому
+    # обходим FetchContent так:
+    #  - benchmark ставится через vcpkg (шаг Install Dependencies выше);
+    #  - сюда пишем крошечный googlebenchmarkConfig.cmake: find_package(googlebenchmark)
+    #    находится, FetchContent не запускается, target benchmark::benchmark
+    #    подтягивается из vcpkg — тесты собираются как обычно.
+    # ----------------------------------------------------------------
+    - name: Create googlebenchmark shim config (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: bash
+      run: |
+        mkdir -p "$GITHUB_WORKSPACE/cmake-shims/googlebenchmark"
+        cat > "$GITHUB_WORKSPACE/cmake-shims/googlebenchmark/googlebenchmarkConfig.cmake" <<'SHIM'
+        include(CMakeFindDependencyMacro)
+        find_dependency(benchmark CONFIG REQUIRED)
+        SHIM
+
     # Windows: glfw3/TBB ставятся через vcpkg, поэтому нужен его toolchain-файл,
     # иначе find_package(glfw3) проваливается на Configure.
-    # ----------------------------------------------------------------
     - name: Compute extra CMake args
       id: extra
       shell: bash
       run: |
         if [ "${{ matrix.os }}" = "windows-latest" ]; then
-          echo "toolchain=-DCMAKE_TOOLCHAIN_FILE=${VCPKG_INSTALLATION_ROOT}/scripts/buildsystems/vcpkg.cmake" >> "$GITHUB_OUTPUT"
+          echo "toolchain=-DCMAKE_TOOLCHAIN_FILE=${VCPKG_INSTALLATION_ROOT}/scripts/buildsystems/vcpkg.cmake -Dgooglebenchmark_DIR=${{ github.workspace }}\\cmake-shims\\googlebenchmark" >> "$GITHUB_OUTPUT"
         else
           echo "toolchain=" >> "$GITHUB_OUTPUT"
         fi
 
     - name: Configure CMake
-      # Ninja (одно-конфигурационный генератор) + BUILD_TESTING для юнит и e2e тестов
+      # Ninja (одно-конфигурационный генератор) + тесты на всех платформах
       run: >
         cmake -B ${{ steps.strings.outputs.build-output-dir }}
         -G Ninja
@@ -119,7 +139,7 @@ jobs:
 
     - name: Build
       # Собираем только нужные цели: приложение, юнит-тесты и end-to-end.
-      # benchmark_test намеренно не собирается (он не запускается в CI) — экономия времени.
+      # benchmark_test намеренно не собирается — он не запускается в CI.
       run: >
         cmake --build ${{ steps.strings.outputs.build-output-dir }}
         --parallel
