@@ -28,6 +28,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "-O2 -Wall ")
 set(SRC ${PROJECT_SOURCE_DIR}/src)
 set(INCLUDE ${PROJECT_SOURCE_DIR}/include)
+set(BENCHMARK ${PROJECT_SOURCE_DIR}/benchmark)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 # === packages ===
@@ -42,13 +43,12 @@ fetch_if_not_available(cli11 https://github.com/CLIUtils/CLI11/archive/refs/tags
 add_subdirectory(${SRC})
 
 # == benchmark ==
-# ВАЖНО: скачивается ДО add_subdirectory(tests), иначе target benchmark::benchmark
-# ещё не существует, когда tests/CMakeLists.txt его использует.
 
 if (${BUILD_BENCHMARK})
     set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
     set(BENCHMARK_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
     fetch_if_not_available(googlebenchmark https://github.com/google/benchmark/archive/refs/tags/v1.9.5.zip)
+    add_subdirectory(${BENCHMARK})
 endif()
 
 # === tests ===

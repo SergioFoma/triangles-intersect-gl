@@ -8,8 +8,7 @@ on:
     branches:
       - 'dev'
 
-# Новый пуш в ту же ветку отменяет предыдущий незавершённый прогон —
-# не тратим раннеры на устаревшие коммиты.
+# Новый пуш в ту же ветку отменяет предыдущий незавершённый прогон.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -18,6 +17,10 @@ jobs:
   build:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 25
+
+    permissions:
+      contents: read
+      actions: write
 
     strategy:
       fail-fast: false
@@ -49,15 +52,14 @@ jobs:
         fetch-depth: 1
 
     # ----------------------------------------------------------------
-    # LINUX: apt-зависимости + ccache (переиспользуем компиляцию между
-    # прогонами: меняется только то, что реально перекомпилировано).
+    # LINUX: зависимости + ccache (переиспользуем компиляцию между прогонами)
     # ----------------------------------------------------------------
     - name: Install Dependencies (Linux)
       if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update -qq
         sudo apt-get install -y -qq --no-install-recommends \
-          libgl1-mesa-dev libglu1-mesa-dev xorg-dev libglfw3-dev libtbb-dev
+          libgl1-mesa-dev libglu1-mesa-dev xorg-dev libglfw3-dev libtbb-dev ccache
 
     - name: Restore ccache (Linux)
       if: matrix.os == 'ubuntu-latest'
@@ -68,10 +70,8 @@ jobs:
         restore-keys: ccache-${{ matrix.c_compiler }}-
 
     # ----------------------------------------------------------------
-    # WINDOWS: vcpkg с бинарным кэшем x-gha. Провайдер x-gha сохраняет
-    # каждое собранное бинарное средство пакета отдельным GitHub-кэшем:
-    # после первого прогона glfw3/tbb скачиваются готовыми за секунды,
-    # без пересборки из исходников и без тяжёлого кэша всего /vcpkg.
+    # WINDOWS: vcpkg с бинарным кэшем x-gha — после первого прогона
+    # glfw3/tbb скачиваются готовыми бинарями за секунды.
     # ----------------------------------------------------------------
     - name: Install Dependencies (Windows)
       if: matrix.os == 'windows-latest'
@@ -81,7 +81,7 @@ jobs:
       run: |
         vcpkg install glfw3:x64-windows tbb:x64-windows
 
-    # MSVC-окружение + Ninja вместо MSBuild — заметно быстрее.
+    # MSVC-окружение + Ninja вместо MSBuild — быстрее.
     - name: Setup MSVC dev environment (Windows)
       if: matrix.os == 'windows-latest'
       uses: ilammy/msvc-dev-cmd@v1
@@ -93,7 +93,7 @@ jobs:
         echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
 
     # ----------------------------------------------------------------
-    # Кэш исходников FetchContent (CLI11, GTest): не качаем zip каждый раз.
+    # Кэш исходников FetchContent (CLI11, GTest) — zips не качаем каждый раз.
     # ----------------------------------------------------------------
     - name: Restore FetchContent sources
       uses: actions/cache/restore@v4
@@ -105,11 +105,11 @@ jobs:
           fc-src-
 
     # ----------------------------------------------------------------
-    # Общие аргументы cmake:
-    #  - тесты ON, benchmark OFF (в CI он не нужен — проект разделил опции);
-    #  - Linux: ccache как ланчер компилятора;
+    # Аргументы cmake:
+    #  - тесты ON, benchmark OFF (в CI не нужен и не собирается);
+    #  - ccache только если он реально доступен (иначе сборка не сломается);
     #  - Windows: toolchain vcpkg;
-    #  - FetchContent кладёт исходники в кэшируемый fc-src.
+    #  - FetchContent -> кэшируемый fc-src.
     # ----------------------------------------------------------------
     - name: Compute extra CMake args
       id: extra
@@ -118,8 +118,10 @@ jobs:
         base="-DBUILD_TESTING=ON -DBUILD_BENCHMARK=OFF -DFETCHCONTENT_BASE_DIR=${{ github.workspace }}/fc-src"
         if [ "${{ matrix.os }}" = "windows-latest" ]; then
           echo "cmake_args=${base} -DCMAKE_TOOLCHAIN_FILE=${VCPKG_INSTALLATION_ROOT}/scripts/buildsystems/vcpkg.cmake" >> "$GITHUB_OUTPUT"
-        else
+        elif command -v ccache > /dev/null 2>&1; then
           echo "cmake_args=${base} -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache" >> "$GITHUB_OUTPUT"
+        else
+          echo "cmake_args=${base}" >> "$GITHUB_OUTPUT"
         fi
 
     - name: Configure CMake
@@ -133,13 +135,12 @@ jobs:
         -S ${{ github.workspace }}
 
     - name: Build
-      # benchmark_test не собирается (BUILD_BENCHMARK=OFF) — в CI он не нужен.
+      # benchmark (BUILD_BENCHMARK=OFF) не конфигурируется и не собирается.
       run: >
         cmake --build ${{ steps.strings.outputs.build-output-dir }}
         --parallel
         --target triangle_intersect triangles_tests end_to_end_testing
 
-    # Кэш FetchContent-исходников обновляем после успешной сборки.
     - name: Save FetchContent sources
       if: success()
       uses: actions/cache/save@v4
@@ -147,8 +148,7 @@ jobs:
         path: ${{ github.workspace }}/fc-src
         key: fc-src-${{ matrix.os }}-${{ matrix.c_compiler }}-${{ hashFiles('**/CMakeLists.txt') }}
 
-    # End-to-end: обязательный (все 6 пар файлов из materials/ проходят).
-    # Программа сама вычисляет путь к materials/ относительно себя.
+    # End-to-end: блокирующий шаг. Программа сама считает путь к materials/.
     - name: Run end-to-end tests
       shell: bash
       run: |
@@ -159,8 +159,8 @@ jobs:
           ./end_to_end_testing
         fi
 
-    # Юнит-тесты Google Test. continue-on-error: часть тестов устарела и
-    # допиливается отдельно — шаг показывает статус, но не блокирует CI.
+    # Юнит-тесты: часть ожиданий устарела — шаг показывает статус,
+    # но не блокирует CI (снимете continue-on-error, когда тесты допилены).
     - name: Run unit tests (Google Test)
       shell: bash
       continue-on-error: true
@@ -172,8 +172,6 @@ jobs:
           ./triangles_tests
         fi
 
-    # ccache сохраняем в конце (только Linux): даже если тесты «красные»,
-    # кэш полезного состояния сборки успевает записаться.
     - name: Save ccache (Linux)
       if: matrix.os == 'ubuntu-latest'
       uses: actions/cache/save@v4
