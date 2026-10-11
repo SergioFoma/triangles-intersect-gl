@@ -86,6 +86,24 @@ jobs:
       if: matrix.os == 'windows-latest'
       uses: ilammy/msvc-dev-cmd@v1
 
+    # ----------------------------------------------------------------
+    # ssize_t не существует в MSVC (на Linux его даёт glibc).
+    # inter_analyzer.hpp использует ssize_t — правим без касания кода:
+    # заголов shim форсируется компилятором через /FI во все C++ TU.
+    # ----------------------------------------------------------------
+    - name: Create MSVC ssize_t shim (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: bash
+      run: |
+        mkdir -p "$GITHUB_WORKSPACE/msvc_shims"
+        cat > "$GITHUB_WORKSPACE/msvc_shims/ssize_shim.h" <<'SHIM'
+        #pragma once
+        #ifdef _MSC_VER
+        #include <BaseTsd.h>
+        typedef SSIZE_T ssize_t;
+        #endif
+        SHIM
+
     - name: Set reusable strings
       id: strings
       shell: bash
@@ -117,7 +135,9 @@ jobs:
       run: |
         base="-DBUILD_TESTING=ON -DBUILD_BENCHMARK=OFF -DFETCHCONTENT_BASE_DIR=${{ github.workspace }}/fc-src"
         if [ "${{ matrix.os }}" = "windows-latest" ]; then
-          echo "cmake_args=${base} -DCMAKE_TOOLCHAIN_FILE=${VCPKG_INSTALLATION_ROOT}/scripts/buildsystems/vcpkg.cmake" >> "$GITHUB_OUTPUT"
+          ws="${{ github.workspace }}"; ws="${ws//\\//}"
+          release_flags="-DCMAKE_CXX_FLAGS_RELEASE=\"/MD /O2 /Ob2 /DNDEBUG /FI${ws}/msvc_shims/ssize_shim.h\""
+          echo "cmake_args=${base} -DCMAKE_TOOLCHAIN_FILE=${VCPKG_INSTALLATION_ROOT}/scripts/buildsystems/vcpkg.cmake ${release_flags}" >> "$GITHUB_OUTPUT"
         elif command -v ccache > /dev/null 2>&1; then
           echo "cmake_args=${base} -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache" >> "$GITHUB_OUTPUT"
         else
