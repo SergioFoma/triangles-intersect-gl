@@ -76,8 +76,12 @@ git clone https://github.com/SergioFoma/triangles-intersect-gl.git
 - bkg1_top.png                  # верхняя грань текстуры
 - skybox.frag                   # фрагментный шейдер текстуры
 - triangle.frag                 # фрагментный шейдер для треугольников
+- line.frag                     # фрагментный шейдер для отрезка
+- point.frag                    # фрагментный шейдер для точки
 - skybox.vert                   # вершинный шейдер для текстуры
 - triangle.vert                 # вершинный шейдер для треугольников
+- line.vert                     # вершинный шейдер для отрезка
+- point.vert                    # вершинный шейдер для точки
 ```
 Имена Ваших файлов должны строго совпадать с приведенными Выше.
 
@@ -150,6 +154,18 @@ Build/bin/triangles_tests
 
 ```bash
 Build/bin/end_to_end_testing
+```
+
+## Запуск bench марков ⚙
+
+```bash
+cmake -S . -B Build -DBUILD_BENCHMARK=true
+```
+
+Компиляция:
+
+```bash
+cmake --build Build
 ```
 
 Запуск ```google benchmark```:

@@ -3,9 +3,11 @@ name: CMake on multiple platforms
 on:
   push:
     branches:
+      - 'main'
       - 'dev'
   pull_request:
     branches:
+      - 'main'
       - 'dev'
 
 # Новый пуш в ту же ветку отменяет предыдущий незавершённый прогон.
