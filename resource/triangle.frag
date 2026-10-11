@@ -21,49 +21,49 @@ struct Light {
 uniform Light light;
 
 void main() {
-      
-    // ===============================================================
-    float distance = length(light.viewPos - fragPos);
-    float attenuation = 1.0F / (light.constant + 
-                                light.linear * distance + 
-                                light.quadratic * distance * distance);
-  
-    // ================================================================
-    float ambientStrength = 0.2F;
-  
-    vec3 lightTrace = normalize(light.viewPos - fragPos);
-    float diffStrength = abs(dot(normal, lightTrace));
-  
-    vec3 diff = diffStrength * light.lightColor;
-    vec3 ambient = ambientStrength * light.lightColor;
-     
-    float specularStrength = 0.5F;
-    vec3 viewTrace = normalize(light.viewPos - fragPos);
-    
-    vec3 correctNormal = normal;
-    if (dot(correctNormal, viewTrace) < 0.0F) {
-      correctNormal = -correctNormal;
-    }
+
+  // ===============================================================
+  float distance = length(light.viewPos - fragPos);
+  float attenuation = 1.0F / (light.constant +
+                              light.linear * distance +
+                              light.quadratic * distance * distance);
+
+  // ================================================================
+  float ambientStrength = 0.2F;
+
+  vec3 lightTrace = normalize(light.viewPos - fragPos);
+  float diffStrength = abs(dot(normal, lightTrace));
+
+  vec3 diff = diffStrength * light.lightColor;
+  vec3 ambient = ambientStrength * light.lightColor;
+
+  float specularStrength = 0.5F;
+  vec3 viewTrace = normalize(light.viewPos - fragPos);
+
+  vec3 correctNormal = normal;
+  if (dot(correctNormal, viewTrace) < 0.0F) {
+    correctNormal = -correctNormal;
+  }
 
 
-    vec3 reflectTrace = reflect(-lightTrace, correctNormal);
-    float spec = pow(abs(dot(viewTrace, reflectTrace)), 32.0F);
-    vec3 specular = specularStrength * spec * light.lightColor;  
+  vec3 reflectTrace = reflect(-lightTrace, correctNormal);
+  float spec = pow(abs(dot(viewTrace, reflectTrace)), 32.0F);
+  vec3 specular = specularStrength * spec * light.lightColor;
 
-    ambient  *= attenuation;
-    diff     *= attenuation;
-    specular *= attenuation;
+  ambient  *= attenuation;
+  diff     *= attenuation;
+  specular *= attenuation;
 
-    // ==========================================================
-    float theta = dot(lightTrace, normalize(-light.direction));
-    float epsilon = light.cutOff - light.outerCutOff;
-    float intencity = clamp((theta - light.outerCutOff) / epsilon, 0.0F, 1.0F);
+  // ==========================================================
+  float theta = dot(lightTrace, normalize(-light.direction));
+  float epsilon = light.cutOff - light.outerCutOff;
+  float intencity = clamp((theta - light.outerCutOff) / epsilon, 0.0F, 1.0F);
 
-    diff *= intencity;
-    specular *= intencity;
-    vec3 totalColor = (ambient + diff + specular) * pointColor;
+  diff *= intencity;
+  specular *= intencity;
+  vec3 totalColor = (ambient + diff + specular) * pointColor;
 
-    // ===========================================================
+  // ===========================================================
 
-    FragColor = vec4(totalColor, 1.0F);
+  FragColor = vec4(totalColor, 1.0F);
 }

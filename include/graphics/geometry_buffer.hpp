@@ -15,8 +15,7 @@ class GeometryBuffer {
   GeometryBuffer(GeometryBuffer&& other)
     : vertex_dim_(other.vertex_dim_),
       color_dim_(other.color_dim_),
-      normal_dim_(other.normal_dim_),
-      vertex_count_(other.vertex_count_) {
+      normal_dim_(other.normal_dim_) {
 
       vao_ = other.vao_;
       vbo_ = other.vbo_;
@@ -27,11 +26,10 @@ class GeometryBuffer {
 
   explicit GeometryBuffer(const std::vector<float>& raw_data,
                           unsigned int vertex_dim, unsigned int color_dim,
-                          unsigned int normal_dim, unsigned int vertex_count)
+                          unsigned int normal_dim)
       : vertex_dim_(vertex_dim),
         color_dim_(color_dim),
-        normal_dim_(normal_dim),
-        vertex_count_(vertex_count) {
+        normal_dim_(normal_dim) {
 
     glGenVertexArrays(kBuffCount, &vao_);
     glGenBuffers(kBuffCount, &vbo_);
@@ -75,8 +73,8 @@ class GeometryBuffer {
     }
   }
 
-  void Draw(GLenum mode) const {
-    glDrawArrays(mode, kStartIndex, vertex_count_);
+  void Draw(GLenum mode, size_t start_pos, size_t vertex_count) const {
+    glDrawArrays(mode, start_pos, vertex_count);
 
     if (glGetError()) {
       prog_error::ErrorInfo inf = {prog_error::ErrorCode::kGeomBuff,
@@ -118,7 +116,6 @@ class GeometryBuffer {
     vertex_dim_ = other.vertex_dim_;
     color_dim_ = other.color_dim_;
     normal_dim_ = other.normal_dim_;
-    vertex_count_ = other.vertex_count_;
 
     vao_ = other.vao_;
     vbo_ = other.vbo_;
@@ -140,7 +137,6 @@ class GeometryBuffer {
   unsigned int normal_dim_ = 0;  // for one vertex
   unsigned int vao_ = 0;
   unsigned int vbo_ = 0;
-  unsigned int vertex_count_ = 0;
   static constexpr unsigned int kUnbind = 0;
   static constexpr unsigned int kBuffCount = 1;
   static constexpr unsigned int kStartIndex = 0;

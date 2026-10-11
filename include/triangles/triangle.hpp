@@ -14,6 +14,8 @@
 
 namespace triangles {
 
+enum class TriangleType { kDefault, kLine, kPoint };
+
 using Vertices = std::array<Point3D, 3>;
 using VerticesOrientation = std::array<Orientation, 3>;
 
@@ -81,6 +83,8 @@ class Triangle3D {
     return std::max({vertices_[0].z_, vertices_[1].z_, vertices_[2].z_});
   }
 
+  TriangleType GetTriangleType() const;
+
   const Point3D& GetCenter() const { return center_coord_; }
 
   double GetPrecisionBySides() const { return metric_; }
@@ -98,7 +102,6 @@ class Triangle3D {
   }
 
  private:
-  enum class TriangleType { kDefault, kLine, kPoint };
 
   bool DoesIntersectCopl(const Triangle3D& other, double metric) const;
   bool DoesIntersectNonCopl(const Triangle3D& other, double metric) const;
@@ -114,7 +117,6 @@ class Triangle3D {
   bool DoesLineIntersect(const Triangle3D& other, double metric) const;
   bool DoesPointIntersect(const Triangle3D& other) const;
   bool CheckPointTriangleIntersection(const Triangle3D& other);
-  TriangleType GetTriangleType() const;
 
   TriangleType type_;
   Vertices vertices_{};
@@ -123,6 +125,8 @@ class Triangle3D {
   using GeometryShapes = std::variant<Surface, Line, Point3D>;
   GeometryShapes geometry_;
 };
+
+using TriangleArr = std::vector<triangles::Triangle3D>;
 }  // namespace triangles
 
 #endif  // TRIANGLES_TRIANGLE_HPP_

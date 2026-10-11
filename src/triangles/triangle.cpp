@@ -29,18 +29,18 @@ InterCase GetIntersectionCase(VerticesOrientation orientations) {
 
 // ============================== TRIANGLE TYPE ==============================
 
-Triangle3D::TriangleType Triangle3D::GetTriangleType() const {
+triangles::TriangleType Triangle3D::GetTriangleType() const {
 
   if (vertices_[0].IsEqual(vertices_[1]) &&
       vertices_[1].IsEqual(vertices_[2]) && vertices_[2].IsEqual(vertices_[1]))
-    return TriangleType::kPoint;
+    return triangles::TriangleType::kPoint;
 
   const Point3D side1 = vertices_[1] - vertices_[0];
   const Point3D side2 = vertices_[2] - vertices_[0];
   if (side1.Cross(side2).IsEqual({0, 0, 0}, metric_))
-    return TriangleType::kLine;
+    return triangles::TriangleType::kLine;
 
-  return Triangle3D::TriangleType::kDefault;
+  return triangles::TriangleType::kDefault;
 }
 
 // ========================== TRIANGLE INTERSECTION ==========================
@@ -52,11 +52,11 @@ bool Triangle3D::DoesIntersect(const Triangle3D& other) const {
   double metric = std::hypot(metric_, other.metric_);
 
   switch (type_) {
-    case TriangleType::kDefault:
+    case triangles::TriangleType::kDefault:
       return DoesTriangleIntersect(other, metric);
-    case TriangleType::kLine:
+    case triangles::TriangleType::kLine:
       return DoesLineIntersect(other, metric);
-    case TriangleType::kPoint:
+    case triangles::TriangleType::kPoint:
       return DoesPointIntersect(other);
     default:
       assert(0 && "No such type");
@@ -71,7 +71,7 @@ bool Triangle3D::DoesTriangleIntersect(const Triangle3D& other,
   assert(other.IsValid());
   assert(IsValid());
 
-  if (other.type_ != TriangleType::kDefault)
+  if (other.type_ != triangles::TriangleType::kDefault)
     return other.DoesIntersect(*this);
 
   Point3D p1 = vertices_[0];
@@ -292,12 +292,12 @@ bool Triangle3D::DoesPointIntersect(const Triangle3D& other) const {
   assert(other.IsValid());
   assert(IsValid());
 
-  if (other.type_ == TriangleType::kDefault) {
-    bool is_coplanar = std::get<Surface>(geometry_).GetPointOrientation(
-                           std::get<Point3D>(geometry_), other.metric_) ==
-                       Orientation::kCoplanar;
+  //if (other.type_ == TriangleType::kDefault) {
+  //  bool is_coplanar = std::get<Surface>(geometry_).GetPointOrientation(
+  //                         std::get<Point3D>(geometry_), other.metric_) ==
+  //                     Orientation::kCoplanar;
     // return is_coplanar&&
-  }
+  //}
   if (other.type_ == TriangleType::kPoint) {
     return std::get<Point3D>(geometry_).IsEqual(
         std::get<Point3D>(other.geometry_));

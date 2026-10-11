@@ -38,6 +38,10 @@ struct Resource {
   std::string triangle_frag;
   std::string skybox_vert;
   std::string skybox_frag;
+  std::string point_vert;
+  std::string point_frag;
+  std::string line_vert;
+  std::string line_frag;
 
   static std::string GetDefaultPath(const std::string& bin_path) {
 
@@ -64,6 +68,10 @@ struct Resource {
     else if (filename_str == "triangle.frag") triangle_frag = filepath_str;
     else if (filename_str == "skybox.vert")   skybox_vert   = filepath_str;
     else if (filename_str == "skybox.frag")   skybox_frag   = filepath_str;
+    else if (filename_str == "point.vert")    point_vert    = filepath_str;
+    else if (filename_str == "point.frag")    point_frag    = filepath_str;
+    else if (filename_str == "line.vert")     line_vert     = filepath_str;
+    else if (filename_str == "line.frag")     line_frag     = filepath_str;
     else {
       prog_error::ErrorInfo inf = {prog_error::ErrorCode::kMain,
                                   "Unknown file!",
@@ -112,12 +120,14 @@ render::CameraConfig CreateCameraConfig(const utility::WinConfig& win_con) {
   return camera;
 }
 
-render::ShaderConfig CreateShaderConfig(const Resource& resource) {
+render::ShaderConfig CreateShaderConfig(const Resource& resource,
+                                        const std::string& vert_sh,
+                                        const std::string& frag_sh) {
   int position_loc = 0;               // location in shaders
   int color_loc = 1;                  // location in shaders
   int normal_loc = 2;                 // location in shaders
 
-  render::ShaderConfig shader_con = {resource.triangle_vert, resource.triangle_frag,
+  render::ShaderConfig shader_con = {vert_sh, frag_sh,
                                   position_loc, color_loc, normal_loc};
   return shader_con;
 }
@@ -148,7 +158,8 @@ utility::WinConfig CreateWinConfig() {
   return win_con;
 }
 
-adapter::Adapter InitAdapter(const std::string& resource_paths, const char* bin_paths) {
+adapter::Adapter InitAdapter(const std::string& resource_paths, const char* bin_paths,
+                             triangles::TriangleArr& triangles) {
   std::string target_paths;
 
   if (resource_paths.empty()) {
@@ -161,9 +172,15 @@ adapter::Adapter InitAdapter(const std::string& resource_paths, const char* bin_
   utility::WinConfig win_con = CreateWinConfig();
   render::LightConfig light_con = CreateLightConfig();
   render::CameraConfig camera_con = CreateCameraConfig(win_con);
-  render::ShaderConfig shader_config = CreateShaderConfig(resource);
+  render::ShaderConfig tr_shader_config
+      = CreateShaderConfig(resource, resource.triangle_vert, resource.triangle_frag);
+  render::ShaderConfig point_shader_config
+      = CreateShaderConfig(resource, resource.point_vert, resource.point_frag);
+  render::ShaderConfig line_shader_config
+      = CreateShaderConfig(resource, resource.line_vert, resource.line_frag);
   render::SkyboxConfig skybox_config = CreateSkyboxConfig(resource);
-  render::RenderConfig render_con = {camera_con, light_con, shader_config};
+  render::RenderConfig render_con = {camera_con, light_con, tr_shader_config,
+                                     point_shader_config, line_shader_config};
 
   GLFWwindow* win = utility::InitGraphics(win_con);
   adapter::Adapter adapter(win, render_con, skybox_config);
@@ -186,14 +203,15 @@ int main(int argc, char** argv) {
     CLI11_PARSE(app, argc, argv);
 
     triangles::TriangleArr triangles = reader::ReadData(input_path);
+    adapter::Adapter::SortingByType(triangles);
     triangles::InterAnalyzer analyzer(triangles);
 
     if (!is_only_intersect) {
-      adapter::Adapter adapter = InitAdapter(resource_paths, argv[0]);
+      adapter::Adapter adapter = InitAdapter(resource_paths, argv[0], triangles);
 
       size_t triangles_number = triangles.size();
       for (size_t ind = 0; ind < triangles_number; ++ind) {
-        adapter.ConvertTriangle(triangles[ind], analyzer.DoesIntersect(ind));
+        adapter.ConvertShape(triangles[ind], analyzer.DoesIntersect(ind));
       }
 
       adapter.Draw();

@@ -55,18 +55,21 @@ struct Point3D {
     return IsZero(x_ - other.x_, precision) &&
            IsZero(y_ - other.y_, precision) && IsZero(z_ - other.z_, precision);
   }
+
+  static double Distance(const Point3D& p1, const Point3D& p2) {
+    const Point3D side = p2 - p1;
+
+    return std::hypot(side.x_, side.y_, side.z_);
+  }
 };
 
 enum class Orientation : uint8_t { kNegative, kCoplanar, kPositive };
 
 static double GetPrecisionByVertices(const Point3D& p1, const Point3D& p2,
                                      const Point3D& p3) {
-  const Point3D side1 = p2 - p1;
-  const Point3D side2 = p3 - p2;
-  const Point3D side3 = p1 - p3;
-  return std::hypot(std::hypot(side1.x_, side1.y_, side1.z_),
-                    std::hypot(side2.x_, side2.y_, side2.z_),
-                    std::hypot(side3.x_, side3.y_, side3.z_));
+  return std::hypot(Point3D::Distance(p2, p1),
+                    Point3D::Distance(p3, p2),
+                    Point3D::Distance(p1, p3));
 }
 
 struct Surface {

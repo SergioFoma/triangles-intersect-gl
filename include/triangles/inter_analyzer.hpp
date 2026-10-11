@@ -8,7 +8,6 @@
 
 namespace triangles {
 
-using TriangleArr = std::vector<triangles::Triangle3D>;
 class InterAnalyzer {
  public:
 
