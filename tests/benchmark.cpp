@@ -7,7 +7,7 @@
 
 namespace {
 
-constexpr unsigned int kBenchmarkNumber = 5;
+constexpr unsigned int kBenchmarkNumber = 6;
 
 void BmTrianglesIntersect(benchmark::State& state, const std::string& file_name) {
   triangles::TriangleArr triangles = reader::ReadData(file_name);
@@ -30,7 +30,8 @@ int main(int argc, char** argv) {
     materials_str + "/triangles_1000.txt",
     materials_str + "/triangles_10000.txt",
     materials_str + "/triangles_100000.txt",
-    materials_str + "/triangles_1000000.txt"
+    materials_str + "/triangles_1000000.txt",
+    materials_str + "/triangles_point_line.txt"
   };
 
   for (const std::string& file_name: input_data) {

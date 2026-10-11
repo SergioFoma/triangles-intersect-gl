@@ -11,7 +11,7 @@
 
 namespace {
 
-const size_t kTestsNumber = 5;
+const size_t kTestsNumber = 6;
 
 std::vector<bool> ReadCorrectStatuses(const std::string& file_name) {
   std::ifstream file(file_name, std::ios::binary);
@@ -63,7 +63,8 @@ int main(int argc, char** argv) {
     materials_str + "/triangles_1000.txt",
     materials_str + "/triangles_10000.txt",
     materials_str + "/triangles_100000.txt",
-    materials_str + "/triangles_1000000.txt"
+    materials_str + "/triangles_1000000.txt",
+    materials_str + "/triangles_point_line.txt"
   };
 
   std::array<const std::string, kTestsNumber> output_data = {
@@ -71,7 +72,8 @@ int main(int argc, char** argv) {
     materials_str + "/output_1000.txt",
     materials_str + "/output_10000.txt",
     materials_str + "/output_100000.txt",
-    materials_str + "/output_1000000.txt"
+    materials_str + "/output_1000000.txt",
+    materials_str + "/output_point_line.txt"
   };
 
   for (size_t ind = 0; ind < kTestsNumber; ++ind) {
