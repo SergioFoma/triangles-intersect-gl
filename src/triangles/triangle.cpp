@@ -1,6 +1,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <type_traits>
 #include <utility>
 
 #include "basics.hpp"
@@ -160,14 +161,8 @@ bool CanonicalizeVertices(Vertices& vertices,
 }  // namespace
 
 namespace {
-// [a, b, c, d] :=
-//                | ax ay az 1 |
-//                | bx by bz 1 |
-//                | cx cy cz 1 |
-//                | dx dy dz 1 |
-
-double GetMixedProduct(const Point3D& a, const Point3D& b, const Point3D& c,
-                       const Point3D& d) {
+double GetMixedProductWithOffset(const Point3D& a, const Point3D& b,
+                                 const Point3D& c, const Point3D& d) {
   Point3D size_1 = a - d;
   Point3D size_2 = b - d;
   Point3D size_3 = c - d;
@@ -200,10 +195,10 @@ bool Triangle3D::CheckSideIntersection(const Triangle3D& other,
 
   // -------------------------------------------------------------------------
 
-  return GetMixedProduct(vertices[0], vertices[1], other_vertices[0],
-                         other_vertices[1]) <= metric * kEps &&
-         GetMixedProduct(vertices[0], vertices[2], other_vertices[2],
-                         other_vertices[0]) <= metric * kEps;
+  return GetMixedProductWithOffset(vertices[0], vertices[1], other_vertices[0],
+                                   other_vertices[1]) <= metric * kEps &&
+         GetMixedProductWithOffset(vertices[0], vertices[2], other_vertices[2],
+                                   other_vertices[0]) <= metric * kEps;
 }
 
 // ------------------------------ COPLANAR CASE -------------------------------
@@ -256,10 +251,19 @@ bool Triangle3D::DoesLineIntersect(const Triangle3D& other,
   assert(other.IsValid());
   assert(IsValid());
 
-  // if (type_)
-
-
-  return false;
+  switch (other.type_) {
+    case TriangleType::kDefault:
+      return false;
+    case TriangleType::kLine:
+      return std::get<Line>(geometry_).CheckIntersection(
+          std::get<Line>(other.geometry_), metric);
+    case TriangleType::kPoint:
+      return std::get<Line>(geometry_)
+          .LiesOn(std::get<Point3D>(other.geometry_), metric_);
+    default:
+      assert(0 && "No such member of the class");
+      std::unreachable();
+  }
 }
 
 // ================================ POINT CASE ================================
@@ -296,17 +300,18 @@ bool Triangle3D::DoesPointIntersect(const Triangle3D& other) const {
   assert(other.IsValid());
   assert(IsValid());
 
-  if (other.type_ == TriangleType::kDefault) {
-    return CheckPointTriangleIntersection(other);
+  switch (other.type_) {
+    case TriangleType::kDefault:
+      return CheckPointTriangleIntersection(other);
+    case TriangleType::kLine:
+      return std::get<Line>(other.geometry_)
+          .LiesOn(std::get<Point3D>(geometry_), other.metric_);
+    case TriangleType::kPoint:
+      return std::get<Point3D>(geometry_).IsEqual(
+          std::get<Point3D>(other.geometry_));
+    default:
+      assert(0 && "No such member of the class");
+      std::unreachable();
   }
-  if (other.type_ == TriangleType::kPoint) {
-    return std::get<Point3D>(geometry_).IsEqual(
-        std::get<Point3D>(other.geometry_));
-  }
-  if (other.type_ == TriangleType::kLine) {
-    return std::get<Line>(other.geometry_).LiesOn(std::get<Point3D>(geometry_));
-  }
-
-  return false;
 }
 }  // namespace triangles

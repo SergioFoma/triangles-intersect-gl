@@ -79,9 +79,10 @@ struct Surface {
   Surface() = default;
   Surface(const Point3D& p1, const Point3D& p2, const Point3D& p3) {
     if (!(p1.IsValid() && p2.IsValid() && p3.IsValid())) {
-     prog_error::ErrorInfo inf = {.code=prog_error::ErrorCode::kBasics,
-                                   .err_msg="Non valid arguments in Triangle Ctor",
-                                   .func_name="Surface::Surface"};
+      prog_error::ErrorInfo inf = {
+          .code = prog_error::ErrorCode::kBasics,
+          .err_msg = "Non valid arguments in Triangle Ctor",
+          .func_name = "Surface::Surface"};
       throw prog_error::ProgError(std::move(inf));
     }
     double a = ((p2.y_ - p1.y_) * (p3.z_ - p1.z_)) -
@@ -120,31 +121,37 @@ struct Surface {
 };
 
 struct Line {
-  Point3D vec_;
-  Point3D start_;
+  Point3D a_, b_;
 
   Line() = default;
-  Line(const Point3D& a, const Point3D& b) {
+  Line(const Point3D& a, const Point3D& b) : a_{a}, b_{b} {
     if (!(a.IsValid() && b.IsValid())) {
-      throw std::runtime_error("Non valid arguments in Line Ctor");
+      prog_error::ErrorInfo inf = {
+          .code = prog_error::ErrorCode::kBasics,
+          .err_msg = "Non valid arguments in Line Ctor",
+          .func_name = "Line::Line"};
+      throw prog_error::ProgError(std::move(inf));
     }
 
-    vec_ = b - a;
-    if (vec_.IsEqual({0, 0, 0})) {
-      throw std::runtime_error("Unable to construct line by 2 similar points");
+    if ((b_ - a_).IsEqual({0, 0, 0})) {
+      prog_error::ErrorInfo inf = {
+          .code = prog_error::ErrorCode::kBasics,
+          .err_msg = "Unable to construct line by 2 similar points",
+          .func_name = "Line::Line"};
+      throw prog_error::ProgError(std::move(inf));
     }
-    start_ = a;
   }
 
-  bool IsValid() const { return vec_.IsValid() && start_.IsValid(); }
+  bool IsValid() const { return a_.IsValid() && b_.IsValid(); }
 
-  bool LiesOn(const Point3D& point) const {
+  bool LiesOn(const Point3D& point, double metric) const {
     assert(IsValid());
     assert(point.IsValid());
 
-    Point3D ap = point - start_;
-    double vec_len = std::hypot(vec_.x_, vec_.y_, vec_.z_);
-    Point3D normalized_vec = vec_ / vec_len;
+    Point3D ap = point - a_;
+    Point3D ab = b_ - a_;
+    double vec_len = std::hypot(ab.x_, ab.y_, ab.z_);
+    Point3D normalized_vec = ab / vec_len;
     Point3D cross_vec_ap = ap.Cross(normalized_vec);
     double h = std::hypot(cross_vec_ap.x_, cross_vec_ap.y_, cross_vec_ap.z_);
     if (!IsZero(h, vec_len))
@@ -152,8 +159,44 @@ struct Line {
 
     double coord_on_ab = ap.Dot(normalized_vec);
 
-    return -kEps * vec_len <= coord_on_ab &&
-           coord_on_ab - vec_len <= kEps * vec_len;
+    return -kEps * metric <= coord_on_ab &&
+           coord_on_ab - vec_len <= kEps * metric;
+  }
+
+  // this function was vibecoded because I was tired =(
+  bool CheckIntersection(const Line& other, double metric) const {
+    assert(IsValid());
+    assert(other.IsValid());
+
+    Point3D direction = b_ - a_;
+    Point3D other_direction = other.b_ - other.a_;
+    direction = direction / std::hypot(direction.x_, direction.y_, direction.z_);
+    other_direction = other_direction /
+        std::hypot(other_direction.x_, other_direction.y_, other_direction.z_);
+
+    Point3D normal = direction.Cross(other_direction);
+    double normal_len = std::hypot(normal.x_, normal.y_, normal.z_);
+    if (IsZero(normal_len)) {
+      return LiesOn(other.a_, metric) || LiesOn(other.b_, metric) ||
+             other.LiesOn(a_, metric) || other.LiesOn(b_, metric);
+    }
+
+    normal = normal / normal_len;
+    if (!IsZero((other.a_ - a_).Dot(normal), metric)) {
+      return false;
+    }
+
+    const auto crosses = [&](const Line& base, const Line& segment,
+                             const Point3D& base_direction) {
+      Point3D perpendicular = normal.Cross(base_direction);
+      double first = perpendicular.Dot(segment.a_ - base.a_);
+      double second = perpendicular.Dot(segment.b_ - base.a_);
+      return IsZero(first, metric) || IsZero(second, metric) ||
+             ((first > 0) != (second > 0));
+    };
+
+    return crosses(*this, other, direction) &&
+           crosses(other, *this, other_direction);
   }
 };
 

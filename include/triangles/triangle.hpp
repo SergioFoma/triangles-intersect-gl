@@ -118,6 +118,7 @@ class Triangle3D {
   bool DoesLineIntersect(const Triangle3D& other, double metric) const;
   bool DoesPointIntersect(const Triangle3D& other) const;
   bool CheckPointTriangleIntersection(const Triangle3D& other) const;
+
   TriangleType CalculateTriangleType() const;
 
   TriangleType type_;

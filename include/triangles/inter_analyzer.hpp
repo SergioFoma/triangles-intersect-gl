@@ -26,6 +26,7 @@ class InterAnalyzer {
   struct AnalyzingTriangle {
     Triangle3D triangle;
     size_t original_index;
+    uint32_t morton_code;
     bool intersect_status = false;
   };
 
