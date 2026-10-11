@@ -51,6 +51,39 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    # ----------------------------------------------------------------
+    # 1. LINUX (Ubuntu): Быстрая установка через apt-get
+    # ----------------------------------------------------------------
+    - name: Install Dependencies (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        # Устанавливаем OpenGL (Mesa), GLFW и TBB
+        sudo apt-get install -y libgl1-mesa-dev libglu1-mesa-dev xorg-dev libglfw3-dev libtbb-dev
+
+    # ----------------------------------------------------------------
+    # 2. WINDOWS: Кэширование и установка через vcpkg
+    # ----------------------------------------------------------------
+    - name: Restore vcpkg Cache (Windows)
+      if: matrix.os == 'windows-latest'
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.vcpkg
+          C:/vcpkg/downloads
+          C:/vcpkg/installed
+        key: ${{ runner.os }}-vcpkg-glfw-tbb-v2
+        restore-keys: |
+          ${{ runner.os }}-vcpkg-
+
+    # Системный OpenGL на Windows встроен по умолчанию в Windows SDK.
+    # Через vcpkg ставим только GLFW и TBB.
+    - name: Install Dependencies (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        vcpkg install glfw3:x64-windows
+        vcpkg install tbb:x64-windows
+
     - name: Set reusable strings
       # Turn repeated input strings (such as the build output directory) into step outputs. These step outputs can be used throughout the workflow file.
       id: strings
