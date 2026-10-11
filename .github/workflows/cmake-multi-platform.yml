@@ -126,6 +126,7 @@ jobs:
         --target triangle_intersect triangles_tests end_to_end_testing
 
     # End-to-end: статусы пересечений по всем файлам в materials/ — обязательный шаг.
+    # Программа сама вычисляет путь к materials/ относительно себя — запускать можно откуда угодно.
     - name: Run end-to-end tests
       shell: bash
       run: |

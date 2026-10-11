@@ -79,15 +79,16 @@ triangles::TriangleArr reader::ReadData(const std::string& file_name) {
 std::filesystem::path reader::GetAbsPath(const std::string& resource_paths) {
 
   std::filesystem::path resources(resource_paths);
-   if (!std::filesystem::exists(resources)) {
+  std::filesystem::path abs_path = std::filesystem::weakly_canonical(
+                                        std::filesystem::absolute(resources)
+                                    );
+
+  if (!std::filesystem::exists(resources)) {
     prog_error::ErrorInfo inf = {prog_error::ErrorCode::kMain,
                                    "Error of finding resource folder",
                                    "GetAbsPath"};
     throw prog_error::ProgError(std::move(inf));
   }
-
-  std::filesystem::path current_wrc = std::filesystem::current_path();
-  std::filesystem::path abs_path = std::filesystem::relative(resources, current_wrc);
 
   return abs_path;
 }
