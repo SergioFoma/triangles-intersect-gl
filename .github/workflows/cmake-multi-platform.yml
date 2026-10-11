@@ -16,7 +16,7 @@ concurrency:
 jobs:
   build:
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 25
+    timeout-minutes: 30
 
     permissions:
       contents: read
@@ -51,9 +51,11 @@ jobs:
       with:
         fetch-depth: 1
 
-    # Пути с прямыми слэшами: на Windows github.workspace содержит "\",
-    # а bash съедает "\a", "\t" и т.д. Нормализуем один раз и дальше
-    # используем только эти значения.
+    # ----------------------------------------------------------------
+    # Пути с прямыми слэшами. На Windows github.workspace содержит "\",
+    # а bash съедает "\a", "\t" и т.п. Нормализуем один раз и дальше
+    # везде используем только эти значения.
+    # ----------------------------------------------------------------
     - name: Set reusable strings
       id: strings
       shell: bash
@@ -81,34 +83,46 @@ jobs:
         restore-keys: ccache-${{ matrix.c_compiler }}-
 
     # ----------------------------------------------------------------
-    # WINDOWS: vcpkg с бинарным кэшем x-gha.
-    # ACTIONS_CACHE_URL / ACTIONS_RUNTIME_TOKEN по умолчанию не попадают
-    # в окружение шага, поэтому экспортируем их через github-script.
+    # WINDOWS: vcpkg с бинарным кэшем в папке (provider "files") +
+    # actions/cache. Не зависит от внутренних токенов GitHub Actions,
+    # поэтому работает стабильно (в отличие от x-gha).
     # ----------------------------------------------------------------
-    - name: Export cache tokens for vcpkg x-gha (Windows)
+    - name: Restore vcpkg binary cache (Windows)
       if: matrix.os == 'windows-latest'
-      uses: actions/github-script@v7
+      id: vcpkg-cache
+      uses: actions/cache/restore@v4
       with:
-        script: |
-          core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
-          core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+        path: ${{ steps.strings.outputs.workspace }}/vcpkg-cache
+        key: vcpkg-windows-glfw3-tbb-${{ github.run_id }}
+        restore-keys: vcpkg-windows-glfw3-tbb-
 
     - name: Install Dependencies (Windows)
       if: matrix.os == 'windows-latest'
       shell: bash
       env:
-        VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
+        VCPKG_BINARY_SOURCES: "clear;files,${{ steps.strings.outputs.workspace }}/vcpkg-cache,readwrite"
       run: |
+        mkdir -p "${{ steps.strings.outputs.workspace }}/vcpkg-cache"
         vcpkg install glfw3:x64-windows tbb:x64-windows
 
-    # MSVC-окружение + Ninja.
+    - name: Save vcpkg binary cache (Windows)
+      if: matrix.os == 'windows-latest' && success()
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ steps.strings.outputs.workspace }}/vcpkg-cache
+        key: vcpkg-windows-glfw3-tbb-${{ github.run_id }}
+
+    # MSVC-окружение (cl, link, Ninja).
     - name: Setup MSVC dev environment (Windows)
       if: matrix.os == 'windows-latest'
       uses: ilammy/msvc-dev-cmd@v1
 
-    # ssize_t нет в MSVC. Shim подключается флагом /FI ко всем C++ файлам.
-    # Лучше заменить ssize_t в inter_analyzer.hpp на std::ptrdiff_t и
-    # удалить этот шаг.
+    # ----------------------------------------------------------------
+    # ssize_t не существует в MSVC (на Linux его даёт glibc).
+    # Shim подключается флагом -FI ко всем C++ файлам.
+    # Лучше заменить ssize_t в inter_analyzer.hpp на std::ptrdiff_t
+    # (#include <cstddef>) и удалить этот шаг вместе с флагом -FI ниже.
+    # ----------------------------------------------------------------
     - name: Create MSVC ssize_t shim (Windows)
       if: matrix.os == 'windows-latest'
       shell: bash
@@ -123,21 +137,16 @@ jobs:
         SHIM
 
     # ----------------------------------------------------------------
-    # Кэш исходников FetchContent (CLI11, GTest)
-    # ----------------------------------------------------------------
-    - name: Restore FetchContent sources
-      uses: actions/cache/restore@v4
-      with:
-        path: ${{ github.workspace }}/fc-src
-        key: fc-src-${{ matrix.os }}-${{ matrix.c_compiler }}-${{ hashFiles('**/CMakeLists.txt') }}
-        restore-keys: |
-          fc-src-${{ matrix.os }}-${{ matrix.c_compiler }}-
-          fc-src-
-
     # Configure целиком в bash: аргументы собираются массивом, поэтому
-    # пробелы в значениях флагов не требуют хитрого экранирования.
+    # пробелы в значениях флагов не требуют экранирования.
+    # MSYS_NO_PATHCONV отключает «умный» перевод путей в Git Bash
+    # (иначе "/MD" превращается в "C:\Program Files\Git\MD").
+    # ----------------------------------------------------------------
     - name: Configure CMake
       shell: bash
+      env:
+        MSYS_NO_PATHCONV: "1"
+        MSYS2_ARG_CONV_EXCL: "*"
       run: |
         ws="${{ steps.strings.outputs.workspace }}"
         args=(
@@ -149,12 +158,11 @@ jobs:
           -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
           -DBUILD_TESTING=ON
           -DBUILD_BENCHMARK=OFF
-          -DFETCHCONTENT_BASE_DIR="$ws/fc-src"
         )
         if [ "${{ matrix.os }}" = "windows-latest" ]; then
           args+=(
-            -DCMAKE_TOOLCHAIN_FILE="${VCPKG_INSTALLATION_ROOT//\\//}/scripts/buildsystems/vcpkg.cmake"
-            "-DCMAKE_CXX_FLAGS_RELEASE=/MD /O2 /Ob2 /DNDEBUG /FI$ws/msvc_shims/ssize_shim.h"
+            "-DCMAKE_TOOLCHAIN_FILE=${VCPKG_INSTALLATION_ROOT//\\//}/scripts/buildsystems/vcpkg.cmake"
+            "-DCMAKE_CXX_FLAGS_RELEASE=-MD -O2 -Ob2 -DNDEBUG -FI$ws/msvc_shims/ssize_shim.h"
           )
         elif command -v ccache > /dev/null 2>&1; then
           args+=(
@@ -166,17 +174,10 @@ jobs:
 
     - name: Build
       shell: bash
-      run: >
-        cmake --build "${{ steps.strings.outputs.build-output-dir }}"
-        --parallel
-        --target triangle_intersect triangles_tests end_to_end_testing
-
-    - name: Save FetchContent sources
-      if: success()
-      uses: actions/cache/save@v4
-      with:
-        path: ${{ github.workspace }}/fc-src
-        key: fc-src-${{ matrix.os }}-${{ matrix.c_compiler }}-${{ hashFiles('**/CMakeLists.txt') }}
+      run: |
+        cmake --build "${{ steps.strings.outputs.build-output-dir }}" \
+          --parallel \
+          --target triangle_intersect triangles_tests end_to_end_testing
 
     # End-to-end: блокирующий шаг.
     - name: Run end-to-end tests
@@ -201,8 +202,9 @@ jobs:
           ./triangles_tests
         fi
 
+    # ccache сохраняем даже если тесты упали (компиляция уже прошла).
     - name: Save ccache (Linux)
-      if: matrix.os == 'ubuntu-latest'
+      if: matrix.os == 'ubuntu-latest' && !cancelled()
       uses: actions/cache/save@v4
       with:
         path: ~/.cache/ccache
