@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <utility>
 #include <variant>
+#include <vector>
 
 #include "basics.hpp"
 #include "prog_error.hpp"
