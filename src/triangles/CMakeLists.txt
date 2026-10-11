@@ -4,4 +4,4 @@ set(TRIANGLES_SRC
 )
 add_library(triangles STATIC ${TRIANGLES_SRC})
 target_link_libraries(triangles PUBLIC TBB::tbb)
-target_include_directories(triangles PUBLIC ${INCLUDE}/triangles)
+target_include_directories(triangles PUBLIC ${INCLUDE} ${INCLUDE}/triangles)

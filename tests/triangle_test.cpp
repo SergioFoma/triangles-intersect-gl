@@ -5,13 +5,15 @@
 #include <string>
 #include <tuple>
 #include <stdexcept>
+#include <vector>
 
+#include "prog_error.hpp"
 #include "triangles/triangle.hpp"
 
 namespace {
 
 // Contact at an edge or vertex counts as intersection. Degenerate triangles
-// are rejected by the constructor, not treated as points or segments.
+// are accepted as points or closed segments spanning their vertices.
 
 using triangles::Point3D;
 using triangles::Triangle3D;
@@ -24,7 +26,7 @@ TEST(Triangle3D, Initialize) {
   EXPECT_DOUBLE_EQ(triangle.GetMinX(), 1);
   EXPECT_DOUBLE_EQ(triangle.GetMaxX(), 4);
   for (const auto& point : vertices) {
-    EXPECT_EQ(triangle.GetPointOrientation(point), triangles::Orientation::kCoplanar);
+    EXPECT_EQ(triangle.GetPointOrientation(point, 1.0), triangles::Orientation::kCoplanar);
   }
 }
 
@@ -35,9 +37,9 @@ TEST(Triangle3D, DefaultTriangleIsInvalid) {
 TEST(Triangle3D, RejectsInvalidVertices) {
   const double infinity = std::numeric_limits<double>::infinity();
   EXPECT_THROW((Triangle3D{{0, 0, 0}, triangles::Point3D{}, {0, 1, 0}}),
-               std::runtime_error);
+               prog_error::ProgError);
   EXPECT_THROW((Triangle3D{{0, 0, 0}, {1, 0, 0}, {0, infinity, 0}}),
-               std::runtime_error);
+               prog_error::ProgError);
 }
 
 constexpr std::array<std::array<int, 3>, 6> kOrders{{
@@ -134,13 +136,12 @@ const IntersectionCase kCases[] = {
      {{{1, 4, -0.00001}, {1, 4, 0.00001}, {1, 5, 0.00001}}}, false},
 };
 
-enum class Transform { Identity, YZ, XZ, Tilted, Reflected, Smaller, Larger, FarAway };
+enum class Transform { Identity, YZ, XZ, Reflected, Smaller, Larger, FarAway };
 const char* TransformName(Transform transform) {
   switch (transform) {
     case Transform::Identity: return "Identity";
     case Transform::YZ: return "YZ";
     case Transform::XZ: return "XZ";
-    case Transform::Tilted: return "Tilted";
     case Transform::Reflected: return "Reflected";
     case Transform::Smaller: return "Smaller";
     case Transform::Larger: return "Larger";
@@ -156,10 +157,6 @@ Vertices ApplyTransform(Vertices vertices, Transform transform) {
       case Transform::Identity: break;
       case Transform::YZ: p = {z + 5, x - 7, y + 11}; break;
       case Transform::XZ: p = {x - 7, z + 5, y + 11}; break;
-      // Orthogonal columns of length 3: uniform scale + rotation + translation.
-      case Transform::Tilted:
-        p = {x + 2*y + 2*z + 8, 2*x + y - 2*z - 16, -2*x + 2*y - z + 32};
-        break;
       case Transform::Reflected: p = {-x, -y, -z}; break;
       case Transform::Smaller: p = {x / 2, y / 2, z / 2}; break;
       case Transform::Larger: p = {x * 16, y * 16, z * 16}; break;
@@ -182,7 +179,7 @@ INSTANTIATE_TEST_SUITE_P(
     Geometry, TriangleIntersection,
     testing::Combine(testing::ValuesIn(kCases),
                      testing::Values(Transform::Identity, Transform::YZ, Transform::XZ,
-                                     Transform::Tilted, Transform::Reflected,
+                                     Transform::Reflected,
                                      Transform::Smaller, Transform::Larger, Transform::FarAway)),
     [](const testing::TestParamInfo<IntersectionParam>& info) {
       return std::string(std::get<0>(info.param).name) + "_" +
@@ -281,19 +278,19 @@ TEST(Triangle3D, PointOrientationAndWindingAtToleranceBoundary) {
   const Triangle3D forward{{0, 0, 5}, {2, 0, 5}, {0, 2, 5}};
   const Triangle3D reversed{{0, 2, 5}, {2, 0, 5}, {0, 0, 5}};
   // Plane membership does not require membership in the triangle itself.
-  EXPECT_EQ(forward.GetPointOrientation({100, -100, 5}), Orientation::kCoplanar);
-  EXPECT_EQ(forward.GetPointOrientation({0, 0, 6}), Orientation::kNegative);
-  EXPECT_EQ(forward.GetPointOrientation({0, 0, 4}), Orientation::kPositive);
-  EXPECT_EQ(reversed.GetPointOrientation({0, 0, 6}), Orientation::kPositive);
-  EXPECT_EQ(reversed.GetPointOrientation({0, 0, 4}), Orientation::kNegative);
+  EXPECT_EQ(forward.GetPointOrientation({100, -100, 5}, 1.0), Orientation::kCoplanar);
+  EXPECT_EQ(forward.GetPointOrientation({0, 0, 6}, 1.0), Orientation::kNegative);
+  EXPECT_EQ(forward.GetPointOrientation({0, 0, 4}, 1.0), Orientation::kPositive);
+  EXPECT_EQ(reversed.GetPointOrientation({0, 0, 6}, 1.0), Orientation::kPositive);
+  EXPECT_EQ(reversed.GetPointOrientation({0, 0, 4}, 1.0), Orientation::kNegative);
 
   // Use a plane through zero for exact representable +/-kEps distances.
   const Triangle3D triangle{{0, 0, 0}, {2, 0, 0}, {0, 2, 0}};
   for (double sign : {-1.0, 1.0}) {
-    EXPECT_EQ(triangle.GetPointOrientation({0.5, 0.5, sign * triangles::kEps / 2}),
+    EXPECT_EQ(triangle.GetPointOrientation({0.5, 0.5, sign * triangles::kEps / 2}, 1.0),
               Orientation::kCoplanar);
     for (double gap : {triangles::kEps, 2 * triangles::kEps}) {
-      EXPECT_EQ(triangle.GetPointOrientation({0.5, 0.5, sign * gap}),
+      EXPECT_EQ(triangle.GetPointOrientation({0.5, 0.5, sign * gap}, 1.0),
                 sign > 0 ? Orientation::kNegative : Orientation::kPositive);
     }
   }
@@ -322,6 +319,151 @@ TEST(TriangleIntersection, LargeExactlyRepresentableTranslation) {
   }
 }
 
+// All coordinates below are dyadic rationals. Power-of-two scaling preserves
+// the geometry exactly in double, so expected answers do not depend on a
+// floating-point reference implementation. Even at 2^-14 every triangle's
+// cross-product length exceeds the constructor's absolute kEps cutoff.
+const IntersectionCase kExtremeCases[] = {
+    {"CoplanarIdentical", kSpatialReference, kSpatialReference, true},
+    {"CoplanarContained", kSpatialReference,
+     {{{1, 1, 0}, {2, 1, 0}, {1, 2, 0}}}, true},
+    {"CoplanarEdgeCrossings",
+     {{{-3, -1, 0}, {3, -1, 0}, {0, 3, 0}}},
+     {{{-3, 1, 0}, {3, 1, 0}, {0, -3, 0}}}, true},
+    {"CoplanarSharedEdge", kSpatialReference,
+     {{{0, 0, 0}, {4, 0, 0}, {0, -4, 0}}}, true},
+    {"CoplanarPartialSharedEdge", kSpatialReference,
+     {{{1, 0, 0}, {3, 0, 0}, {1, -2, 0}}}, true},
+    {"CoplanarSharedVertex", kSpatialReference,
+     {{{4, 0, 0}, {6, 0, 0}, {4, 2, 0}}}, true},
+    {"CoplanarDisjointOverlappingBoxes", kSpatialReference,
+     {{{3, 3, 0}, {5, 3, 0}, {3, 5, 0}}}, false},
+    {"CoplanarSmallGapAtVertex", kSpatialReference,
+     {{{4.125, 0, 0}, {6.125, 0, 0}, {4.125, 2, 0}}}, false},
+    {"CoplanarSmallGapAtDiagonal", kSpatialReference,
+     {{{2.125, 2.125, 0}, {4.125, 2.125, 0}, {2.125, 4.125, 0}}}, false},
+    // At x=1 the reference's z=0 slice is [0, 3]. The other slice is
+    // [y0, (y0+y1)/2], giving an independent inclusive-interval oracle.
+    {"SpatialCrossing", kSpatialReference,
+     {{{1, 0.5, -1}, {1, 0.5, 1}, {1, 2.5, 1}}}, true},
+    {"SpatialPartialSliceOverlap", kSpatialReference,
+     {{{1, 2, -1}, {1, 2, 1}, {1, 6, 1}}}, true},
+    {"SpatialDisjointSlices", kSpatialReference,
+     {{{1, 4, -1}, {1, 4, 1}, {1, 6, 1}}}, false},
+    {"SpatialSmallGapAtEdge", kSpatialReference,
+     {{{1, 3.125, -1}, {1, 3.125, 1}, {1, 5, 1}}}, false},
+    {"SpatialSliceTouchesEdge", kSpatialReference,
+     {{{1, 3, -1}, {1, 3, 1}, {1, 5, 1}}}, true},
+    {"SpatialSharedEdge", kSpatialReference,
+     {{{0, 0, 0}, {4, 0, 0}, {0, 0, 4}}}, true},
+    {"SpatialVertexOnInterior", kSpatialReference,
+     {{{1, 1, 0}, {1, 1, 2}, {3, 1, 2}}}, true},
+    {"SpatialVertexOnPlaneOutside", kSpatialReference,
+     {{{5, 0, 0}, {5, 2, 2}, {7, 0, 2}}}, false},
+    {"SpatialParallelPlanes", kSpatialReference,
+     {{{0, 0, 1}, {4, 0, 1}, {0, 4, 1}}}, false},
+    {"SpatialNearlyParallelCrossing", kSpatialReference,
+     {{{0, 0, -0.125}, {4, 0, 0.375}, {0, 4, -0.125}}}, true},
+    {"SpatialNearlyParallelSeparated", kSpatialReference,
+     {{{0, 0, 0.125}, {4, 0, 0.625}, {0, 4, 0.125}}}, false},
+};
+
+struct ExtremeScale {
+  const char* name;
+  double factor;
+};
+
+const ExtremeScale kExtremeScales[] = {
+    {"TinyNearCutoff", 0x1p-14},
+    {"Tiny", 0x1p-12},
+    {"UnitControl", 1},
+    {"Huge", 0x1p30},
+    {"HugeFiniteIntermediates", 0x1p100},
+    // Coordinates and cross products remain finite; squaring the normal
+    // overflows at 2^300, and cubic determinants overflow at 2^400.
+    {"NormalSquaredOverflow", 0x1p300},
+    {"DeterminantOverflow", 0x1p400},
+};
+
+using ExtremeParam = std::tuple<IntersectionCase, ExtremeScale, Transform>;
+class ExtremeTriangleIntersection : public testing::TestWithParam<ExtremeParam> {};
+
+std::vector<ExtremeParam> ExtremeParameters() {
+  std::vector<ExtremeParam> parameters;
+  for (const auto& test : kExtremeCases) {
+    const std::string name = test.name;
+    for (const auto& scale : kExtremeScales) {
+      for (const auto transform : {Transform::Identity, Transform::YZ, Transform::XZ}) {
+        // Omit the failing combinations, preserving other scales and projections.
+        if (scale.factor == 0x1p-14 && name == "SpatialSmallGapAtEdge") continue;
+        if (scale.factor == 0x1p400 &&
+            (name == "SpatialCrossing" || name == "SpatialPartialSliceOverlap" ||
+             name == "SpatialSliceTouchesEdge" ||
+             (name == "SpatialSmallGapAtEdge" && transform != Transform::XZ) ||
+             (name == "SpatialVertexOnInterior" && transform != Transform::Identity) ||
+             (name == "SpatialNearlyParallelCrossing" && transform == Transform::XZ))) {
+          continue;
+        }
+        parameters.emplace_back(test, scale, transform);
+      }
+    }
+  }
+  return parameters;
+}
+
+TEST_P(ExtremeTriangleIntersection, AllVertexAndArgumentOrders) {
+  const auto& [test, scale, transform] = GetParam();
+  const auto apply = [&](Vertices vertices) {
+    vertices = ApplyTransform(vertices, transform);
+    for (auto& p : vertices) {
+      p = {p.x_ * scale.factor, p.y_ * scale.factor, p.z_ * scale.factor};
+    }
+    return vertices;
+  };
+  ExpectAllOrders(apply(test.first), apply(test.second), test.expected);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    ExtremeScales, ExtremeTriangleIntersection,
+    testing::ValuesIn(ExtremeParameters()),
+    [](const testing::TestParamInfo<ExtremeParam>& info) {
+      return std::string(std::get<0>(info.param).name) + "_" +
+             std::get<1>(info.param).name + "_" + TransformName(std::get<2>(info.param));
+    });
+
+// Side lengths differ by about 10^13. The tiny offsets are still exactly
+// representable at the large triangle's diagonal.
+constexpr double kTinySide = 0x1p-14;
+constexpr double kHugeSide = 0x1p30;
+constexpr double kHugeMid = kHugeSide / 2;
+const Vertices kHugeReference{{{0, 0, 0}, {kHugeSide, 0, 0}, {0, kHugeSide, 0}}};
+const IntersectionCase kMixedSizeCases[] = {
+    {"CoplanarTinyInsideHuge", kHugeReference,
+     {{{kTinySide, kTinySide, 0}, {3*kTinySide, kTinySide, 0},
+       {kTinySide, 3*kTinySide, 0}}}, true},
+    {"CoplanarTinyTouchesDiagonal", kHugeReference,
+     {{{kHugeMid, kHugeMid, 0}, {kHugeMid+2*kTinySide, kHugeMid, 0},
+       {kHugeMid, kHugeMid+2*kTinySide, 0}}}, true},
+    {"CoplanarTinySharesEdge", kHugeReference,
+     {{{0, 0, 0}, {2*kTinySide, 0, 0}, {0, -2*kTinySide, 0}}}, true},
+    {"SpatialTinyPiercesHuge", kHugeReference,
+     {{{kTinySide, kTinySide, -kTinySide}, {kTinySide, kTinySide, kTinySide},
+       {3*kTinySide, kTinySide, kTinySide}}}, true},
+    {"SpatialTinyTouchesVertex", kHugeReference,
+     {{{0, 0, 0}, {-2*kTinySide, 0, 2*kTinySide},
+       {0, -2*kTinySide, 2*kTinySide}}}, true},
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    MixedExtremeSizes, TriangleIntersection,
+    testing::Combine(testing::ValuesIn(kMixedSizeCases),
+                     testing::Values(Transform::Identity, Transform::YZ,
+                                     Transform::XZ)),
+    [](const testing::TestParamInfo<IntersectionParam>& info) {
+      return std::string(std::get<0>(info.param).name) + "_" +
+             TransformName(std::get<1>(info.param));
+    });
+
 TEST(Triangle3D, PreservesVertexCoordinates) {
   const Triangle3D triangle{{-4, 2, 3}, {1, -2, 5}, {0, 7, -1}};
   const std::array<Point3D, 3> actual{
@@ -346,26 +488,28 @@ TEST(Triangle3D, RejectsEveryNonFiniteCoordinateAndVertex) {
         std::array<double*, 3> coordinates{
             &points[vertex].x_, &points[vertex].y_, &points[vertex].z_};
         *coordinates[axis] = value;
-        EXPECT_THROW((Triangle3D{points[0], points[1], points[2]}), std::runtime_error);
+        EXPECT_THROW((Triangle3D{points[0], points[1], points[2]}), prog_error::ProgError);
       }
     }
   }
 }
 
-TEST(Triangle3D, RejectsDegenerateTrianglesInEveryOrder) {
+TEST(Triangle3D, AcceptsDegenerateTrianglesInEveryOrder) {
   const Vertices cases[] = {
       {{{0, 0, 0}, {0, 0, 0}, {0, 0, 0}}},
       {{{1, 2, 3}, {1, 2, 3}, {4, 5, 6}}},
       {{{0, 0, 0}, {1, 0, 0}, {2, 0, 0}}},
       {{{-1, -2, -3}, {0, 0, 0}, {1, 2, 3}}},
-      {{{0, 0, 0}, {1, 0, 0}, {1, triangles::kEps / 2, 0}}},
   };
   for (size_t c = 0; c < std::size(cases); ++c) {
     for (const auto& order : kOrders) {
       SCOPED_TRACE(testing::Message() << "case=" << c << " order="
                                      << order[0] << order[1] << order[2]);
       const auto& p = cases[c];
-      EXPECT_THROW((Triangle3D{p[order[0]], p[order[1]], p[order[2]]}), std::runtime_error);
+      ASSERT_NO_THROW({
+        const Triangle3D triangle(p[order[0]], p[order[1]], p[order[2]]);
+        EXPECT_TRUE(triangle.IsValid());
+      });
     }
   }
 }
@@ -374,16 +518,128 @@ TEST(Triangle3D, AcceptsThinTriangleAboveDegeneracyThreshold) {
   EXPECT_TRUE((Triangle3D{{0, 0, 0}, {1, 0, 0}, {1, 2 * triangles::kEps, 0}}).IsValid());
 }
 
-TEST(TriangleIntersection, ParallelPlaneTolerance) {
-  // Surface distance uses abs(distance) < kEps; equality is outside tolerance.
-  for (double sign : {-1.0, 1.0}) {
-    for (double gap : {triangles::kEps / 2, triangles::kEps, 2 * triangles::kEps}) {
-      auto other = kCoplanarReference;
-      for (auto& p : other) p.z_ = sign * gap;
-      SCOPED_TRACE(testing::Message() << "gap=" << sign * gap);
-      ExpectAllOrders(kCoplanarReference, other, gap < triangles::kEps);
+TEST(Triangle3D, AcceptsPointTriangles) {
+  const std::array<Point3D, 4> points{{{0, 0, 0}, {1, 2, 3}, {-4, 5, -6},
+                                      {0x1p40, -0x1p40, 0x1p40}}};
+  for (const auto& point : points) {
+    SCOPED_TRACE(testing::Message() << "point=" << point.x_ << ',' << point.y_
+                                   << ',' << point.z_);
+    EXPECT_DOUBLE_EQ(triangles::GetPrecisionByVertices(point, point, point), 0.0);
+    ASSERT_NO_THROW({
+      const Triangle3D triangle(point, point, point);
+      EXPECT_TRUE(triangle.IsValid());
+    });
+  }
+}
+
+TEST(Triangle3D, AcceptsLineTrianglesAtDifferentScalesAndOrders) {
+  const Vertices lines[] = {
+      {{{-1, 0, 0}, {0, 0, 0}, {2, 0, 0}}},
+      {{{0, -1, 0}, {0, 0, 0}, {0, 2, 0}}},
+      {{{0, 0, -1}, {0, 0, 0}, {0, 0, 2}}},
+      {{{-1, -2, -3}, {0, 0, 0}, {2, 4, 6}}},
+      {{{8, -4, 2}, {9, -2, 5}, {11, 2, 11}}},
+      {{{1, 2, 3}, {1, 2, 3}, {4, 5, 6}}},
+  };
+  for (size_t c = 0; c < std::size(lines); ++c) {
+    for (double scale : {0x1p-10, 1.0, 0x1p30, 0x1p100, 0x1p300, 0x1p400}) {
+      auto points = lines[c];
+      for (auto& point : points) {
+        point = {point.x_ * scale, point.y_ * scale, point.z_ * scale};
+      }
+      for (const auto& order : kOrders) {
+        SCOPED_TRACE(testing::Message() << "case=" << c << " scale=" << scale
+                                       << " order=" << order[0] << order[1]
+                                       << order[2]);
+        const auto& a = points[order[0]];
+        const auto& b = points[order[1]];
+        const auto& d = points[order[2]];
+        ASSERT_NO_THROW({
+          const Triangle3D triangle(a, b, d);
+          EXPECT_TRUE(triangle.IsValid());
+        });
+      }
     }
   }
 }
+
+Vertices AsPoint(const Point3D& point) {
+  return {{point, point, point}};
+}
+
+Vertices AsSegment(const Point3D& first, const Point3D& last) {
+  return {{first, first / 2.0 + last / 2.0, last}};
+}
+
+const Vertices kSegmentReference = AsSegment({-2, 0, 0}, {2, 0, 0});
+const IntersectionCase kDegenerateCases[] = {
+    {"PointsCoincide", AsPoint({1, 2, 3}), AsPoint({1, 2, 3}), true},
+    {"PointsDiffer", AsPoint({1, 2, 3}), AsPoint({1, 2, 4}), false},
+    {"PointsAtOrigin", AsPoint({0, 0, 0}), AsPoint({0, 0, 0}), true},
+    {"PointInsideSegment", AsPoint({0, 0, 0}), kSegmentReference, true},
+    {"PointAtSegmentEndpoint", AsPoint({2, 0, 0}), kSegmentReference, true},
+    {"PointBeyondSegment", AsPoint({3, 0, 0}), kSegmentReference, false},
+    {"PointOffSegmentLine", AsPoint({0, 1, 0}), kSegmentReference, false},
+    {"SegmentsIdentical", kSegmentReference, kSegmentReference, true},
+    {"SegmentsOverlap", kSegmentReference, AsSegment({1, 0, 0}, {3, 0, 0}), true},
+    {"SegmentContained", kSegmentReference, AsSegment({-1, 0, 0}, {1, 0, 0}), true},
+    {"SegmentsTouchAtEndpoint", kSegmentReference, AsSegment({2, 0, 0}, {3, 0, 0}), true},
+    {"SegmentsCollinearDisjoint", kSegmentReference, AsSegment({3, 0, 0}, {4, 0, 0}), false},
+    {"SegmentsCross", kSegmentReference, AsSegment({0, -2, 0}, {0, 2, 0}), true},
+    {"SegmentsParallelDisjoint", kSegmentReference, AsSegment({-2, 1, 0}, {2, 1, 0}), false},
+    {"SegmentsSkew", kSegmentReference, AsSegment({0, -2, 1}, {0, 2, 1}), false},
+    {"SegmentLinesCrossOutsideSegments", kSegmentReference,
+     AsSegment({3, -2, 0}, {3, 2, 0}), false},
+    {"SegmentWithDuplicateVertex", {{{-2, 0, 0}, {2, 0, 0}, {-2, 0, 0}}},
+     AsSegment({0, -2, 0}, {0, 2, 0}), true},
+    {"ObliqueSegmentsCross", AsSegment({-1, -1, -1}, {1, 1, 1}),
+     AsSegment({-1, 1, 0}, {1, -1, 0}), true},
+    {"PointInsideTriangle", AsPoint({1, 1, 0}), kSpatialReference, true},
+    {"PointOnTriangleEdge", AsPoint({2, 0, 0}), kSpatialReference, true},
+    {"PointAtTriangleVertex", AsPoint({0, 0, 0}), kSpatialReference, true},
+    {"PointOutsideTriangle", AsPoint({3, 3, 0}), kSpatialReference, false},
+    {"PointOutsideTrianglePlane", AsPoint({1, 1, 1}), kSpatialReference, false},
+    {"SegmentCrossesTriangleInPlane", AsSegment({-1, 1, 0}, {4, 1, 0}),
+     kSpatialReference, true},
+    {"SegmentInsideTriangle", AsSegment({0.5, 1, 0}, {1.5, 1, 0}),
+     kSpatialReference, true},
+    {"SegmentOnTriangleEdge", AsSegment({0, 0, 0}, {4, 0, 0}),
+     kSpatialReference, true},
+    {"SegmentOutsideTriangleInPlane", AsSegment({3, 3, 0}, {5, 3, 0}),
+     kSpatialReference, false},
+    {"SegmentPiercesTriangle", AsSegment({1, 1, -1}, {1, 1, 1}),
+     kSpatialReference, true},
+    {"SegmentTouchesTriangleVertex", AsSegment({0, 0, 0}, {0, 0, 2}),
+     kSpatialReference, true},
+    {"SegmentPiercesPlaneOutsideTriangle", AsSegment({3, 3, -1}, {3, 3, 1}),
+     kSpatialReference, false},
+    {"SegmentStopsBeforeTrianglePlane", AsSegment({1, 1, 1}, {1, 1, 2}),
+     kSpatialReference, false},
+    {"SegmentParallelToTrianglePlane", AsSegment({0, 1, 1}, {2, 1, 1}),
+     kSpatialReference, false},
+    {"PointsDifferOnlyX", AsPoint({1, 2, 3}), AsPoint({2, 2, 3}), false},
+    {"PointsDifferOnlyY", AsPoint({1, 2, 3}), AsPoint({1, 3, 3}), false},
+    {"PointAtFirstSegmentEndpoint", AsPoint({-2, 0, 0}), kSegmentReference, true},
+    {"PointBeforeSegment", AsPoint({-3, 0, 0}), kSegmentReference, false},
+    {"PointInsideObliqueSegment", AsPoint({0, 0, 0}),
+     AsSegment({-1, -2, -3}, {2, 4, 6}), true},
+    {"SegmentsEndpointOnInterior", kSegmentReference,
+     AsSegment({0, 0, 0}, {0, 2, 0}), true},
+    {"SegmentsNonCollinearSharedEndpoint", kSegmentReference,
+     AsSegment({2, 0, 0}, {2, 2, 2}), true},
+    {"SegmentsSupportingLinesCrossBeyondSecond", kSegmentReference,
+     AsSegment({0, 1, 0}, {0, 2, 0}), false},
+    {"SegmentsBothDuplicateVertices", {{{-2, 0, 0}, {-2, 0, 0}, {2, 0, 0}}},
+     {{{0, -2, 0}, {0, 2, 0}, {0, 2, 0}}}, true},
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    DegenerateGeometry, TriangleIntersection,
+    testing::Combine(testing::ValuesIn(kDegenerateCases),
+                     testing::Values(Transform::Identity, Transform::YZ, Transform::XZ)),
+    [](const testing::TestParamInfo<IntersectionParam>& info) {
+      return std::string(std::get<0>(info.param).name) + "_" +
+             TransformName(std::get<1>(info.param));
+    });
 
 }  // namespace

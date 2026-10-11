@@ -3,9 +3,15 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
+#include <optional>
 #include <stdexcept>
+#include <utility>
+#include <variant>
+#include <vector>
 
 #include "basics.hpp"
+#include "prog_error.hpp"
 
 namespace triangles {
 
@@ -15,20 +21,44 @@ using VerticesOrientation = std::array<Orientation, 3>;
 class Triangle3D {
  public:
   Triangle3D() = default;
-  Triangle3D(Point3D p1, Point3D p2, Point3D p3)
-      : vertices_{p1, p2, p3}, surface_{p1, p2, p3} {
+  Triangle3D(Point3D p1, Point3D p2, Point3D p3) : vertices_{p1, p2, p3} {
     if (!IsValid()) {
-      throw std::runtime_error("Non valid arguments in Triangle Ctor");
+      prog_error::ErrorInfo inf = {.code=prog_error::ErrorCode::kTriangle,
+                                   .err_msg="Non valid arguments in Triangle Ctor",
+                                   .func_name="Triangle3D::Triangle3D"};
+      throw prog_error::ProgError(std::move(inf));
+    }
+
+    center_coord_ = (p1 / 3 + p2 / 3 + p3 / 3);
+    metric_ = GetPrecisionByVertices(p1, p2, p3);
+    type_ = CalculateTriangleType();
+
+    Point3D min = {GetMinX(), GetMinY(), GetMinZ()};
+    Point3D max = {GetMaxX(), GetMaxY(), GetMaxZ()};
+
+    switch (type_) {
+      case TriangleType::kDefault:
+        geometry_ = Surface{p1, p2, p3};
+        break;
+      case TriangleType::kLine:
+        geometry_ = Line{min, max};
+        break;
+      case TriangleType::kPoint:
+        geometry_ = Point3D{center_coord_};
+        break;
+      default:
+        assert(0 && "No such member of the class");
+        std::unreachable();
     }
   }
 
   bool IsValid() const {
     return vertices_[0].IsValid() && vertices_[1].IsValid() &&
-           vertices_[2].IsValid() && surface_.IsValid();
+           vertices_[2].IsValid();
   }
 
-  Orientation GetPointOrientation(const Point3D& point) const {
-    return surface_.GetPointOrientation(point);
+  Orientation GetPointOrientation(const Point3D& point, double metric) const {
+    return std::get<Surface>(geometry_).GetPointOrientation(point, metric);
   }
 
   double GetMinX() const {
@@ -52,9 +82,12 @@ class Triangle3D {
     return std::max({vertices_[0].z_, vertices_[1].z_, vertices_[2].z_});
   }
 
-  Point3D GetCenter() const {
-    return (vertices_[0] / 3.0) + (vertices_[1] / 3.0) + (vertices_[2] / 3.0);
-  }
+  enum class TriangleType { kDefault, kLine, kPoint };
+  TriangleType GetTriangleType() const { return type_; };
+
+  const Point3D& GetCenter() const { return center_coord_; }
+
+  double GetPrecisionBySides() const { return metric_; }
 
   const Point3D& GetFirstPoint() const { return vertices_[0]; }
   const Point3D& GetSecondPoint() const { return vertices_[1]; }
@@ -62,22 +95,46 @@ class Triangle3D {
 
   bool DoesIntersect(const Triangle3D& other) const;
 
-  const Surface& GetSurface() const { return surface_; }
+  Surface GetSurface() const {
+    if (geometry_.index() == 0)
+      return std::get<Surface>(geometry_);
+    return Surface{};
+  }
+
+  TriangleType GetTriangleType() { return type_; }
 
  private:
-  bool DoesIntersectCopl(const Triangle3D& other) const;
-  bool DoesIntersectNonCopl(const Triangle3D& other) const;
+
+  bool DoesIntersectCopl(const Triangle3D& other, double metric) const;
+  bool DoesIntersectNonCopl(const Triangle3D& other, double metric) const;
   bool CheckOtherTriangle(const Triangle3D& other,
-                          VerticesOrientation orientations) const;
+                          VerticesOrientation orientations,
+                          double metric) const;
   bool CheckSideIntersection(const Triangle3D& other,
                              VerticesOrientation orientations,
-                             VerticesOrientation other_orientations) const;
-  bool CheckCoplSeparation(const Triangle3D& other) const;
+                             VerticesOrientation other_orientations,
+                             double metric) const;
+  bool CheckCoplSeparation(const Triangle3D& other, double metric) const;
+  bool DoesTriangleIntersect(const Triangle3D& other, double metric) const;
+  bool DoesLineIntersect(const Triangle3D& other, double metric) const;
+  bool DoesPointIntersect(const Triangle3D& other) const;
+  bool CheckPointTriangleIntersection(const Triangle3D& other) const;
+  bool CheckLineTriangleIntersection(const Triangle3D& other, double metric) const;
+  bool CheckLineTriangleIntersectionCopl(const Triangle3D& other, double metric) const;
+  bool CheckLineTriangleIntersectionNonCopl(const Triangle3D& other,
+                                            Orientation a, Orientation b) const;
 
+  TriangleType CalculateTriangleType() const;
+
+  TriangleType type_;
   Vertices vertices_{};
-  struct Surface surface_;
+  double metric_{};
+  Point3D center_coord_;
+  using GeometryShapes = std::variant<Surface, Line, Point3D>;
+  GeometryShapes geometry_;
 };
 
+using TriangleArr = std::vector<triangles::Triangle3D>;
 }  // namespace triangles
 
 #endif  // TRIANGLES_TRIANGLE_HPP_

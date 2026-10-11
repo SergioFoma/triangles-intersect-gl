@@ -35,6 +35,13 @@ struct Triangle {
   Color color;
 };
 
+struct ShapesNumber {
+  size_t shapes_number;
+  size_t triangles_number;
+  size_t points_number;
+  size_t lines_number;
+};
+
 // ==================== Configs For User ==========================
 
 struct LightConfig {
@@ -53,8 +60,8 @@ struct CameraConfig {
   float speed = 0.0F;
   float aspect = 0.0F;
   float fovy = 0.0F;
-  float near = 0.0F;
-  float far = 0.0F;
+  float near_plane = 0.0F;
+  float far_plane = 0.0F;
   float mouse_sensitivity = 0.0F;
 };
 
@@ -78,7 +85,9 @@ struct SkyboxConfig {
 struct RenderConfig {
   CameraConfig camera_con;
   LightConfig light_con;
-  ShaderConfig shader_con;
+  ShaderConfig tr_shader_con;
+  ShaderConfig point_shader_con;
+  ShaderConfig line_shader_con;
 };
 
 // =============================================================
@@ -102,7 +111,7 @@ struct Camera {
     last_frame = glfwGetTime();
 
     projection = glm::perspective(glm::radians(camera.fovy), camera.aspect,
-                                  camera.near, camera.far);
+                                  camera.near_plane, camera.far_plane);
   }
 
   void UpdateCameraMatrix() {
@@ -111,10 +120,18 @@ struct Camera {
 };
 
 struct RenderObject {
-  GeometryBuffer geom_buff;
+  std::shared_ptr<GeometryBuffer> geom_buff;
   Shader shader;
   glm::mat4 model;
   glm::mat3 normal_mat;
+  size_t start_pos = 0;
+  size_t count = 0;
+};
+
+struct ShapesObject {
+  RenderObject tr_obj;
+  RenderObject point_obj;
+  RenderObject line_obj;
 };
 
 struct SkyboxData {
@@ -156,7 +173,7 @@ struct SkyboxData {
 };
 
 render::ErrorType RenderTriangles(GLFWwindow* win,
-                                  size_t triangles_number,
+                                  const ShapesNumber& shapes_number,
                                   const std::vector<float>& triangles,
                                   const render::RenderConfig& render_con,
                                   const render::SkyboxConfig& skybox_con);

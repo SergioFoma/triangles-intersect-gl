@@ -15,10 +15,12 @@
 
 namespace {
 const int kDimension = 3;         // R^3 (x, y, z)
-const int kVertexes = 3;          // Point p_1, p_2, p_3
+const int kTrVertexes = 3;        // Point p_1, p_2, p_3
+const int kLineVertexes = 2;      // Point p_1, p_2
 const int kColors = 3;            // (r, g, b)
 const int kNormal = 3;            // (n_x, n_y, n_z)
 const int kSkyboxVer = 36;        // skybox vertexes number
+const unsigned int kBuffStartPos = 0;
 const float kSpeedCoeff = 2.0F;
 float last_mouse_x = 0.0F;
 float last_mouse_y = 0.0F;
@@ -55,7 +57,10 @@ unsigned int LoadCubemap(const render::SkyboxConfig& skybox_con) {
 
   int error_code = glGetError();
   if (error_code) {
-    throw std::runtime_error("LoadCubemap has an error!");
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kRendering,
+                                   "Error of load cubemap!",
+                                   "LoadCubemap"};
+    throw prog_error::ProgError(std::move(inf));
   }
 
   return texture_id;
@@ -71,16 +76,15 @@ render::SkyboxData CreateSkyboxObj(const std::vector<float>& raw_data,
   unsigned int no_colors = 0, no_normals = 0;
 
   render::RenderObject skybox_obj = {
-    GeometryBuffer(raw_data, kDimension,
-                                     no_colors, no_normals,
-                                     kSkyboxVer),
+    std::make_shared<GeometryBuffer>(raw_data, kDimension,
+                                     no_colors, no_normals),
     Shader(skybox_con.shader_con.vert_path,
                              skybox_con.shader_con.frag_path),
-                             model, normal_mat};
+    model, normal_mat, kBuffStartPos, kSkyboxVer};
 
-  skybox_obj.geom_buff.Bind();
-  skybox_obj.geom_buff.SetCoordinates(skybox_con.shader_con.position_loc);
-  skybox_obj.geom_buff.Unbind();
+  skybox_obj.geom_buff->Bind();
+  skybox_obj.geom_buff->SetCoordinates(skybox_con.shader_con.position_loc);
+  skybox_obj.geom_buff->Unbind();
 
   unsigned int texture_id = LoadCubemap(skybox_con);
 
@@ -92,7 +96,10 @@ render::SkyboxData CreateSkyboxObj(const std::vector<float>& raw_data,
 
   int error_code = glGetError();
   if (error_code) {
-    throw std::runtime_error("CreateSkyboxObj has an error!");
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kRendering,
+                                   "Error of creating SkyboxObj",
+                                   "CreateSkyboxObj"};
+    throw prog_error::ProgError(std::move(inf));
   }
 
   return skybox_data;
@@ -149,7 +156,7 @@ render::SkyboxData CallSkyboxCreating(const render::SkyboxConfig& skybox_con) {
   return CreateSkyboxObj(skybox_vertices, skybox_con);
 }
 
-void UpdateTrPos(render::RenderObject& tr_obj, const render::Camera& camera,
+void UpdateShapePos(render::RenderObject& tr_obj, const render::Camera& camera,
                  const render::LightConfig& light_con) {
 
   tr_obj.shader.SetMat4("model", tr_obj.model);
@@ -168,7 +175,10 @@ void UpdateTrPos(render::RenderObject& tr_obj, const render::Camera& camera,
 
   int error_code = glGetError();
   if (error_code) {
-    throw std::runtime_error("UpdateTrPos has an error!");
+   prog_error::ErrorInfo inf = {prog_error::ErrorCode::kRendering,
+                                "Error of updating shape pos",
+                                "UpdateTrPos"};
+    throw prog_error::ProgError(std::move(inf));
   }
 }
 
@@ -181,23 +191,29 @@ void UpdateSkybox(const render::RenderObject& skybox_obj, const render::Camera& 
 
   int error_code = glGetError();
   if (error_code) {
-    throw std::runtime_error("UpdateSkybox has an error!");
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kRendering,
+                                   "Error of Uodate skybox",
+                                   "UodateSkybox"};
+    throw prog_error::ProgError(std::move(inf));
   }
 }
 
-void DrawTriangles(render::RenderObject& tr_obj, const render::Camera& camera,
-                   const render::LightConfig& light_con) {
+void DrawShape(render::RenderObject& shape_obj, const render::Camera& camera,
+               const render::LightConfig& light_con, GLenum mode) {
 
-  tr_obj.shader.Use();
-  tr_obj.geom_buff.Bind();
-  UpdateTrPos(tr_obj, camera, light_con);
-  tr_obj.geom_buff.Draw(GL_TRIANGLES);
-  tr_obj.geom_buff.Unbind();
-  tr_obj.shader.Disable();
+  shape_obj.shader.Use();
+  shape_obj.geom_buff->Bind();
+  UpdateShapePos(shape_obj, camera, light_con);
+  shape_obj.geom_buff->Draw(mode, shape_obj.start_pos, shape_obj.count);
+  shape_obj.geom_buff->Unbind();
+  shape_obj.shader.Disable();
 
   int error_code = glGetError();
   if (error_code) {
-    throw std::runtime_error("DrawTriangles has an error!");
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kRendering,
+                                   "Error of Draw shape",
+                                   "DrawTriangles"};
+    throw prog_error::ProgError(std::move(inf));
   }
 }
 
@@ -207,16 +223,19 @@ void DrawSkybox(render::SkyboxData& skybox_data,
   render::RenderObject& skybox_obj = skybox_data.obj;
 
   skybox_obj.shader.Use();
-  skybox_obj.geom_buff.Bind();
+  skybox_obj.geom_buff->Bind();
   glBindTexture(GL_TEXTURE_CUBE_MAP, skybox_data.texture_id);
   UpdateSkybox(skybox_obj, camera);
-  skybox_obj.geom_buff.Draw(GL_TRIANGLES);
-  skybox_obj.geom_buff.Unbind();
+  skybox_obj.geom_buff->Draw(GL_TRIANGLES, skybox_obj.start_pos, skybox_obj.count);
+  skybox_obj.geom_buff->Unbind();
   skybox_obj.shader.Disable();
 
   int error_code = glGetError();
   if (error_code) {
-    throw std::runtime_error("DrawSkybox has an error!");
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kRendering,
+                                   "Error of draw skybox",
+                                   "DrawSkybox"};
+    throw prog_error::ProgError(std::move(inf));
   }
 }
 
@@ -252,12 +271,15 @@ void ProcessInput(GLFWwindow* win, render::Camera& camera) {
 
   int error_code = glGetError();
   if (error_code) {
-    throw std::runtime_error("ProcessInput has an error!");
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kRendering,
+                                   "Error of parse input data",
+                                   "ProcessInput"};
+    throw prog_error::ProgError(std::move(inf));
   }
 }
 
 
-void RenderCycle(GLFWwindow* win, render::RenderObject& tr_obj,
+void RenderCycle(GLFWwindow* win, render::ShapesObject& shapes_obj,
                  const render::RenderConfig& render_con,
                  render::SkyboxData& skybox_data) {
   assert(win);
@@ -273,9 +295,9 @@ void RenderCycle(GLFWwindow* win, render::RenderObject& tr_obj,
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     ProcessInput(win, camera);
-
-    DrawTriangles(tr_obj, camera, render_con.light_con);
-
+    DrawShape(shapes_obj.tr_obj, camera, render_con.light_con, GL_TRIANGLES);
+    DrawShape(shapes_obj.point_obj, camera, render_con.light_con, GL_POINTS);
+    DrawShape(shapes_obj.line_obj, camera, render_con.light_con, GL_LINES);
     glDepthFunc(GL_LEQUAL);
     DrawSkybox(skybox_data, camera);
     glDepthFunc(GL_LESS);
@@ -285,57 +307,131 @@ void RenderCycle(GLFWwindow* win, render::RenderObject& tr_obj,
     glfwPollEvents();
 
     if (glGetError()) {
-      throw std::runtime_error("RenderCycle has an error!");
+      prog_error::ErrorInfo inf = {prog_error::ErrorCode::kRendering,
+                                   "Error of redeting cycle",
+                                   "RenderCycle"};
+      throw prog_error::ProgError(std::move(inf));
     }
   }
 }
 
-render::RenderObject CreateTriangleObj(const std::vector<float>& raw_data,
+render::RenderObject CreateTriangleObj(const std::shared_ptr<GeometryBuffer>& geom_buff_ptr,
                                        const render::ShaderConfig& shader_con,
-                                       size_t triangles_number) {
-
+                                       const render::ShapesNumber& shapes_number) {
   glm::mat4 model = glm::mat4(1.0F);  // init unit matrix
 
   glm::mat3 normal_mat = glm::mat3(glm::transpose(glm::inverse(model)));
 
   render::RenderObject tr_obj = {
-      GeometryBuffer(raw_data, kDimension,
-                                        kColors, kNormal,
-                                        triangles_number * kVertexes),
+      geom_buff_ptr,
       Shader(shader_con.vert_path, shader_con.frag_path),
-      model, normal_mat};
-
-  tr_obj.geom_buff.Bind();
-  tr_obj.geom_buff.SetCoordinates(shader_con.position_loc);
-  tr_obj.geom_buff.SetColors(shader_con.color_loc);
-  tr_obj.geom_buff.SetNormal(shader_con.normal_loc);
-  tr_obj.geom_buff.Unbind();
+      model, normal_mat, kBuffStartPos,
+      shapes_number.triangles_number * kTrVertexes};
 
   int error_code = glGetError();
   if (error_code) {
-    throw std::runtime_error("CreateTriangleObj has an error!");
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kRendering,
+                                   "Error of creating triangle object",
+                                   "CreateTrangleObj"};
+    throw prog_error::ProgError(std::move(inf));
   }
 
   return tr_obj;
 }
+
+render::RenderObject CreateLineObj(const std::shared_ptr<GeometryBuffer>& geom_buff_ptr,
+                                    const render::ShaderConfig& shader_con,
+                                    const render::ShapesNumber& shapes_number) {
+  glm::mat4 model = glm::mat4(1.0F);  // init unit matrix
+
+  glm::mat3 normal_mat = glm::mat4(1.0F);
+
+  render::RenderObject point_obj = {
+      geom_buff_ptr,
+      Shader(shader_con.vert_path, shader_con.frag_path),
+      model, normal_mat,
+      kBuffStartPos + shapes_number.triangles_number * kTrVertexes,
+      shapes_number.lines_number * kLineVertexes};
+
+  int error_code = glGetError();
+  if (error_code) {
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kRendering,
+                                   "Error of creating line object",
+                                   "CreateTrangleObj"};
+    throw prog_error::ProgError(std::move(inf));
+  }
+
+  return point_obj;
+}
+
+render::RenderObject CreatePointObj(const std::shared_ptr<GeometryBuffer>& geom_buff_ptr,
+                                      const render::ShaderConfig& shader_con,
+                                      const render::ShapesNumber& shapes_number) {
+  glm::mat4 model = glm::mat4(1.0F);  // init unit matrix
+
+  glm::mat3 normal_mat = glm::mat4(1.0F);
+
+  render::RenderObject line_obj = {
+      geom_buff_ptr,
+      Shader(shader_con.vert_path, shader_con.frag_path),
+      model, normal_mat,
+      kBuffStartPos + shapes_number.triangles_number * kTrVertexes
+      + shapes_number.lines_number * kLineVertexes,
+      shapes_number.points_number};
+
+  int error_code = glGetError();
+  if (error_code) {
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kRendering,
+                                   "Error of creating point object",
+                                   "CreateTrangleObj"};
+    throw prog_error::ProgError(std::move(inf));
+  }
+
+  return line_obj;
+}
+
+void ConfigureBuff(const std::shared_ptr<GeometryBuffer>& geom_buff_ptr,
+                   const render::ShaderConfig& shader_con) {
+
+  geom_buff_ptr->Bind();
+  geom_buff_ptr->SetCoordinates(shader_con.position_loc);
+  geom_buff_ptr->SetColors(shader_con.color_loc);
+  geom_buff_ptr->SetNormal(shader_con.normal_loc);
+  geom_buff_ptr->Unbind();
+}
+
 } // namespace
 
 render::ErrorType render::RenderTriangles(GLFWwindow* win,
-                                  size_t triangles_number,
+                                  const render::ShapesNumber& shapes_number,
                                   const std::vector<float>& triangles,
                                   const render::RenderConfig& render_con,
                                   const render::SkyboxConfig& skybox_con) {
   assert(win);
 
-  render::RenderObject tr_obj = CreateTriangleObj(triangles, render_con.shader_con,
-                                                  triangles_number);
+  std::shared_ptr<GeometryBuffer> geom_buff_ptr = std::make_shared<GeometryBuffer>(
+     GeometryBuffer(triangles, kDimension,
+                    kColors, kNormal)
+  );
+  ConfigureBuff(geom_buff_ptr, render_con.tr_shader_con);
+
+  render::RenderObject tr_obj = CreateTriangleObj(geom_buff_ptr, render_con.tr_shader_con,
+                                                  shapes_number);
+  render::RenderObject line_obj = CreateLineObj(geom_buff_ptr, render_con.line_shader_con,
+                                                shapes_number);
+  render::RenderObject point_obj = CreatePointObj(geom_buff_ptr, render_con.point_shader_con,
+                                                shapes_number);
+  ShapesObject shapes_obj = {std::move(tr_obj), std::move(point_obj),
+                            std::move(line_obj)};
   render::SkyboxData skybox_data = CallSkyboxCreating(skybox_con);
 
-  RenderCycle(win, tr_obj, render_con, skybox_data);
+  RenderCycle(win, shapes_obj, render_con, skybox_data);
 
   if (glGetError()) {
-    throw std::runtime_error("RenderTriangles has an error!");
-    return render::ErrorType::kError;
+      prog_error::ErrorInfo inf = {prog_error::ErrorCode::kRendering,
+                                   "Error of rendering Triangles",
+                                   "RenderTriangles"};
+      throw prog_error::ProgError(std::move(inf));
   }
 
   return render::ErrorType::kCorrect;
@@ -376,4 +472,3 @@ void utility::detail::MouseCallback(GLFWwindow* win, double xpos, double ypos) {
   camera.front.y = std::sin(pitch_rad);
   camera.front.z = std::cos(pitch_rad) * std::sin(yaw_rad);
 }
-

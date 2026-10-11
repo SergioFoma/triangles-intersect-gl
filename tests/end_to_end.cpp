@@ -7,16 +7,20 @@
 #include <cassert>
 
 #include "read_data.hpp"
+#include "prog_error.hpp"
 
 namespace {
 
-const size_t kTestsNumber = 5;
+const size_t kTestsNumber = 6;
 
 std::vector<bool> ReadCorrectStatuses(const std::string& file_name) {
   std::ifstream file(file_name, std::ios::binary);
 
   if (!file.is_open()) {
-    throw std::runtime_error("ReadCorrectStatuses: error of opening file!");
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kTest,
+                                   "Error of opening file",
+                                   "ReadCorrectStatuses"};
+    throw prog_error::ProgError(std::move(inf));
   }
 
   std::vector<bool> correct_status;
@@ -49,22 +53,27 @@ void ComparingValues(const std::vector<bool>& intersect_status,
 }
 } // namespace
 
-int main() {
+int main(int argc, char** argv) {
+
+  const char* bin_relative_path = argv[0];
+  const std::string materials_str = reader::GetAbsMaterials(bin_relative_path);
 
   std::array<const std::string, kTestsNumber> input_data = {
-    "materials/triangles_100.txt",
-    "materials/triangles_1000.txt",
-    "materials/triangles_10000.txt",
-    "materials/triangles_100000.txt",
-    "materials/triangles_1000000.txt"
+    materials_str + "/triangles_100.txt",
+    materials_str + "/triangles_1000.txt",
+    materials_str + "/triangles_10000.txt",
+    materials_str + "/triangles_100000.txt",
+    materials_str + "/triangles_1000000.txt",
+    materials_str + "/triangles_point_line.txt"
   };
 
   std::array<const std::string, kTestsNumber> output_data = {
-    "materials/output_100.txt",
-    "materials/output_1000.txt",
-    "materials/output_10000.txt",
-    "materials/output_100000.txt",
-    "materials/output_1000000.txt"
+    materials_str + "/output_100.txt",
+    materials_str + "/output_1000.txt",
+    materials_str + "/output_10000.txt",
+    materials_str + "/output_100000.txt",
+    materials_str + "/output_1000000.txt",
+    materials_str + "/output_point_line.txt"
   };
 
   for (size_t ind = 0; ind < kTestsNumber; ++ind) {

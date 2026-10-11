@@ -10,6 +10,8 @@
 #include <string>
 #include <stdexcept>
 
+#include "prog_error.hpp"
+
 class Shader {
  public:
   Shader(const Shader& other) = delete;
@@ -31,7 +33,12 @@ class Shader {
     int mat_loc = glGetUniformLocation(shader_program_, name_ptr);
     glUniformMatrix4fv(mat_loc, kOneMatrix, GL_FALSE, glm::value_ptr(mat));
 
-    if (glGetError()) throw std::runtime_error("SetMat4 has an error!");
+    if (glGetError()) {
+      prog_error::ErrorInfo inf = {prog_error::ErrorCode::kShader,
+                                   "Error of Mat4 settings",
+                                   "Shader::SetMat4"};
+      throw prog_error::ProgError(std::move(inf));
+    }
   }
 
   void SetMat3(const std::string& name, const glm::mat3& mat) const {
@@ -42,7 +49,12 @@ class Shader {
     int mat_loc = glGetUniformLocation(shader_program_, name_ptr);
     glUniformMatrix3fv(mat_loc, kOneMatrix, GL_FALSE, glm::value_ptr(mat));
 
-    if (glGetError()) throw std::runtime_error("SetMat3 has an error!");
+    if (glGetError()) {
+     prog_error::ErrorInfo inf = {prog_error::ErrorCode::kShader,
+                                   "Error of Mat3 settings",
+                                   "Shader::SetMat3"};
+      throw prog_error::ProgError(std::move(inf));
+    }
   }
 
   void SetVec3(const std::string& name, const glm::vec3& vec) const {
@@ -53,7 +65,12 @@ class Shader {
     int vec_loc = glGetUniformLocation(shader_program_, name_ptr);
     glUniform3fv(vec_loc, kOneVec, glm::value_ptr(vec));
 
-    if (glGetError()) throw std::runtime_error("SetVec3 has an error!");
+    if (glGetError()) {
+      prog_error::ErrorInfo inf = {prog_error::ErrorCode::kShader,
+                                   "Error of Vec3 settings",
+                                   "Shader::SetVec3"};
+      throw prog_error::ProgError(std::move(inf));
+    }
   }
 
   void SetFloat(const std::string& name, float val) const {
@@ -64,7 +81,12 @@ class Shader {
     int val_loc = glGetUniformLocation(shader_program_, name_ptr);
     glUniform1f(val_loc, val);
 
-    if (glGetError()) throw std::runtime_error("SetFloat has an error!");
+    if (glGetError()) {
+      prog_error::ErrorInfo inf = {prog_error::ErrorCode::kShader,
+                                   "Error of float settings",
+                                   "Shader::SetFloat"};
+      throw prog_error::ProgError(std::move(inf));
+    }
   }
 
   void SetInt(const std::string& name, int val) const {
@@ -75,7 +97,12 @@ class Shader {
     int val_loc = glGetUniformLocation(shader_program_, name_ptr);
     glUniform1i(val_loc, val);
 
-    if (glGetError()) throw std::runtime_error("SetInt has an error!");
+    if (glGetError()) {
+      prog_error::ErrorInfo inf = {prog_error::ErrorCode::kShader,
+                                   "Error of int setting",
+                                   "Shader::SetInt"};
+      throw prog_error::ProgError(std::move(inf));
+    }
   }
 
   void Use() const { glUseProgram(shader_program_); }

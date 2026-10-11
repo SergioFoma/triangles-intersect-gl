@@ -1,6 +1,9 @@
+#include <filesystem>
 #include <fstream>
+#include <cmath>
 
 #include "read_data.hpp"
+#include "prog_error.hpp"
 
 triangles::Point3D reader::ReadPoint(std::istream& in) {
   double x = NAN;
@@ -34,7 +37,10 @@ triangles::TriangleArr reader::ReadData(std::istream& in) {
   in >> tmp_sz;
 
   if (!(reader::kLowBound < tmp_sz && tmp_sz <= reader::kUpperBound)) {
-    throw std::runtime_error("Incorrect number (N) of triangles!");
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kReadData,
+                                   "Incorrect input data",
+                                   "reader::ReadData"};
+    throw prog_error::ProgError(std::move(inf));
   }
 
   triangles::TriangleArr triangles;
@@ -49,8 +55,10 @@ triangles::TriangleArr reader::ReadData(std::istream& in) {
   float flag = 0.0F;
   in >> flag;
   if(!in.eof()) {
-    throw std::runtime_error("ReadData: Incorrect number"
-                             "of triangles is specified!");
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kReadData,
+                                   "Incorrect number of triangles",
+                                   "reader::ReadData"};
+    throw prog_error::ProgError(std::move(inf));
   }
 
   return triangles;
@@ -60,8 +68,48 @@ triangles::TriangleArr reader::ReadData(const std::string& file_name) {
   std::ifstream file(file_name, std::ios::binary);
 
   if (!file.is_open()) {
-    throw std::runtime_error("ReadData: error of opening file!");
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kReadData,
+                                   "Error of opening file",
+                                   "reader::ReadData"};
+    throw prog_error::ProgError(std::move(inf));
   }
 
   return ReadData(file);
+}
+
+std::filesystem::path reader::GetAbsPath(const std::string& resource_paths) {
+
+  std::filesystem::path resources(resource_paths);
+  std::filesystem::path abs_path = std::filesystem::weakly_canonical(
+                                        std::filesystem::absolute(resources)
+                                    );
+
+  if (!std::filesystem::exists(resources)) {
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kMain,
+                                   "Error of finding resource folder",
+                                   "GetAbsPath"};
+    throw prog_error::ProgError(std::move(inf));
+  }
+
+  return abs_path;
+}
+
+std::filesystem::path reader::GetAbsRootPath(const std::string& relative_bin_paths) {
+  // .../root/Build/bin/triangle_intersect -->  .../root/Build/bin/
+  // .../root/Build/bin/ --> .../root/Build
+  // .../root/Build --> .../root/
+
+  std::filesystem::path bin_path = reader::GetAbsPath(relative_bin_paths);
+  std::filesystem::path root_path = bin_path.parent_path().parent_path().parent_path();
+
+  return root_path;
+}
+
+std::string reader::GetAbsMaterials(const std::string& relative_bin_path) {
+
+  std::filesystem::path root_path = reader::GetAbsRootPath(relative_bin_path);
+  std::filesystem::path materials = root_path / "materials";
+  std::string materials_str = materials.string();
+
+  return materials_str;
 }

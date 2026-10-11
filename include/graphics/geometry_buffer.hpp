@@ -6,6 +6,8 @@
 #include <vector>
 #include <stdexcept>
 
+#include "prog_error.hpp"
+
 class GeometryBuffer {
  public:
   GeometryBuffer(const GeometryBuffer& other) = delete;
@@ -13,8 +15,7 @@ class GeometryBuffer {
   GeometryBuffer(GeometryBuffer&& other)
     : vertex_dim_(other.vertex_dim_),
       color_dim_(other.color_dim_),
-      normal_dim_(other.normal_dim_),
-      vertex_count_(other.vertex_count_) {
+      normal_dim_(other.normal_dim_) {
 
       vao_ = other.vao_;
       vbo_ = other.vbo_;
@@ -25,11 +26,10 @@ class GeometryBuffer {
 
   explicit GeometryBuffer(const std::vector<float>& raw_data,
                           unsigned int vertex_dim, unsigned int color_dim,
-                          unsigned int normal_dim, unsigned int vertex_count)
+                          unsigned int normal_dim)
       : vertex_dim_(vertex_dim),
         color_dim_(color_dim),
-        normal_dim_(normal_dim),
-        vertex_count_(vertex_count) {
+        normal_dim_(normal_dim) {
 
     glGenVertexArrays(kBuffCount, &vao_);
     glGenBuffers(kBuffCount, &vbo_);
@@ -41,27 +41,47 @@ class GeometryBuffer {
 
     Unbind();
 
-    if (glGetError()) throw std::runtime_error("GeometryBuffer has an error!");
+    if (glGetError()) {
+      prog_error::ErrorInfo inf = {prog_error::ErrorCode::kGeomBuff,
+                                   "Error of creating geom buffer",
+                                   "GeometryBuffer::GeometryBuffer"};
+      throw prog_error::ProgError(std::move(inf));
+    }
   }
 
   void Bind() const {
     glBindVertexArray(vao_);
     glBindBuffer(GL_ARRAY_BUFFER, vbo_);
 
-    if (glGetError()) throw std::runtime_error("Bind has an error!");
+    if (glGetError()) {
+      prog_error::ErrorInfo inf = {prog_error::ErrorCode::kGeomBuff,
+                                   "Error of binding",
+                                   "GeometryBuffer::Bind"};
+      throw prog_error::ProgError(std::move(inf));
+    }
   }
 
   void Unbind() const {
     glBindBuffer(GL_ARRAY_BUFFER, kUnbind);
     glBindVertexArray(kUnbind);
 
-    if (glGetError()) throw std::runtime_error("Undind has an error!");
+    if (glGetError()) {
+      prog_error::ErrorInfo inf = {prog_error::ErrorCode::kGeomBuff,
+                                   "Error of undinding",
+                                   "GeometryBuffer::Unbind"};
+      throw prog_error::ProgError(std::move(inf));
+    }
   }
 
-  void Draw(GLenum mode) const {
-    glDrawArrays(mode, kStartIndex, vertex_count_);
+  void Draw(GLenum mode, size_t start_pos, size_t vertex_count) const {
+    glDrawArrays(mode, start_pos, vertex_count);
 
-    if (glGetError()) throw std::runtime_error("Draw has an error!");
+    if (glGetError()) {
+      prog_error::ErrorInfo inf = {prog_error::ErrorCode::kGeomBuff,
+                                   "Error of drawing",
+                                   "GeometryBuffer::Draw"};
+      throw prog_error::ProgError(std::move(inf));
+    }
   }
 
   void SetCoordinates(int location) const {
@@ -96,7 +116,6 @@ class GeometryBuffer {
     vertex_dim_ = other.vertex_dim_;
     color_dim_ = other.color_dim_;
     normal_dim_ = other.normal_dim_;
-    vertex_count_ = other.vertex_count_;
 
     vao_ = other.vao_;
     vbo_ = other.vbo_;
@@ -118,7 +137,6 @@ class GeometryBuffer {
   unsigned int normal_dim_ = 0;  // for one vertex
   unsigned int vao_ = 0;
   unsigned int vbo_ = 0;
-  unsigned int vertex_count_ = 0;
   static constexpr unsigned int kUnbind = 0;
   static constexpr unsigned int kBuffCount = 1;
   static constexpr unsigned int kStartIndex = 0;
@@ -131,7 +149,12 @@ class GeometryBuffer {
                           mul_coeff * sizeof(float), start_pos);
     glEnableVertexAttribArray(location);
 
-    if (glGetError()) throw std::runtime_error("SetAttribute has an error!");
+    if (glGetError()) {
+      prog_error::ErrorInfo inf = {prog_error::ErrorCode::kGeomBuff,
+                                   "Error of setting attributes",
+                                   "GeometryBuffer::SetAttribute"};
+      throw prog_error::ProgError(std::move(inf));
+    }
   }
 };
 

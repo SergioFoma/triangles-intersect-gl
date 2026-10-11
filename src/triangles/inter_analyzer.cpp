@@ -9,6 +9,7 @@
 #include "triangle.hpp"
 
 #include "inter_analyzer.hpp"
+#include "prog_error.hpp"
 
 namespace triangles {
 namespace {
@@ -61,22 +62,24 @@ void InterAnalyzer::SortTrianglesByMorton() {
   assert(!triangles_.empty());
 
   triangles::Box bounds{triangles_.front().triangle};
+
   for (size_t i = 1; i < triangles_.size(); ++i) {
     bounds = bounds.Merge(triangles::Box{triangles_[i].triangle});
   }
 
-  const auto k_get_key = [bounds](const Point3D& p) {
-    Point3D diag = bounds.max_ - bounds.min_;
+  Point3D diag = bounds.max_ - bounds.min_;
+  for (size_t i = 1; i < triangles_.size(); ++i) {
+    Point3D p = triangles_[i].triangle.GetCenter();
     double x_normalized = diag.x_ == 0 ? 0 : (p.x_ - bounds.min_.x_) / diag.x_;
     double y_normalized = diag.y_ == 0 ? 0 : (p.y_ - bounds.min_.y_) / diag.y_;
     double z_normalized = diag.z_ == 0 ? 0 : (p.z_ - bounds.min_.z_) / diag.z_;
+    triangles_[i].morton_code =
+        morton3D(x_normalized, y_normalized, z_normalized);
+  }
 
-    return morton3D(x_normalized, y_normalized, z_normalized);
-  };
-  const auto k_comparator = [k_get_key](const AnalyzingTriangle& t1,
-                                        const AnalyzingTriangle& t2) {
-    return k_get_key(t1.triangle.GetCenter()) >
-           k_get_key(t2.triangle.GetCenter());
+  const auto k_comparator = [](const AnalyzingTriangle& t1,
+                               const AnalyzingTriangle& t2) {
+    return t1.morton_code > t2.morton_code;
   };
   tbb::parallel_sort(triangles_.begin(), triangles_.end(), k_comparator);
 }
@@ -116,14 +119,22 @@ void InterAnalyzer::ConstructTree() {
 
 bool InterAnalyzer::DoesIntersect(size_t original_index) const {
   if (original_index >= triangles_.size()) {
-    throw std::out_of_range("Triangle index is out of range");
+    prog_error::ErrorInfo inf = {.code = prog_error::ErrorCode::kAnalyzer,
+                                 .err_msg = "Triangle index is out of range",
+                                 .func_name = "InterAnalyzer::DoesIntersect"};
+    throw prog_error::ProgError(std::move(inf));
   }
   return triangles_[original_index].intersect_status;
 }
 
 bool InterAnalyzer::CheckIntersection(size_t triangle_index, size_t box_index) {
   assert(!triangles_.empty());
+
   const Node& cur_box = boxes_[box_index];
+
+  if (!cur_box.box.DoesIntersect(boxes_[triangle_index].box))
+    return false;
+
   if (cur_box.node_l == -1 && cur_box.node_r == -1) {
     if (cur_box.l_triangle == triangle_index &&
         cur_box.l_triangle + 1 == cur_box.r_triangle)
@@ -135,9 +146,6 @@ bool InterAnalyzer::CheckIntersection(size_t triangle_index, size_t box_index) {
   if (cur_box.node_r == -1) {
     return CheckIntersection(triangle_index, cur_box.node_l);
   }
-
-  if (!cur_box.box.DoesIntersect(boxes_[triangle_index].box))
-    return false;
 
   return CheckIntersection(triangle_index, cur_box.node_l) ||
          CheckIntersection(triangle_index, cur_box.node_r);

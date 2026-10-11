@@ -1,16 +1,13 @@
 #ifndef INTER_ANALYZER_HPP_
 #define INTER_ANALYZER_HPP_
 
-#include <algorithm>
 #include <vector>
 
-#include "basics.hpp"
 #include "box.hpp"
 #include "triangle.hpp"
 
 namespace triangles {
 
-using TriangleArr = std::vector<triangles::Triangle3D>;
 class InterAnalyzer {
  public:
 
@@ -29,6 +26,7 @@ class InterAnalyzer {
   struct AnalyzingTriangle {
     Triangle3D triangle;
     size_t original_index;
+    uint32_t morton_code;
     bool intersect_status = false;
   };
 

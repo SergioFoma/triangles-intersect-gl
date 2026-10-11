@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
 
 option(BUILD_TESTING "Build test" OFF)
+option(BUILD_BENCHMARK "Build benchmark" OFF)
 
 # === functions ===
 
@@ -24,9 +25,14 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE BOOL
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_FLAGS "-O2 -Wall")
+if (MSVC)
+    set(CMAKE_CXX_FLAGS "/W4 /EHsc /permissive-")
+else()
+    set(CMAKE_CXX_FLAGS "-O2 -Wall")
+endif()
 set(SRC ${PROJECT_SOURCE_DIR}/src)
 set(INCLUDE ${PROJECT_SOURCE_DIR}/include)
+set(BENCHMARK ${PROJECT_SOURCE_DIR}/benchmark)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 # === packages ===
@@ -40,14 +46,22 @@ fetch_if_not_available(cli11 https://github.com/CLIUtils/CLI11/archive/refs/tags
 
 add_subdirectory(${SRC})
 
+# == benchmark ==
+
+if (${BUILD_BENCHMARK})
+    set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
+    set(BENCHMARK_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
+    fetch_if_not_available(googlebenchmark https://github.com/google/benchmark/archive/refs/tags/v1.9.5.zip)
+    add_subdirectory(${BENCHMARK})
+endif()
+
 # === tests ===
 
 if (${BUILD_TESTING})
-    set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
-    set(BENCHMARK_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
-    fetch_if_not_available(googlebenchmark https://github.com/google/benchmark/archive/refs/tags/v1.9.1.zip)
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
     fetch_if_not_available(GTest https://github.com/google/googletest/archive/refs/tags/v1.15.2.zip)
     enable_testing()
     add_subdirectory(tests)
 endif()
 
+enable_testing()

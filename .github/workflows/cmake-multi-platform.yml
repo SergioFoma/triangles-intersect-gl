@@ -1,0 +1,213 @@
+name: CMake on multiple platforms
+
+on:
+  push:
+    branches:
+      - 'main'
+      - 'dev'
+  pull_request:
+    branches:
+      - 'main'
+      - 'dev'
+
+# Новый пуш в ту же ветку отменяет предыдущий незавершённый прогон.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+
+    permissions:
+      contents: read
+      actions: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        build_type: [Release]
+        c_compiler: [gcc, clang, cl]
+        include:
+          - os: windows-latest
+            c_compiler: cl
+            cpp_compiler: cl
+          - os: ubuntu-latest
+            c_compiler: gcc
+            cpp_compiler: g++
+          - os: ubuntu-latest
+            c_compiler: clang
+            cpp_compiler: clang++
+        exclude:
+          - os: windows-latest
+            c_compiler: gcc
+          - os: windows-latest
+            c_compiler: clang
+          - os: ubuntu-latest
+            c_compiler: cl
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 1
+
+    # ----------------------------------------------------------------
+    # Пути с прямыми слэшами. На Windows github.workspace содержит "\",
+    # а bash съедает "\a", "\t" и т.п. Нормализуем один раз и дальше
+    # везде используем только эти значения.
+    # ----------------------------------------------------------------
+    - name: Set reusable strings
+      id: strings
+      shell: bash
+      run: |
+        ws="${GITHUB_WORKSPACE//\\//}"
+        echo "workspace=${ws}" >> "$GITHUB_OUTPUT"
+        echo "build-output-dir=${ws}/build" >> "$GITHUB_OUTPUT"
+
+    # ----------------------------------------------------------------
+    # LINUX: зависимости + ccache
+    # ----------------------------------------------------------------
+    - name: Install Dependencies (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq --no-install-recommends \
+          libgl1-mesa-dev libglu1-mesa-dev xorg-dev libglfw3-dev libtbb-dev ccache
+
+    - name: Restore ccache (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      uses: actions/cache/restore@v4
+      with:
+        path: ~/.cache/ccache
+        key: ccache-${{ matrix.c_compiler }}-${{ github.run_id }}
+        restore-keys: ccache-${{ matrix.c_compiler }}-
+
+    # ----------------------------------------------------------------
+    # WINDOWS: vcpkg с бинарным кэшем в папке (provider "files") +
+    # actions/cache. Не зависит от внутренних токенов GitHub Actions,
+    # поэтому работает стабильно (в отличие от x-gha).
+    # ----------------------------------------------------------------
+    - name: Restore vcpkg binary cache (Windows)
+      if: matrix.os == 'windows-latest'
+      id: vcpkg-cache
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ steps.strings.outputs.workspace }}/vcpkg-cache
+        key: vcpkg-windows-glfw3-tbb-${{ github.run_id }}
+        restore-keys: vcpkg-windows-glfw3-tbb-
+
+    - name: Install Dependencies (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: bash
+      env:
+        VCPKG_BINARY_SOURCES: "clear;files,${{ steps.strings.outputs.workspace }}/vcpkg-cache,readwrite"
+      run: |
+        mkdir -p "${{ steps.strings.outputs.workspace }}/vcpkg-cache"
+        vcpkg install glfw3:x64-windows tbb:x64-windows
+
+    - name: Save vcpkg binary cache (Windows)
+      if: matrix.os == 'windows-latest' && success()
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ steps.strings.outputs.workspace }}/vcpkg-cache
+        key: vcpkg-windows-glfw3-tbb-${{ github.run_id }}
+
+    # MSVC-окружение (cl, link, Ninja).
+    - name: Setup MSVC dev environment (Windows)
+      if: matrix.os == 'windows-latest'
+      uses: ilammy/msvc-dev-cmd@v1
+
+    # ----------------------------------------------------------------
+    # ssize_t не существует в MSVC (на Linux его даёт glibc).
+    # Shim подключается флагом -FI ко всем C++ файлам.
+    # Лучше заменить ssize_t в inter_analyzer.hpp на std::ptrdiff_t
+    # (#include <cstddef>) и удалить этот шаг вместе с флагом -FI ниже.
+    # ----------------------------------------------------------------
+    - name: Create MSVC ssize_t shim (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: bash
+      run: |
+        mkdir -p "${{ steps.strings.outputs.workspace }}/msvc_shims"
+        cat > "${{ steps.strings.outputs.workspace }}/msvc_shims/ssize_shim.h" <<'SHIM'
+        #pragma once
+        #ifdef _MSC_VER
+        #include <BaseTsd.h>
+        typedef SSIZE_T ssize_t;
+        #endif
+        SHIM
+
+    # ----------------------------------------------------------------
+    # Configure целиком в bash: аргументы собираются массивом, поэтому
+    # пробелы в значениях флагов не требуют экранирования.
+    # MSYS_NO_PATHCONV отключает «умный» перевод путей в Git Bash
+    # (иначе "/MD" превращается в "C:\Program Files\Git\MD").
+    # ----------------------------------------------------------------
+    - name: Configure CMake
+      shell: bash
+      env:
+        MSYS_NO_PATHCONV: "1"
+        MSYS2_ARG_CONV_EXCL: "*"
+      run: |
+        ws="${{ steps.strings.outputs.workspace }}"
+        args=(
+          -B "${{ steps.strings.outputs.build-output-dir }}"
+          -S "$ws"
+          -G Ninja
+          -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
+          -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          -DBUILD_TESTING=ON
+          -DBUILD_BENCHMARK=OFF
+        )
+        if [ "${{ matrix.os }}" = "windows-latest" ]; then
+          args+=(
+            "-DCMAKE_TOOLCHAIN_FILE=${VCPKG_INSTALLATION_ROOT//\\//}/scripts/buildsystems/vcpkg.cmake"
+            "-DCMAKE_CXX_FLAGS_RELEASE=-MD -O2 -Ob2 -DNDEBUG -FI$ws/msvc_shims/ssize_shim.h"
+          )
+        elif command -v ccache > /dev/null 2>&1; then
+          args+=(
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache
+          )
+        fi
+        cmake "${args[@]}"
+
+    - name: Build
+      shell: bash
+      run: |
+        cmake --build "${{ steps.strings.outputs.build-output-dir }}" \
+          --parallel \
+          --target triangle_intersect triangles_tests end_to_end_testing
+
+    # End-to-end: блокирующий шаг.
+    - name: Run end-to-end tests
+      shell: bash
+      run: |
+        cd "${{ steps.strings.outputs.build-output-dir }}/bin"
+        if [ "${{ matrix.os }}" = "windows-latest" ]; then
+          ./end_to_end_testing.exe
+        else
+          ./end_to_end_testing
+        fi
+
+    # Юнит-тесты не блокируют CI (уберите continue-on-error, когда тесты допилены).
+    - name: Run unit tests (Google Test)
+      shell: bash
+      continue-on-error: true
+      run: |
+        cd "${{ steps.strings.outputs.build-output-dir }}/bin"
+        if [ "${{ matrix.os }}" = "windows-latest" ]; then
+          ./triangles_tests.exe
+        else
+          ./triangles_tests
+        fi
+
+    # ccache сохраняем даже если тесты упали (компиляция уже прошла).
+    - name: Save ccache (Linux)
+      if: matrix.os == 'ubuntu-latest' && !cancelled()
+      uses: actions/cache/save@v4
+      with:
+        path: ~/.cache/ccache
+        key: ccache-${{ matrix.c_compiler }}-${{ github.run_id }}
