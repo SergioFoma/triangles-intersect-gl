@@ -51,8 +51,19 @@ jobs:
       with:
         fetch-depth: 1
 
+    # Пути с прямыми слэшами: на Windows github.workspace содержит "\",
+    # а bash съедает "\a", "\t" и т.д. Нормализуем один раз и дальше
+    # используем только эти значения.
+    - name: Set reusable strings
+      id: strings
+      shell: bash
+      run: |
+        ws="${GITHUB_WORKSPACE//\\//}"
+        echo "workspace=${ws}" >> "$GITHUB_OUTPUT"
+        echo "build-output-dir=${ws}/build" >> "$GITHUB_OUTPUT"
+
     # ----------------------------------------------------------------
-    # LINUX: зависимости + ccache (переиспользуем компиляцию между прогонами)
+    # LINUX: зависимости + ccache
     # ----------------------------------------------------------------
     - name: Install Dependencies (Linux)
       if: matrix.os == 'ubuntu-latest'
@@ -70,12 +81,9 @@ jobs:
         restore-keys: ccache-${{ matrix.c_compiler }}-
 
     # ----------------------------------------------------------------
-    # WINDOWS: vcpkg с бинарным кэшем x-gha — после первого прогона
-    # glfw3/tbb скачиваются готовыми бинарями за секунды.
-    # Провайдер x-gha требует ACTIONS_CACHE_URL и ACTIONS_RUNTIME_TOKEN —
-    # в окружение шага они по умолчанию НЕ попадают, поэтому сначала
-    # экспортируем их через github-script. Без этого vcpkg молча
-    # пересобирает tbb/glfw3 из исходников каждый прогон (~9 минут).
+    # WINDOWS: vcpkg с бинарным кэшем x-gha.
+    # ACTIONS_CACHE_URL / ACTIONS_RUNTIME_TOKEN по умолчанию не попадают
+    # в окружение шага, поэтому экспортируем их через github-script.
     # ----------------------------------------------------------------
     - name: Export cache tokens for vcpkg x-gha (Windows)
       if: matrix.os == 'windows-latest'
@@ -93,22 +101,20 @@ jobs:
       run: |
         vcpkg install glfw3:x64-windows tbb:x64-windows
 
-    # MSVC-окружение + Ninja вместо MSBuild — быстрее.
+    # MSVC-окружение + Ninja.
     - name: Setup MSVC dev environment (Windows)
       if: matrix.os == 'windows-latest'
       uses: ilammy/msvc-dev-cmd@v1
 
-    # ----------------------------------------------------------------
-    # ssize_t не существует в MSVC (на Linux его даёт glibc).
-    # inter_analyzer.hpp использует ssize_t — правим без касания кода:
-    # заголов shim форсируется компилятором через /FI во все C++ TU.
-    # ----------------------------------------------------------------
+    # ssize_t нет в MSVC. Shim подключается флагом /FI ко всем C++ файлам.
+    # Лучше заменить ssize_t в inter_analyzer.hpp на std::ptrdiff_t и
+    # удалить этот шаг.
     - name: Create MSVC ssize_t shim (Windows)
       if: matrix.os == 'windows-latest'
       shell: bash
       run: |
-        mkdir -p "$GITHUB_WORKSPACE/msvc_shims"
-        cat > "$GITHUB_WORKSPACE/msvc_shims/ssize_shim.h" <<'SHIM'
+        mkdir -p "${{ steps.strings.outputs.workspace }}/msvc_shims"
+        cat > "${{ steps.strings.outputs.workspace }}/msvc_shims/ssize_shim.h" <<'SHIM'
         #pragma once
         #ifdef _MSC_VER
         #include <BaseTsd.h>
@@ -116,14 +122,8 @@ jobs:
         #endif
         SHIM
 
-    - name: Set reusable strings
-      id: strings
-      shell: bash
-      run: |
-        echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
-
     # ----------------------------------------------------------------
-    # Кэш исходников FetchContent (CLI11, GTest) — zips не качаем каждый раз.
+    # Кэш исходников FetchContent (CLI11, GTest)
     # ----------------------------------------------------------------
     - name: Restore FetchContent sources
       uses: actions/cache/restore@v4
@@ -134,42 +134,40 @@ jobs:
           fc-src-${{ matrix.os }}-${{ matrix.c_compiler }}-
           fc-src-
 
-    # ----------------------------------------------------------------
-    # Аргументы cmake:
-    #  - тесты ON, benchmark OFF (в CI не нужен и не собирается);
-    #  - ccache только если он реально доступен (иначе сборка не сломается);
-    #  - Windows: toolchain vcpkg;
-    #  - FetchContent -> кэшируемый fc-src.
-    # ----------------------------------------------------------------
-    - name: Compute extra CMake args
-      id: extra
+    # Configure целиком в bash: аргументы собираются массивом, поэтому
+    # пробелы в значениях флагов не требуют хитрого экранирования.
+    - name: Configure CMake
       shell: bash
       run: |
-        base="-DBUILD_TESTING=ON -DBUILD_BENCHMARK=OFF -DFETCHCONTENT_BASE_DIR=${{ github.workspace }}/fc-src"
+        ws="${{ steps.strings.outputs.workspace }}"
+        args=(
+          -B "${{ steps.strings.outputs.build-output-dir }}"
+          -S "$ws"
+          -G Ninja
+          -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
+          -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          -DBUILD_TESTING=ON
+          -DBUILD_BENCHMARK=OFF
+          -DFETCHCONTENT_BASE_DIR="$ws/fc-src"
+        )
         if [ "${{ matrix.os }}" = "windows-latest" ]; then
-          ws="${{ github.workspace }}"; ws="${ws//\\//}"
-          release_flags="-DCMAKE_CXX_FLAGS_RELEASE=\"/MD /O2 /Ob2 /DNDEBUG /FI${ws}/msvc_shims/ssize_shim.h\""
-          echo "cmake_args=${base} -DCMAKE_TOOLCHAIN_FILE=${VCPKG_INSTALLATION_ROOT}/scripts/buildsystems/vcpkg.cmake ${release_flags}" >> "$GITHUB_OUTPUT"
+          args+=(
+            -DCMAKE_TOOLCHAIN_FILE="${VCPKG_INSTALLATION_ROOT//\\//}/scripts/buildsystems/vcpkg.cmake"
+            "-DCMAKE_CXX_FLAGS_RELEASE=/MD /O2 /Ob2 /DNDEBUG /FI$ws/msvc_shims/ssize_shim.h"
+          )
         elif command -v ccache > /dev/null 2>&1; then
-          echo "cmake_args=${base} -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache" >> "$GITHUB_OUTPUT"
-        else
-          echo "cmake_args=${base}" >> "$GITHUB_OUTPUT"
+          args+=(
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache
+          )
         fi
-
-    - name: Configure CMake
-      run: >
-        cmake -B ${{ steps.strings.outputs.build-output-dir }}
-        -G Ninja
-        -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
-        -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
-        -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-        ${{ steps.extra.outputs.cmake_args }}
-        -S ${{ github.workspace }}
+        cmake "${args[@]}"
 
     - name: Build
-      # benchmark (BUILD_BENCHMARK=OFF) не конфигурируется и не собирается.
+      shell: bash
       run: >
-        cmake --build ${{ steps.strings.outputs.build-output-dir }}
+        cmake --build "${{ steps.strings.outputs.build-output-dir }}"
         --parallel
         --target triangle_intersect triangles_tests end_to_end_testing
 
@@ -180,24 +178,23 @@ jobs:
         path: ${{ github.workspace }}/fc-src
         key: fc-src-${{ matrix.os }}-${{ matrix.c_compiler }}-${{ hashFiles('**/CMakeLists.txt') }}
 
-    # End-to-end: блокирующий шаг. Программа сама считает путь к materials/.
+    # End-to-end: блокирующий шаг.
     - name: Run end-to-end tests
       shell: bash
       run: |
-        cd ${{ steps.strings.outputs.build-output-dir }}/bin
+        cd "${{ steps.strings.outputs.build-output-dir }}/bin"
         if [ "${{ matrix.os }}" = "windows-latest" ]; then
           ./end_to_end_testing.exe
         else
           ./end_to_end_testing
         fi
 
-    # Юнит-тесты: часть ожиданий устарела — шаг показывает статус,
-    # но не блокирует CI (снимете continue-on-error, когда тесты допилены).
+    # Юнит-тесты не блокируют CI (уберите continue-on-error, когда тесты допилены).
     - name: Run unit tests (Google Test)
       shell: bash
       continue-on-error: true
       run: |
-        cd ${{ steps.strings.outputs.build-output-dir }}/bin
+        cd "${{ steps.strings.outputs.build-output-dir }}/bin"
         if [ "${{ matrix.os }}" = "windows-latest" ]; then
           ./triangles_tests.exe
         else
