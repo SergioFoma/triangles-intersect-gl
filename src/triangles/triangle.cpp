@@ -246,24 +246,23 @@ bool Triangle3D::DoesIntersectCopl(const Triangle3D& other,
 
 // ================================ LINE CASE =================================
 
-bool Triangle3D::CheckLineTriangleIntersection(const Triangle3D& other,
-                                               double metric) const {
+bool Triangle3D::CheckLineTriangleIntersection(const Line& line,
+                                               const Triangle3D& other,
+                                               double metric) {
   assert(other.IsValid());
-  assert(IsValid());
-
-  const Line& line = std::get<Line>(geometry_);
+  assert(line.IsValid());
   const Surface& surface = std::get<Surface>(other.geometry_);
   const Orientation a = surface.GetPointOrientation(line.a_, metric);
   const Orientation b = surface.GetPointOrientation(line.b_, metric);
 
   return a == Orientation::kCoplanar && b == Orientation::kCoplanar
-             ? CheckLineTriangleIntersectionCopl(other, metric)
-             : CheckLineTriangleIntersectionNonCopl(other, a, b);
+             ? CheckLineTriangleIntersectionCopl(line, other, metric)
+             : CheckLineTriangleIntersectionNonCopl(line, other, a, b);
 }
 
-bool Triangle3D::CheckLineTriangleIntersectionCopl(const Triangle3D& other,
-                                                   double metric) const {
-  const Line& line = std::get<Line>(geometry_);
+bool Triangle3D::CheckLineTriangleIntersectionCopl(const Line& line,
+                                                   const Triangle3D& other,
+                                                   double metric) {
   const Surface& surface = std::get<Surface>(other.geometry_);
 
   for (size_t i = 0; i < 3; ++i) {
@@ -290,13 +289,13 @@ bool Triangle3D::CheckLineTriangleIntersectionCopl(const Triangle3D& other,
   return false;
 }
 
-bool Triangle3D::CheckLineTriangleIntersectionNonCopl(const Triangle3D& other,
+bool Triangle3D::CheckLineTriangleIntersectionNonCopl(const Line& line,
+                                                      const Triangle3D& other,
                                                       Orientation a,
-                                                      Orientation b) const {
+                                                      Orientation b) {
   if (a == b)
     return false;
 
-  const Line& line = std::get<Line>(geometry_);
   const Surface& surface = std::get<Surface>(other.geometry_);
   Point3D point = line.a_;
   if (b == Orientation::kCoplanar) {
@@ -306,7 +305,7 @@ bool Triangle3D::CheckLineTriangleIntersectionNonCopl(const Triangle3D& other,
     double dist_b = surface.norm_.Dot(line.b_) + surface.d_;
     point = line.a_ + (line.b_ - line.a_) / ((dist_a - dist_b) / dist_a);
   }
-  return Triangle3D{point, point, point}.CheckPointTriangleIntersection(other);
+  return CheckPointTriangleIntersection(point, other);
 }
 
 bool Triangle3D::DoesLineIntersect(const Triangle3D& other,
@@ -316,7 +315,7 @@ bool Triangle3D::DoesLineIntersect(const Triangle3D& other,
 
   switch (other.type_) {
     case TriangleType::kDefault:
-      return CheckLineTriangleIntersection(other, metric);
+      return CheckLineTriangleIntersection(std::get<Line>(geometry_), other, metric);
     case TriangleType::kLine:
       return std::get<Line>(geometry_).CheckIntersection(
           std::get<Line>(other.geometry_), metric);
@@ -331,11 +330,10 @@ bool Triangle3D::DoesLineIntersect(const Triangle3D& other,
 
 // ================================ POINT CASE ================================
 
-bool Triangle3D::CheckPointTriangleIntersection(const Triangle3D& other) const {
+bool Triangle3D::CheckPointTriangleIntersection(const Point3D& point,
+                                                const Triangle3D& other) {
   assert(other.IsValid());
-  assert(IsValid());
-
-  const Point3D& point = std::get<Point3D>(geometry_);
+  assert(point.IsValid());
   const Surface& surface = std::get<Surface>(other.geometry_);
   double metric = other.metric_;
 
@@ -365,7 +363,7 @@ bool Triangle3D::DoesPointIntersect(const Triangle3D& other) const {
 
   switch (other.type_) {
     case TriangleType::kDefault:
-      return CheckPointTriangleIntersection(other);
+      return CheckPointTriangleIntersection(std::get<Point3D>(geometry_), other);
     case TriangleType::kLine:
       return std::get<Line>(other.geometry_)
           .LiesOn(std::get<Point3D>(geometry_), other.metric_);

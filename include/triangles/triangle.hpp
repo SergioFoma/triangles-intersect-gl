@@ -33,16 +33,16 @@ class Triangle3D {
     metric_ = GetPrecisionByVertices(p1, p2, p3);
     type_ = CalculateTriangleType();
 
-    Point3D min = {GetMinX(), GetMinY(), GetMinZ()};
-    Point3D max = {GetMaxX(), GetMaxY(), GetMaxZ()};
-
     switch (type_) {
       case TriangleType::kDefault:
         geometry_ = Surface{p1, p2, p3};
         break;
-      case TriangleType::kLine:
-        geometry_ = Line{min, max};
+      case TriangleType::kLine: {
+        auto points = kFarthestPair(p1, p2, p3);
+        geometry_ = Line{points.first, points.second};
+
         break;
+      }
       case TriangleType::kPoint:
         geometry_ = Point3D{center_coord_};
         break;
@@ -118,11 +118,16 @@ class Triangle3D {
   bool DoesTriangleIntersect(const Triangle3D& other, double metric) const;
   bool DoesLineIntersect(const Triangle3D& other, double metric) const;
   bool DoesPointIntersect(const Triangle3D& other) const;
-  bool CheckPointTriangleIntersection(const Triangle3D& other) const;
-  bool CheckLineTriangleIntersection(const Triangle3D& other, double metric) const;
-  bool CheckLineTriangleIntersectionCopl(const Triangle3D& other, double metric) const;
-  bool CheckLineTriangleIntersectionNonCopl(const Triangle3D& other,
-                                            Orientation a, Orientation b) const;
+  static bool CheckPointTriangleIntersection(const Point3D& point,
+                                             const Triangle3D& other);
+  static bool CheckLineTriangleIntersection(const Line& line,
+                                            const Triangle3D& other, double metric);
+  static bool CheckLineTriangleIntersectionCopl(const Line& line,
+                                                const Triangle3D& other,
+                                                double metric);
+  static bool CheckLineTriangleIntersectionNonCopl(const Line& line,
+                                                   const Triangle3D& other,
+                                                   Orientation a, Orientation b);
 
   TriangleType CalculateTriangleType() const;
 

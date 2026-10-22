@@ -4,10 +4,11 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <cstdint>
 #include <cstdlib>
 #include <iostream>
 #include <stdexcept>
-#include <cstdint>
+#include <utility>
 
 #include "prog_error.hpp"
 
@@ -68,10 +69,22 @@ enum class Orientation : uint8_t { kNegative, kCoplanar, kPositive };
 
 static double GetPrecisionByVertices(const Point3D& p1, const Point3D& p2,
                                      const Point3D& p3) {
-  return std::hypot(Point3D::Distance(p2, p1),
-                    Point3D::Distance(p3, p2),
+  return std::hypot(Point3D::Distance(p2, p1), Point3D::Distance(p3, p2),
                     Point3D::Distance(p1, p3));
 }
+
+constexpr auto kFarthestPair = [](const Point3D& a, const Point3D& b,
+                                  const Point3D& c) {
+  const double ab = Point3D::Distance(a, b);
+  const double ac = Point3D::Distance(a, c);
+  const double bc = Point3D::Distance(b, c);
+
+  if (ab >= ac && ab >= bc)
+    return std::make_pair(a, b);
+  if (ac >= bc)
+    return std::make_pair(a, c);
+  return std::make_pair(b, c);
+};
 
 struct Surface {
   Point3D norm_;
@@ -171,8 +184,10 @@ struct Line {
 
     Point3D direction = b_ - a_;
     Point3D other_direction = other.b_ - other.a_;
-    direction = direction / std::hypot(direction.x_, direction.y_, direction.z_);
-    other_direction = other_direction /
+    direction =
+        direction / std::hypot(direction.x_, direction.y_, direction.z_);
+    other_direction =
+        other_direction /
         std::hypot(other_direction.x_, other_direction.y_, other_direction.z_);
 
     Point3D normal = direction.Cross(other_direction);
