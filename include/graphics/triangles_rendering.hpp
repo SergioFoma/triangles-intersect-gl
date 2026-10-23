@@ -1,18 +1,21 @@
 #ifndef TRIANGLES_RENDERING_HPP_
 #define TRIANGLES_RENDERING_HPP_
 
-#include "geometry_buffer.hpp"
-#include "shader.hpp"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <vector>
 #include <string>
 #include <memory>
+#include <cstdint>
+
+#include "geometry_buffer.hpp"
+#include "shader.hpp"
+#include "utility.hpp"
 
 namespace render {
 
-const int kOneTexture = 1;
+constexpr unsigned int kOneTexture = 1;
 
 enum class ErrorType { kCorrect, kError };
 
@@ -104,18 +107,27 @@ struct Camera {
   float yaw = -90.0F;
   float pitch = 0.0F;
   float sensitivity = 0.0F;
+  float fovy = 0.0F;
+  float aspect = 0.0F;
+  float near_plane = 0.0F;
+  float far_plane = 0.0F;
 
   explicit Camera(const CameraConfig& camera)
       : pos(camera.pos), front(camera.front), up(camera.up),
-        speed(camera.speed), sensitivity(camera.mouse_sensitivity) {
+        speed(camera.speed), sensitivity(camera.mouse_sensitivity),
+        fovy(camera.fovy), aspect(camera.aspect),
+        near_plane(camera.near_plane), far_plane(camera.far_plane) {
     last_frame = glfwGetTime();
 
-    projection = glm::perspective(glm::radians(camera.fovy), camera.aspect,
-                                  camera.near_plane, camera.far_plane);
+    projection = glm::perspective(glm::radians(fovy), aspect, near_plane, far_plane);
   }
 
   void UpdateCameraMatrix() {
     view = glm::lookAt(pos, pos + front, up);
+  }
+
+  void SetPerspectiveMatrix(float new_aspect) {
+    projection = glm::perspective(glm::radians(fovy), new_aspect, near_plane, far_plane);
   }
 };
 
@@ -134,45 +146,50 @@ struct ShapesObject {
   RenderObject line_obj;
 };
 
-struct SkyboxData {
-  SkyboxConfig config;
-  RenderObject obj;
-  unsigned int texture_id = 0;
+struct TextureIdDeleter {
+  int one_texture = 1;
 
-  SkyboxData(SkyboxConfig config, RenderObject obj, unsigned int id)
-    : config(std::move(config)), obj(std::move(obj)), texture_id(id) {}
-
-  SkyboxData(const SkyboxData& other) = delete;
-  SkyboxData& operator=(const SkyboxData& other) = delete;
-
-  SkyboxData(SkyboxData&& other)
-    : config(std::move(other.config)),
-      obj(std::move(other.obj)),
-      texture_id(other.texture_id) {
-
-    other.texture_id = 0;
-  }
-
-  SkyboxData& operator=(SkyboxData&& other) {
-    if (this == &other) {
-      return *this;
+  void operator()(unsigned int* texture_id) const {
+    if (!texture_id) {
+      return ;
     }
-    glDeleteTextures(kOneTexture, &texture_id);
 
-    config = std::move(other.config);
-    obj = std::move(other.obj);
-    texture_id = other.texture_id;
-    other.texture_id = 0;
-
-    return *this;
-  };
-
-  ~SkyboxData() {
-    glDeleteTextures(kOneTexture, &texture_id);
+    std::uintptr_t uint_id = reinterpret_cast<std::uintptr_t>(texture_id);
+    unsigned int unint_id = static_cast<unsigned int>(uint_id);
+    glDeleteTextures(one_texture, &unint_id);
   }
 };
 
-render::ErrorType RenderTriangles(GLFWwindow* win,
+using TextureId = std::unique_ptr<unsigned int, TextureIdDeleter>;
+
+struct SkyboxData {
+  SkyboxConfig config;
+  RenderObject obj;
+  TextureId texture_id;
+
+  SkyboxData(SkyboxConfig config, RenderObject obj, TextureId id)
+    : config(std::move(config)), obj(std::move(obj)),
+      texture_id(std::move(id)) {}
+
+  SkyboxData(const SkyboxData& other) = delete;
+
+  SkyboxData(SkyboxData&& other) = default;
+
+  unsigned int GetTextureId() const {
+    std::uintptr_t uint_id = reinterpret_cast<std::uintptr_t>(texture_id.get());
+    unsigned int unint_id = static_cast<unsigned int>(uint_id);
+
+    return unint_id;
+  }
+
+  SkyboxData& operator=(const SkyboxData& other) = delete;
+
+  SkyboxData& operator=(SkyboxData&& other) = default;
+
+  ~SkyboxData() = default;
+};
+
+render::ErrorType RenderTriangles(utility::Window win,
                                   const ShapesNumber& shapes_number,
                                   const std::vector<float>& triangles,
                                   const render::RenderConfig& render_con,

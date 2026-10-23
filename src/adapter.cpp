@@ -117,7 +117,7 @@ void adapter::Adapter::Draw() {
       triangles_number_, points_number_, lines_number_
   };
 
-  render::ErrorType error_code  = render::RenderTriangles(win_,
+  render::ErrorType error_code  = render::RenderTriangles(std::move(win_),
                                   shapes_number, raw_data_,
                                   render_con_, skybox_con_);
   if (error_code != render::ErrorType::kCorrect) {

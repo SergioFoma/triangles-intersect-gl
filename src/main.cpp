@@ -4,13 +4,14 @@
 #include <unordered_map>
 
 #include "adapter.hpp"
-#include "utility.hpp"
 #include "read_data.hpp"
 #include "prog_error.hpp"
 
 namespace {
 
 constexpr size_t kTextureNumber = 6;
+
+using TextureMap = std::unordered_map<std::string, unsigned int>;
 
 namespace texture_id {
 enum Id : unsigned int {
@@ -22,15 +23,6 @@ enum Id : unsigned int {
   kFront  = 5
 };
 } // namespace texture_id
-
-const std::unordered_map<std::string, unsigned int> texture_map = {
-  {"bkg1_right.png" , texture_id::kRight},
-  {"bkg1_left.png"  , texture_id::kLeft},
-  {"bkg1_top.png"   , texture_id::kTop},
-  {"bkg1_bot.png"   , texture_id::kBot},
-  {"bkg1_back.png"  , texture_id::kBack},
-  {"bkg1_front.png" , texture_id::kFront}
-};
 
 struct Resource {
   std::vector<std::string> texture_sides;
@@ -52,7 +44,8 @@ struct Resource {
     return def_str;
   }
 
-  Resource(const std::string& resource_paths): texture_sides(kTextureNumber) {
+  Resource(const std::string& resource_paths, const TextureMap& texture_map)
+    : texture_sides(kTextureNumber) {
   std::filesystem::path abs_path = reader::GetAbsPath(resource_paths);
   for (const auto& file: std::filesystem::directory_iterator(abs_path)) {
     const auto& filepath = file.path();
@@ -158,6 +151,19 @@ utility::WinConfig CreateWinConfig() {
   return win_con;
 }
 
+const TextureMap& CreateTextureMap() {
+  static const TextureMap texture_map = {
+    {"bkg1_right.png" , texture_id::kRight},
+    {"bkg1_left.png"  , texture_id::kLeft},
+    {"bkg1_top.png"   , texture_id::kTop},
+    {"bkg1_bot.png"   , texture_id::kBot},
+    {"bkg1_back.png"  , texture_id::kBack},
+    {"bkg1_front.png" , texture_id::kFront}
+  };
+
+  return texture_map;
+}
+
 adapter::Adapter InitAdapter(const std::string& resource_paths, const char* bin_paths,
                              triangles::TriangleArr& triangles) {
   std::string target_paths;
@@ -167,7 +173,9 @@ adapter::Adapter InitAdapter(const std::string& resource_paths, const char* bin_
   } else {
     target_paths = resource_paths;
   }
-  Resource resource(target_paths);
+
+  const TextureMap& texture_map = CreateTextureMap();
+  Resource resource(target_paths, texture_map);
 
   utility::WinConfig win_con = CreateWinConfig();
   render::LightConfig light_con = CreateLightConfig();
@@ -182,8 +190,8 @@ adapter::Adapter InitAdapter(const std::string& resource_paths, const char* bin_
   render::RenderConfig render_con = {camera_con, light_con, tr_shader_config,
                                      point_shader_config, line_shader_config};
 
-  GLFWwindow* win = utility::InitGraphics(win_con);
-  adapter::Adapter adapter(win, render_con, skybox_config);
+  utility::Window win = utility::InitGraphics(win_con);
+  adapter::Adapter adapter(std::move(win), render_con, skybox_config);
 
   return adapter;
 }

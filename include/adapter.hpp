@@ -2,6 +2,8 @@
 #define ADAPTER_HPP_
 
 #include <vector>
+#include <memory>
+#include <utility>
 
 #include "triangles_rendering.hpp"
 #include "triangle.hpp"
@@ -11,10 +13,10 @@ namespace adapter {
 class Adapter {
  public:
 
-  Adapter(GLFWwindow* window,
+  Adapter(utility::Window window,
           const render::RenderConfig& render_con,
           const render::SkyboxConfig& skybox_con)
-          : win_(window), render_con_(render_con),
+          : win_(std::move(window)), render_con_(render_con),
             skybox_con_(skybox_con) {}
 
   void ConvertShape(const triangles::Triangle3D& triangle, bool intersect_status);
@@ -30,7 +32,7 @@ class Adapter {
   size_t points_number_ = 0;
   size_t lines_number_ = 0;
 
-  GLFWwindow* win_;
+  utility::Window win_;
   render::RenderConfig render_con_;
   render::SkyboxConfig skybox_con_;
 
