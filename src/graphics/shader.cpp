@@ -5,6 +5,30 @@
 
 #include "prog_error.hpp"
 
+ShaderId Shader::CreateShader(const char* shader_ptr, GLenum shader_type) {
+  assert(shader_ptr);
+
+  std::uintptr_t shader_id = glCreateShader(shader_type);
+
+  ShaderId vert_shader{reinterpret_cast<std::uintptr_t*>(shader_id),
+                       ShaderIdDeleter{}};
+
+  glShaderSource(shader_id, kLineCount, &shader_ptr, nullptr);
+  glCompileShader(shader_id);
+
+  int error_code = 0;
+  glGetShaderiv(shader_id, GL_COMPILE_STATUS, &error_code);
+
+  if (!error_code) {
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kShader,
+                                 "Error of vertex sahder compilation",
+                                 "Shader::CreateShader"};
+    throw prog_error::ProgError(std::move(inf));
+  }
+
+  return vert_shader;
+}
+
 Shader::Shader(const std::string& vert_path, const std::string& frag_path) {
   std::string vertex_str = ReadShader(vert_path);
   std::string frag_str = ReadShader(frag_path);
@@ -12,34 +36,10 @@ Shader::Shader(const std::string& vert_path, const std::string& frag_path) {
   const char* vertex_ptr = vertex_str.c_str();
   const char* fragment_ptr = frag_str.c_str();
 
-  assert(vertex_ptr);
-  assert(fragment_ptr);
+  assert(vertex_ptr && fragment_ptr);
 
-  int error_code = 0;
-
-  vertex_shader_ = glCreateShader(GL_VERTEX_SHADER);
-  glShaderSource(vertex_shader_, kLineCount, &vertex_ptr, nullptr);
-  glCompileShader(vertex_shader_);
-  glGetShaderiv(vertex_shader_, GL_COMPILE_STATUS, &error_code);
-
-  if (!error_code) {
-    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kShader,
-                                   "Error of vertex sahder compilation",
-                                   "Shader::Shader"};
-    throw prog_error::ProgError(std::move(inf));
-  }
-
-  fragment_shader_ = glCreateShader(GL_FRAGMENT_SHADER);
-  glShaderSource(fragment_shader_, kLineCount, &fragment_ptr, nullptr);
-  glCompileShader(fragment_shader_);
-  glGetShaderiv(fragment_shader_, GL_COMPILE_STATUS, &error_code);
-
-  if (!error_code) {
-    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kGeomBuff,
-                                   "Error of fragment shader compilation!",
-                                   "Shader::Shader"};
-    throw prog_error::ProgError(std::move(inf));
-  }
+  vertex_shader_    =   CreateShader(vertex_ptr, GL_VERTEX_SHADER);
+  fragment_shader_  =   CreateShader(fragment_ptr, GL_FRAGMENT_SHADER);
 
   LinkShaders();
 }
@@ -71,35 +71,26 @@ std::string Shader::ReadShader(const std::string& file_path) const {
 }
 
 unsigned int Shader::LinkShaders() {
-  shader_program_ = glCreateProgram();
-  glAttachShader(shader_program_, vertex_shader_);
-  glAttachShader(shader_program_, fragment_shader_);
-  glLinkProgram(shader_program_);
+  std::uintptr_t shader_program_id = glCreateProgram();
+  ProgramId shader_program_ptr{reinterpret_cast<std::uintptr_t*>(shader_program_id),
+                             ProgramIdDeleter{}};
+  shader_program_ = std::move(shader_program_ptr);
 
-  GLint error_code;
-  glGetProgramiv(shader_program_, GL_LINK_STATUS, &error_code);
+  std::uintptr_t vertex_sh_id = reinterpret_cast<std::uintptr_t>(vertex_shader_.get());
+  std::uintptr_t fragment_sh_id = reinterpret_cast<std::uintptr_t>(fragment_shader_.get());
 
-  if (!error_code) {
+  glAttachShader(shader_program_id, vertex_sh_id);
+  glAttachShader(shader_program_id, fragment_sh_id);
+  glLinkProgram(shader_program_id);
+
+  GLint error_code = 0;
+  glGetProgramiv(shader_program_id, GL_LINK_STATUS, &error_code);
+
+  if (!error_code || glGetError()) {
     prog_error::ErrorInfo inf = {prog_error::ErrorCode::kShader,
                                    "Error of shader linking",
                                    "Shader::LinkShaders"};
     throw prog_error::ProgError(std::move(inf));
   }
-
-  glDeleteShader(
-      vertex_shader_);  // after linking, the shader is no longer needed - we delete it.
-  glDeleteShader(
-      fragment_shader_);  // after linking, the shader is no longer needed - we delete it.
-  vertex_shader_ = 0;
-  fragment_shader_ = 0;
-
-  error_code = glGetError();
-  if (error_code) {
-      prog_error::ErrorInfo inf = {prog_error::ErrorCode::kShader,
-                                   "Error of linking shaders",
-                                   "Shader::LinkShaders"};
-      throw prog_error::ProgError(std::move(inf));
-  }
-
-  return shader_program_;
+  return shader_program_id;
 }

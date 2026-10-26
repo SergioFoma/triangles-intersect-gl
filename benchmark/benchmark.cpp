@@ -5,12 +5,13 @@
 #include "triangles/inter_analyzer.hpp"
 #include "read_data.hpp"
 
+using calc_type = double;
 namespace {
 
 constexpr unsigned int kBenchmarkNumber = 6;
 
 void BmTrianglesIntersect(benchmark::State& state, const std::string& file_name) {
-  triangles::TriangleArr triangles = reader::ReadData(file_name);
+  triangles::TriangleArray<calc_type> triangles = reader::ReadData<calc_type>(file_name);
 
   while (state.KeepRunning()) {
     triangles::InterAnalyzer analyzer(triangles);

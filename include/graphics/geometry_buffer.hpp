@@ -3,42 +3,73 @@
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <utility>
+#include <memory>
+#include <cstdint>
 #include <vector>
-#include <stdexcept>
 
 #include "prog_error.hpp"
+
+struct VertexBufferDeleter {
+  static constexpr int kBuffCount = 1;
+
+  void operator()(unsigned int* buffer_id) const {
+      if (!buffer_id) {
+        return ;
+      }
+
+      std::uintptr_t id = reinterpret_cast<std::uintptr_t>(buffer_id);
+      unsigned int trimmed_id = static_cast<unsigned int>(id);
+      glDeleteBuffers(kBuffCount, &trimmed_id);
+  }
+};
+
+using VertexBuffer = std::unique_ptr<unsigned int, VertexBufferDeleter>;
+
+struct VertexArrayDeleter {
+  static constexpr int kBuffCount = 1;
+
+  void operator()(unsigned int* array_id) const {
+    if (!array_id) {
+      return ;
+    }
+
+    std::uintptr_t id = reinterpret_cast<std::uintptr_t>(array_id);
+    unsigned int trimmed_id = static_cast<unsigned int>(id);
+    glDeleteVertexArrays(kBuffCount, &trimmed_id);
+  }
+};
+
+using VertexArray = std::unique_ptr<unsigned int, VertexArrayDeleter>;
 
 class GeometryBuffer {
  public:
   GeometryBuffer(const GeometryBuffer& other) = delete;
 
-  GeometryBuffer(GeometryBuffer&& other)
-    : vertex_dim_(other.vertex_dim_),
-      color_dim_(other.color_dim_),
-      normal_dim_(other.normal_dim_) {
+  GeometryBuffer(GeometryBuffer&& other) =  default;
 
-      vao_ = other.vao_;
-      vbo_ = other.vbo_;
-
-      other.vao_ = 0;
-      other.vbo_ = 0;
-  };
-
-  explicit GeometryBuffer(const std::vector<float>& raw_data,
+  GeometryBuffer(const std::vector<float>& raw_data,
                           unsigned int vertex_dim, unsigned int color_dim,
                           unsigned int normal_dim)
-      : vertex_dim_(vertex_dim),
-        color_dim_(color_dim),
-        normal_dim_(normal_dim) {
+    : vertex_dim_(vertex_dim), color_dim_(color_dim), normal_dim_(normal_dim) {
 
-    glGenVertexArrays(kBuffCount, &vao_);
-    glGenBuffers(kBuffCount, &vbo_);
+    unsigned int vertex_array_id = 0, vertex_buffer_id = 0;
+    glGenVertexArrays(kBuffCount, &vertex_array_id);
+    glGenBuffers(kBuffCount, &vertex_buffer_id);
+
+    VertexArray vertex_array_ptr{
+      reinterpret_cast<unsigned int*>(vertex_array_id),
+      VertexArrayDeleter{}};
+    vertex_array_ = std::move(vertex_array_ptr);
+
+    VertexBuffer vertex_buffer_ptr{
+      reinterpret_cast<unsigned int*>(vertex_buffer_id),
+      VertexBufferDeleter{}};
+    vertex_buffer_ = std::move(vertex_buffer_ptr);
 
     Bind();
-
     glBufferData(GL_ARRAY_BUFFER, raw_data.size() * sizeof(float),
                  raw_data.data(), GL_STATIC_DRAW);
-
     Unbind();
 
     if (glGetError()) {
@@ -50,8 +81,11 @@ class GeometryBuffer {
   }
 
   void Bind() const {
-    glBindVertexArray(vao_);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_);
+    unsigned int vertex_array_id = GetArrayId();
+    unsigned int vertex_buffer_id = GetBufferId();
+
+    glBindVertexArray(vertex_array_id);
+    glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer_id);
 
     if (glGetError()) {
       prog_error::ErrorInfo inf = {prog_error::ErrorCode::kGeomBuff,
@@ -99,44 +133,26 @@ class GeometryBuffer {
                  reinterpret_cast<void*>(offset * sizeof(float)));
   }
 
-  unsigned int GetVao() const { return vao_; }
+  unsigned int GetVao() const {
+    return GetArrayId();
+  }
 
-  unsigned int GetVbo() const { return vbo_; }
+  unsigned int GetVbo() const {
+    return GetBufferId();
+  }
 
   GeometryBuffer& operator=(const GeometryBuffer& other) = delete;
 
-  GeometryBuffer& operator=(GeometryBuffer&& other) {
-    if (this == &other) {
-      return *this;
-    }
+  GeometryBuffer& operator=(GeometryBuffer&& other) = default;
 
-    glDeleteBuffers(kBuffCount, &vbo_);
-    glDeleteVertexArrays(kBuffCount, &vao_);
-
-    vertex_dim_ = other.vertex_dim_;
-    color_dim_ = other.color_dim_;
-    normal_dim_ = other.normal_dim_;
-
-    vao_ = other.vao_;
-    vbo_ = other.vbo_;
-
-    other.vao_ = 0;
-    other.vbo_ = 0;
-
-    return *this;
-  };
-
-  ~GeometryBuffer() {
-    glDeleteBuffers(kBuffCount, &vbo_);
-    glDeleteVertexArrays(kBuffCount, &vao_);
-  }
+  ~GeometryBuffer() = default;
 
  private:
   unsigned int vertex_dim_ = 0;  // for one vertex
   unsigned int color_dim_ = 0;   // for one vertex
   unsigned int normal_dim_ = 0;  // for one vertex
-  unsigned int vao_ = 0;
-  unsigned int vbo_ = 0;
+  VertexArray vertex_array_;
+  VertexBuffer vertex_buffer_;
   static constexpr unsigned int kUnbind = 0;
   static constexpr unsigned int kBuffCount = 1;
   static constexpr unsigned int kStartIndex = 0;
@@ -155,6 +171,22 @@ class GeometryBuffer {
                                    "GeometryBuffer::SetAttribute"};
       throw prog_error::ProgError(std::move(inf));
     }
+  }
+
+  unsigned int GetBufferId() const {
+    std::uintptr_t vertex_buffer_id =
+      reinterpret_cast<std::uintptr_t>(vertex_buffer_.get());
+    unsigned int buffer_id = static_cast<unsigned int>(vertex_buffer_id);
+
+    return buffer_id;
+  }
+
+  unsigned int GetArrayId() const {
+    std::uintptr_t vertex_array_id =
+      reinterpret_cast<std::uintptr_t>(vertex_array_.get());
+    unsigned int array_id = static_cast<unsigned int>(vertex_array_id);
+
+    return array_id;
   }
 };
 

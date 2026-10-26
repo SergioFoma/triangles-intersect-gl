@@ -1,5 +1,4 @@
 set(BENCHMARK_SOURCES
-  ${CMAKE_SOURCE_DIR}/src/read_data.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/benchmark.cpp
 )
 

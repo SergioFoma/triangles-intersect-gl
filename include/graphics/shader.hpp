@@ -7,21 +7,38 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <memory>
 #include <string>
-#include <stdexcept>
+#include <utility>
+#include <cstdint>
 
 #include "prog_error.hpp"
+
+struct ShaderIdDeleter {
+  void operator()(std::uintptr_t* shader_id) const {
+    if (shader_id) {
+      glDeleteShader(reinterpret_cast<std::uintptr_t>(shader_id));
+    }
+  }
+};
+
+using ShaderId = std::unique_ptr<std::uintptr_t, ShaderIdDeleter>;
+
+struct ProgramIdDeleter {
+  void operator()(std::uintptr_t* program_id) const {
+    if (program_id) {
+      glDeleteProgram(reinterpret_cast<std::uintptr_t>(program_id));
+    }
+  }
+};
+
+using ProgramId = std::unique_ptr<std::uintptr_t, ProgramIdDeleter>;
 
 class Shader {
  public:
   Shader(const Shader& other) = delete;
 
-  Shader(Shader&& other)
-    : vertex_shader_(other.vertex_shader_),
-      fragment_shader_(other.fragment_shader_),
-      shader_program_(other.shader_program_) {
-      other.shader_program_ = 0;
-  };
+  Shader(Shader&& other) = default;
 
   Shader(const std::string& vert_path, const std::string& frag_path);
 
@@ -30,7 +47,8 @@ class Shader {
 
     assert(name_ptr);
 
-    int mat_loc = glGetUniformLocation(shader_program_, name_ptr);
+    std::uintptr_t sh_prog_id = reinterpret_cast<std::uintptr_t>(shader_program_.get());
+    int mat_loc = glGetUniformLocation(sh_prog_id, name_ptr);
     glUniformMatrix4fv(mat_loc, kOneMatrix, GL_FALSE, glm::value_ptr(mat));
 
     if (glGetError()) {
@@ -46,7 +64,8 @@ class Shader {
 
     assert(name_ptr);
 
-    int mat_loc = glGetUniformLocation(shader_program_, name_ptr);
+    std::uintptr_t sh_prog_id = reinterpret_cast<std::uintptr_t>(shader_program_.get());
+    int mat_loc = glGetUniformLocation(sh_prog_id, name_ptr);
     glUniformMatrix3fv(mat_loc, kOneMatrix, GL_FALSE, glm::value_ptr(mat));
 
     if (glGetError()) {
@@ -62,7 +81,8 @@ class Shader {
 
     assert(name_ptr);
 
-    int vec_loc = glGetUniformLocation(shader_program_, name_ptr);
+    std::uintptr_t sh_prog_id = reinterpret_cast<std::uintptr_t>(shader_program_.get());
+    int vec_loc = glGetUniformLocation(sh_prog_id, name_ptr);
     glUniform3fv(vec_loc, kOneVec, glm::value_ptr(vec));
 
     if (glGetError()) {
@@ -78,7 +98,8 @@ class Shader {
 
     assert(name_ptr);
 
-    int val_loc = glGetUniformLocation(shader_program_, name_ptr);
+    std::uintptr_t sh_prog_id = reinterpret_cast<std::uintptr_t>(shader_program_.get());
+    int val_loc = glGetUniformLocation(sh_prog_id, name_ptr);
     glUniform1f(val_loc, val);
 
     if (glGetError()) {
@@ -94,7 +115,8 @@ class Shader {
 
     assert(name_ptr);
 
-    int val_loc = glGetUniformLocation(shader_program_, name_ptr);
+    std::uintptr_t sh_prog_id = reinterpret_cast<std::uintptr_t>(shader_program_.get());
+    int val_loc = glGetUniformLocation(sh_prog_id, name_ptr);
     glUniform1i(val_loc, val);
 
     if (glGetError()) {
@@ -105,42 +127,42 @@ class Shader {
     }
   }
 
-  void Use() const { glUseProgram(shader_program_); }
+  void Use() const {
+    glUseProgram(reinterpret_cast<std::uintptr_t>(shader_program_.get()));
+  }
 
   void Disable() const { glUseProgram(kDisable); }
 
-  unsigned int GetVertexSh() const { return vertex_shader_; }
+  std::uintptr_t GetVertexSh() const {
+    return reinterpret_cast<std::uintptr_t>(vertex_shader_.get());
+  }
 
-  unsigned int GetFragmentSh() const { return fragment_shader_; }
+  std::uintptr_t GetFragmentSh() const {
+    return reinterpret_cast<std::uintptr_t>(fragment_shader_.get());
+  }
 
-  unsigned int GetShaderProg() const { return shader_program_; }
+  std::uintptr_t GetShaderProg() const {
+    return reinterpret_cast<std::uintptr_t>(shader_program_.get());
+  }
 
   Shader& operator=(const Shader& other) = delete;
 
-  Shader& operator=(Shader&& other) {
-    if (this == &other) {
-      return *this;
-    }
+  Shader& operator=(Shader&& other) = default;
 
-    glDeleteProgram(shader_program_);
-    shader_program_ = other.shader_program_;
-    other.shader_program_ = 0;
-
-    return *this;
-  };
-
-  ~Shader() { glDeleteProgram(shader_program_); }
+  ~Shader() = default;
 
  private:
-  unsigned int vertex_shader_ = 0;
-  unsigned int fragment_shader_ = 0;
-  unsigned int shader_program_ = 0;
+  ShaderId vertex_shader_;
+  ShaderId fragment_shader_;
+  ProgramId shader_program_;
   static constexpr unsigned int kLineCount = 1;
   static constexpr unsigned int kDisable = 0;
   static constexpr unsigned int kOneMatrix = 1;
   static constexpr unsigned int kOneVec = 1;
 
   std::string ReadShader(const std::string& file_path) const;
+
+  static ShaderId CreateShader(const char* shader_ptr, GLenum shader_type);
 
   unsigned int LinkShaders();
 };

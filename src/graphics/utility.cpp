@@ -11,8 +11,6 @@ const int kLowerLeftX = 0;
 const int kLowerLeftY = 0;
 
 void FrameBufferSizeCallback(GLFWwindow* win, int width, int height) {
-  assert(win);
-
   glViewport(kLowerLeftX, kLowerLeftY, width, height);
 
   int error_code = glGetError();
@@ -24,12 +22,11 @@ void FrameBufferSizeCallback(GLFWwindow* win, int width, int height) {
   }
 }
 
-void CallbackSettings(GLFWwindow* win) {
-  assert(win);
+void CallbackSettings(utility::Window& win) {
 
-  glfwSetFramebufferSizeCallback(win, FrameBufferSizeCallback);
+  glfwSetFramebufferSizeCallback(win.GetPtr(), FrameBufferSizeCallback);
 
-  glfwSetCursorPosCallback(win, utility::detail::MouseCallback);
+  glfwSetCursorPosCallback(win.GetPtr(), utility::detail::MouseCallback);
 
   int error_code = glGetError();
   if (error_code) {
@@ -41,18 +38,33 @@ void CallbackSettings(GLFWwindow* win) {
 }
 } // namespace
 
-GLFWwindow* utility::InitGraphics(const utility::WinConfig& win_con) {
-  utility::InitOpenGl(win_con);
+utility::Window::Window(const char* win_name, const WinConfig& win_config)
+   : width_(win_config.width), height_(win_config.height) {
 
-  GLFWwindow* win = utility::CreateWindow("triangle 3D", win_con);
+   glfwSwapInterval(kOn);
 
-  if (!win) {
+   monitor_ = InitMonitor();
+
+   video_ = InitVideo();
+
+  GLFWwindow* window = glfwCreateWindow(width_, height_, win_name, nullptr, nullptr);
+  if (!window) {
     utility::CleanResources();
     prog_error::ErrorInfo inf = {prog_error::ErrorCode::kUtility,
-                                   "Error of creating window",
-                                   "InitFraphics"};
+                                  "Error of creating window",
+                                  "Utility::Window"};
     throw prog_error::ProgError(std::move(inf));
   }
+  WindowPointer window_ptr{window, WindowDeleter{}};
+  window_ = std::move(window_ptr);
+  max_width_ = video_.get()->width;
+  max_height_ = video_.get()->height;
+}
+
+utility::Window utility::InitGraphics(const utility::WinConfig& win_con) {
+  utility::InitOpenGl(win_con);
+
+  utility::Window win = utility::CreateWindow("triangle 3D", win_con);
 
   if (utility::InitGlad() != utility::ErrorType::kCorrect) {
     utility::CleanResources();
@@ -65,6 +77,35 @@ GLFWwindow* utility::InitGraphics(const utility::WinConfig& win_con) {
   utility::ConfigureViewing(win);
 
   return win;
+}
+
+utility::Window::MonitorPointer utility::Window::InitMonitor() {
+
+  GLFWmonitor* primaryMonitor = glfwGetPrimaryMonitor();
+  if (!primaryMonitor) {
+    utility::CleanResources();
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kUtility,
+                                  "Error of geting primary monitor",
+                                  "Utility::Window"};
+    throw prog_error::ProgError(std::move(inf));
+  }
+  MonitorPointer monitor_ptr{primaryMonitor, MonitorDeleter{}};
+
+  return monitor_ptr;
+}
+
+utility::Window::VideoPointer utility::Window::InitVideo() {
+  const GLFWvidmode* videoMode = glfwGetVideoMode(monitor_.get());
+  if (!videoMode) {
+    utility::CleanResources();
+    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kUtility,
+                                "Error of geting video mode",
+                                "Utility::Window"};
+    throw prog_error::ProgError(std::move(inf));
+  }
+  VideoPointer video_ptr{videoMode, VideoDeleter{}};
+
+  return video_ptr;
 }
 
 void utility::InitOpenGl(const utility::WinConfig& win_con) {
@@ -80,29 +121,24 @@ void utility::InitOpenGl(const utility::WinConfig& win_con) {
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 }
 
-GLFWwindow* utility::CreateWindow(const char* win_name, const utility::WinConfig& win_con) {
+utility::Window utility::CreateWindow(const char* win_name, const utility::WinConfig& win_con) {
 
-  GLFWwindow* win =
-      glfwCreateWindow(win_con.width, win_con.height, win_name, nullptr, nullptr);
-  if (!win) {
-    std::cout << "glfwCreateWindow: window is nullptr!\n";
-  }
+  Window win(win_name, win_con);
 
-  glfwMakeContextCurrent(win);
+  glfwMakeContextCurrent(win.GetPtr());
 
   return win;
 }
 
-void utility::ConfigureViewing(GLFWwindow* win) {
-  assert(win);
+void utility::ConfigureViewing(utility::Window& win) {
 
   int phys_width = 0, phys_height = 0;
-  glfwGetFramebufferSize(win, &phys_width, &phys_height);
+  glfwGetFramebufferSize(win.GetPtr(), &phys_width, &phys_height);
 
   glViewport(0, 0, phys_width,
              phys_height);  // configuring the rendering window
 
-  glfwSetInputMode(win, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+  glfwSetInputMode(win.GetPtr(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
   glEnable(GL_DEPTH_TEST);
 

@@ -77,7 +77,7 @@ int main(int argc, char** argv) {
   };
 
   for (size_t ind = 0; ind < kTestsNumber; ++ind) {
-    triangles::TriangleArr triangles = reader::ReadData(input_data[ind]);
+    triangles::DoubleTriangleArray triangles = reader::ReadData(input_data[ind]);
     triangles::InterAnalyzer analyzer(triangles);
 
     std::vector<bool> intersect_status(triangles.size());

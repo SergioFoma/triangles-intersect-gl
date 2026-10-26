@@ -26,11 +26,21 @@ float last_mouse_x = 0.0F;
 float last_mouse_y = 0.0F;
 bool first_mouse = true;
 
-unsigned int LoadCubemap(const render::SkyboxConfig& skybox_con) {
+void SetTextureParameters() {
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+}
 
+render::TextureId LoadCubemap(const render::SkyboxConfig& skybox_con) {
   unsigned int texture_id = 0;
   glGenTextures(render::kOneTexture, &texture_id);
   glBindTexture(GL_TEXTURE_CUBE_MAP, texture_id);
+
+  render::TextureId texture_id_ptr(reinterpret_cast<unsigned int*>(texture_id),
+                                   render::TextureIdDeleter{});
 
   int width = 0, height = 0;
   int file_channels = 3;
@@ -49,21 +59,16 @@ unsigned int LoadCubemap(const render::SkyboxConfig& skybox_con) {
     stbi_image_free(data);
   }
 
-  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+  SetTextureParameters();
 
-  int error_code = glGetError();
-  if (error_code) {
+  if (glGetError()) {
     prog_error::ErrorInfo inf = {prog_error::ErrorCode::kRendering,
                                    "Error of load cubemap!",
                                    "LoadCubemap"};
     throw prog_error::ProgError(std::move(inf));
   }
 
-  return texture_id;
+  return texture_id_ptr;
 }
 
 
@@ -86,13 +91,13 @@ render::SkyboxData CreateSkyboxObj(const std::vector<float>& raw_data,
   skybox_obj.geom_buff->SetCoordinates(skybox_con.shader_con.position_loc);
   skybox_obj.geom_buff->Unbind();
 
-  unsigned int texture_id = LoadCubemap(skybox_con);
+  render::TextureId texture_id = LoadCubemap(skybox_con);
 
   skybox_obj.shader.Use();
   skybox_obj.shader.SetInt("skybox", 0);
   skybox_obj.shader.Disable();
 
-  render::SkyboxData skybox_data = {skybox_con, std::move(skybox_obj), texture_id};
+  render::SkyboxData skybox_data = {skybox_con, std::move(skybox_obj), std::move(texture_id)};
 
   int error_code = glGetError();
   if (error_code) {
@@ -224,7 +229,7 @@ void DrawSkybox(render::SkyboxData& skybox_data,
 
   skybox_obj.shader.Use();
   skybox_obj.geom_buff->Bind();
-  glBindTexture(GL_TEXTURE_CUBE_MAP, skybox_data.texture_id);
+  glBindTexture(GL_TEXTURE_CUBE_MAP, skybox_data.GetTextureId());
   UpdateSkybox(skybox_obj, camera);
   skybox_obj.geom_buff->Draw(GL_TRIANGLES, skybox_obj.start_pos, skybox_obj.count);
   skybox_obj.geom_buff->Unbind();
@@ -239,11 +244,26 @@ void DrawSkybox(render::SkyboxData& skybox_data,
   }
 }
 
-void ProcessInput(GLFWwindow* win, render::Camera& camera) {
-  assert(win);
+void MoveCamera(render::Camera& camera, utility::Window& win, float camera_speed) {
+ if (glfwGetKey(win.GetPtr(), GLFW_KEY_W) == GLFW_PRESS) {
+    camera.pos += camera_speed * camera.front;
+  }
+  if (glfwGetKey(win.GetPtr(), GLFW_KEY_S) == GLFW_PRESS) {
+    camera.pos -= camera_speed * camera.front;
+  }
+  if (glfwGetKey(win.GetPtr(), GLFW_KEY_A) == GLFW_PRESS) {
+    camera.pos +=
+        glm::normalize(glm::cross(camera.up, camera.front)) * camera_speed;
+  }
+  if (glfwGetKey(win.GetPtr(), GLFW_KEY_D) == GLFW_PRESS) {
+    camera.pos -=
+        glm::normalize(glm::cross(camera.up, camera.front)) * camera_speed;
+  }
+}
 
+void ProcessInput(utility::Window& win, render::Camera& camera) {
   float speed_coeff = 1.0F;
-  if (glfwGetKey(win, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
+  if (glfwGetKey(win.GetPtr(), GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
     speed_coeff = kSpeedCoeff;
   }
 
@@ -252,25 +272,21 @@ void ProcessInput(GLFWwindow* win, render::Camera& camera) {
   camera.last_frame = current_time;
   float camera_speed = speed_coeff * camera.speed * camera.delta_time;
 
-  if (glfwGetKey(win, GLFW_KEY_W) == GLFW_PRESS) {
-    camera.pos += camera_speed * camera.front;
+  MoveCamera(camera, win, camera_speed);
+
+  static bool old_key_f_status = false;
+  bool current_key_f_status = (glfwGetKey(win.GetPtr(), GLFW_KEY_F) == GLFW_PRESS);
+  if (!old_key_f_status && current_key_f_status) {
+    std::pair<int, int> win_size = win.Resize();
+    camera.SetPerspectiveMatrix(static_cast<float>(win_size.first)/
+                                static_cast<float>(win_size.second));
+    first_mouse = true;
   }
-  if (glfwGetKey(win, GLFW_KEY_S) == GLFW_PRESS) {
-    camera.pos -= camera_speed * camera.front;
-  }
-  if (glfwGetKey(win, GLFW_KEY_A) == GLFW_PRESS) {
-    camera.pos +=
-        glm::normalize(glm::cross(camera.up, camera.front)) * camera_speed;
-  }
-  if (glfwGetKey(win, GLFW_KEY_D) == GLFW_PRESS) {
-    camera.pos -=
-        glm::normalize(glm::cross(camera.up, camera.front)) * camera_speed;
-  }
+  old_key_f_status = current_key_f_status;
 
   camera.UpdateCameraMatrix();
 
-  int error_code = glGetError();
-  if (error_code) {
+  if (glGetError()) {
     prog_error::ErrorInfo inf = {prog_error::ErrorCode::kRendering,
                                    "Error of parse input data",
                                    "ProcessInput"};
@@ -279,18 +295,17 @@ void ProcessInput(GLFWwindow* win, render::Camera& camera) {
 }
 
 
-void RenderCycle(GLFWwindow* win, render::ShapesObject& shapes_obj,
+void RenderCycle(utility::Window& win, render::ShapesObject& shapes_obj,
                  const render::RenderConfig& render_con,
                  render::SkyboxData& skybox_data) {
-  assert(win);
 
   float back_r = 0.0F, back_g = 0.0F, back_b = 0.0F, alpha = 1.0F;
 
   render::Camera camera(render_con.camera_con);
 
-  glfwSetWindowUserPointer(win, &camera);  // save info about camera in window
+  glfwSetWindowUserPointer(win.GetPtr(), &camera);  // save info about camera in window
 
-  while (glfwGetKey(win, GLFW_KEY_ESCAPE) != GLFW_PRESS) {
+  while (glfwGetKey(win.GetPtr(), GLFW_KEY_ESCAPE) != GLFW_PRESS) {
     glClearColor(back_r, back_g, back_b, alpha);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -303,7 +318,7 @@ void RenderCycle(GLFWwindow* win, render::ShapesObject& shapes_obj,
     glDepthFunc(GL_LESS);
 
 
-    glfwSwapBuffers(win);
+    glfwSwapBuffers(win.GetPtr());
     glfwPollEvents();
 
     if (glGetError()) {
@@ -402,12 +417,11 @@ void ConfigureBuff(const std::shared_ptr<GeometryBuffer>& geom_buff_ptr,
 
 } // namespace
 
-render::ErrorType render::RenderTriangles(GLFWwindow* win,
+render::ErrorType render::RenderTriangles(utility::Window window,
                                   const render::ShapesNumber& shapes_number,
                                   const std::vector<float>& triangles,
                                   const render::RenderConfig& render_con,
                                   const render::SkyboxConfig& skybox_con) {
-  assert(win);
 
   std::shared_ptr<GeometryBuffer> geom_buff_ptr = std::make_shared<GeometryBuffer>(
      GeometryBuffer(triangles, kDimension,
@@ -425,7 +439,7 @@ render::ErrorType render::RenderTriangles(GLFWwindow* win,
                             std::move(line_obj)};
   render::SkyboxData skybox_data = CallSkyboxCreating(skybox_con);
 
-  RenderCycle(win, shapes_obj, render_con, skybox_data);
+  RenderCycle(window, shapes_obj, render_con, skybox_data);
 
   if (glGetError()) {
       prog_error::ErrorInfo inf = {prog_error::ErrorCode::kRendering,

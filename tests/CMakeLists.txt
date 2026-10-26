@@ -4,7 +4,6 @@ set(TEST_TARGET_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/inter_analyzer_test.cpp
 )
 set(END_TO_END_SOURCES
-  ${CMAKE_SOURCE_DIR}/src/read_data.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/end_to_end.cpp
 )
 

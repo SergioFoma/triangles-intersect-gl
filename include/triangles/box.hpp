@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <type_traits>
 
 #include "basics.hpp"
 #include "triangle.hpp"
@@ -10,25 +11,27 @@
 
 namespace triangles {
 
+template <typename T>
+requires std::is_floating_point_v<T>
 struct Box {
-  Point3D min_;
-  Point3D max_;
+  Point3D<T> min_;
+  Point3D<T> max_;
 
   Box() = default;
-  Box(const Point3D& min, const Point3D& max) : min_{min}, max_{max} {
+  Box(const Point3D<T>& min, const Point3D<T>& max) : min_{min}, max_{max} {
     if (!IsValid()) {
       prog_error::ErrorInfo inf = {.code=prog_error::ErrorCode::kBox,
                                    .err_msg="Non valid arguments in Box Ctor",
-                                   .func_name="Box::Box"};
+                                   .func_name="Box::Box",};
       throw prog_error::ProgError(std::move(inf));
     }
   }
 
-  explicit Box(const Triangle3D& triangle) {
+  explicit Box(const Triangle3D<T>& triangle) {
     if (!triangle.IsValid()) {
       prog_error::ErrorInfo inf = {.code=prog_error::ErrorCode::kBox,
                                    .err_msg="Non valid triangle in Box Ctor",
-                                   .func_name="Box::Box"};
+                                   .func_name="Box::Box",};
       throw prog_error::ProgError(std::move(inf));
     }
     min_ = {triangle.GetMinX(), triangle.GetMinY(), triangle.GetMinZ()};
