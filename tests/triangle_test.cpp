@@ -15,12 +15,12 @@ namespace {
 // Contact at an edge or vertex counts as intersection. Degenerate triangles
 // are accepted as points or closed segments spanning their vertices.
 
-using triangles::Point3D;
-using triangles::Triangle3D;
-using triangles::Vertices;
+using Point3D = triangles::Point3D<double>;
+using Triangle3D = triangles::Triangle3D<double>;
+using Vertices = triangles::Vertices<double>;
 
 TEST(Triangle3D, Initialize) {
-  const triangles::Vertices vertices{{{4, 2, 3}, {1, 2, 3}, {2, 5, 3}}};
+  const triangles::Vertices<double> vertices{{{4, 2, 3}, {1, 2, 3}, {2, 5, 3}}};
   const Triangle3D triangle{vertices[0], vertices[1], vertices[2]};
   EXPECT_TRUE(triangle.IsValid());
   EXPECT_DOUBLE_EQ(triangle.GetMinX(), 1);
@@ -36,7 +36,7 @@ TEST(Triangle3D, DefaultTriangleIsInvalid) {
 
 TEST(Triangle3D, RejectsInvalidVertices) {
   const double infinity = std::numeric_limits<double>::infinity();
-  EXPECT_THROW((Triangle3D{{0, 0, 0}, triangles::Point3D{}, {0, 1, 0}}),
+  EXPECT_THROW((Triangle3D{{0, 0, 0}, triangles::Point3D<>{}, {0, 1, 0}}),
                prog_error::ProgError);
   EXPECT_THROW((Triangle3D{{0, 0, 0}, {1, 0, 0}, {0, infinity, 0}}),
                prog_error::ProgError);
