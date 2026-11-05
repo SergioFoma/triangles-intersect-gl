@@ -6,7 +6,7 @@
 #include <vector>
 #include <cassert>
 
-#include "read_data.hpp"
+#include "reader.hpp"
 #include "prog_error.hpp"
 
 namespace {
@@ -53,10 +53,11 @@ void ComparingValues(const std::vector<bool>& intersect_status,
 }
 } // namespace
 
+using calc_type = double;
 int main(int argc, char** argv) {
 
   const char* bin_relative_path = argv[0];
-  const std::string materials_str = reader::GetAbsMaterials(bin_relative_path);
+  const std::string materials_str = reader::Reader<calc_type>::GetAbsMaterials(bin_relative_path);
 
   std::array<const std::string, kTestsNumber> input_data = {
     materials_str + "/triangles_100.txt",
@@ -77,8 +78,8 @@ int main(int argc, char** argv) {
   };
 
   for (size_t ind = 0; ind < kTestsNumber; ++ind) {
-    triangles::DoubleTriangleArray triangles = reader::ReadData(input_data[ind]);
-    triangles::InterAnalyzer analyzer(triangles);
+    triangles::TrianglesArray<calc_type> triangles = reader::Reader<calc_type>::Read(input_data[ind]);
+    triangles::InterAnalyzer<calc_type> analyzer(triangles);
 
     std::vector<bool> intersect_status(triangles.size());
     for (size_t i = 0; i < triangles.size(); ++i) {

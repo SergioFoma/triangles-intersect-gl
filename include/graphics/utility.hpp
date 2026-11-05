@@ -5,6 +5,8 @@
 #include <GLFW/glfw3.h>
 #include <memory>
 
+#include "configs.hpp"
+
 namespace utility {
 
 struct WindowDeleter {
@@ -25,20 +27,13 @@ using WindowPointer = std::unique_ptr<GLFWwindow, WindowDeleter>;
 
 enum class ErrorType { kCorrect, kError };
 
-struct WinConfig {
-  int width = 0;
-  int height = 0;
-  int major_version = 0;
-  int minor_version = 0;
-};
-
 class Window {
  public:
   Window(const Window* other) = delete;
 
   Window(Window&& other) = default;
 
-  Window(const char* win_name, const utility::WinConfig& win_config);
+  Window(const char* win_name, const config::WinConfig& win_config);
 
   Window& operator=(const Window& other) = delete;
 
@@ -74,7 +69,7 @@ class Window {
   using MonitorPointer = std::unique_ptr<GLFWmonitor, MonitorDeleter>;
   using VideoPointer = std::unique_ptr<const GLFWvidmode, VideoDeleter>;
 
-  WindowPointer window_ = nullptr;
+  WindowPointer window_;
   MonitorPointer monitor_;          // doesn't need clean resources
   VideoPointer video_;              // doesn't need clean resources
   int width_ = 0;
@@ -95,11 +90,11 @@ class Window {
   VideoPointer InitVideo();
 };
 
-Window InitGraphics(const utility::WinConfig& win_con);
+Window InitGraphics(const config::WinConfig& win_con);
 
-void InitOpenGl(const utility::WinConfig& win_con);
+void InitOpenGl(const config::WinConfig& win_con);
 
-Window CreateWindow(const char* win_name, const utility::WinConfig& win_con);
+Window CreateWindow(const char* win_name, const config::WinConfig& win_con);
 
 void ConfigureViewing(Window& win);
 

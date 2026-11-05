@@ -3,6 +3,9 @@ set(GRAPHICS_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/triangles_rendering.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/glad.c
 	${CMAKE_CURRENT_SOURCE_DIR}/shader.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/graphics_container.cpp
+    ${SRC}/configs.cpp
+    ${SRC}/configuring_paths.cpp
 )
 add_library(graphics STATIC ${GRAPHICS_SRC})
 target_link_libraries(graphics PUBLIC OpenGL::GL

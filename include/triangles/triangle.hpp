@@ -463,9 +463,17 @@ class Triangle3D {
 
 template<typename T>
 requires std::is_floating_point_v<T>
-using TriangleArray = std::vector<Triangle3D<T>>;
+using TrianglesArray = std::vector<Triangle3D<T>>;
 
-using DoubleTriangleArray = TriangleArray<double>;
+using DoubleTrianglesArray = TrianglesArray<double>;
+
+template<typename T>
+requires std::is_floating_point_v<T>
+using AxesArray = std::vector<Axis<T>>;
+
+template <typename T>
+requires std::is_floating_point_v<T>
+using TriangleType = triangles::Triangle3D<T>::TriangleType;
 }  // namespace triangles
 
 #endif  // TRIANGLES_TRIANGLE_HPP_

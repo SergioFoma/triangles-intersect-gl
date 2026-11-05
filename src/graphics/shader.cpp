@@ -5,7 +5,7 @@
 
 #include "prog_error.hpp"
 
-ShaderId Shader::CreateShader(const char* shader_ptr, GLenum shader_type) {
+shader::ShaderId shader::Shader::CreateShader(const char* shader_ptr, GLenum shader_type) {
   assert(shader_ptr);
 
   std::uintptr_t shader_id = glCreateShader(shader_type);
@@ -29,7 +29,7 @@ ShaderId Shader::CreateShader(const char* shader_ptr, GLenum shader_type) {
   return vert_shader;
 }
 
-Shader::Shader(const std::string& vert_path, const std::string& frag_path) {
+shader::Shader::Shader(const std::string& vert_path, const std::string& frag_path) {
   std::string vertex_str = ReadShader(vert_path);
   std::string frag_str = ReadShader(frag_path);
 
@@ -44,7 +44,7 @@ Shader::Shader(const std::string& vert_path, const std::string& frag_path) {
   LinkShaders();
 }
 
-std::string Shader::ReadShader(const std::string& file_path) const {
+std::string shader::Shader::ReadShader(const std::string& file_path) const {
   std::ifstream shader_config(file_path);
 
   if (!shader_config) {
@@ -70,7 +70,7 @@ std::string Shader::ReadShader(const std::string& file_path) const {
   return str;
 }
 
-unsigned int Shader::LinkShaders() {
+unsigned int shader::Shader::LinkShaders() {
   std::uintptr_t shader_program_id = glCreateProgram();
   ProgramId shader_program_ptr{reinterpret_cast<std::uintptr_t*>(shader_program_id),
                              ProgramIdDeleter{}};

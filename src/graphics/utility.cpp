@@ -38,7 +38,7 @@ void CallbackSettings(utility::Window& win) {
 }
 } // namespace
 
-utility::Window::Window(const char* win_name, const WinConfig& win_config)
+utility::Window::Window(const char* win_name, const config::WinConfig& win_config)
    : width_(win_config.width), height_(win_config.height) {
 
    glfwSwapInterval(kOn);
@@ -61,7 +61,7 @@ utility::Window::Window(const char* win_name, const WinConfig& win_config)
   max_height_ = video_.get()->height;
 }
 
-utility::Window utility::InitGraphics(const utility::WinConfig& win_con) {
+utility::Window utility::InitGraphics(const config::WinConfig& win_con) {
   utility::InitOpenGl(win_con);
 
   utility::Window win = utility::CreateWindow("triangle 3D", win_con);
@@ -108,7 +108,7 @@ utility::Window::VideoPointer utility::Window::InitVideo() {
   return video_ptr;
 }
 
-void utility::InitOpenGl(const utility::WinConfig& win_con) {
+void utility::InitOpenGl(const config::WinConfig& win_con) {
   /*
         GLFW_OPENGL_CORE_PROFILE - usu only modern function
         GL_TRUE                  - delete all old function
@@ -121,7 +121,7 @@ void utility::InitOpenGl(const utility::WinConfig& win_con) {
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 }
 
-utility::Window utility::CreateWindow(const char* win_name, const utility::WinConfig& win_con) {
+utility::Window utility::CreateWindow(const char* win_name, const config::WinConfig& win_con) {
 
   Window win(win_name, win_con);
 

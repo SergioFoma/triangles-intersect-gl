@@ -1,11 +1,9 @@
 #include "triangles_rendering.hpp"
 #include "geometry_buffer.hpp"
+#include "graphics_container.hpp"
 #include "utility.hpp"
 
 #include "glm/matrix.hpp"
-
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
 
 #include <cassert>
 #include <memory>
@@ -13,156 +11,16 @@
 #include <stdexcept>
 #include <iostream>
 
+#include "shapes.hpp"
+
 namespace {
-const int kDimension = 3;         // R^3 (x, y, z)
-const int kTrVertexes = 3;        // Point p_1, p_2, p_3
-const int kLineVertexes = 2;      // Point p_1, p_2
-const int kColors = 3;            // (r, g, b)
-const int kNormal = 3;            // (n_x, n_y, n_z)
-const int kSkyboxVer = 36;        // skybox vertexes number
-const unsigned int kBuffStartPos = 0;
 const float kSpeedCoeff = 2.0F;
 float last_mouse_x = 0.0F;
 float last_mouse_y = 0.0F;
 bool first_mouse = true;
 
-void SetTextureParameters() {
-  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-}
-
-render::TextureId LoadCubemap(const render::SkyboxConfig& skybox_con) {
-  unsigned int texture_id = 0;
-  glGenTextures(render::kOneTexture, &texture_id);
-  glBindTexture(GL_TEXTURE_CUBE_MAP, texture_id);
-
-  render::TextureId texture_id_ptr(reinterpret_cast<unsigned int*>(texture_id),
-                                   render::TextureIdDeleter{});
-
-  int width = 0, height = 0;
-  int file_channels = 3;
-  int level = 0, border = 0;
-
-  const std::vector<std::string>& texture_sides = skybox_con.texture_sides;
-  int sides_number = skybox_con.sides_number;
-
-  for (int ind = 0; ind < sides_number; ++ind) {
-    unsigned char* data = stbi_load(texture_sides[ind].c_str(), &width, &height,
-                                   &file_channels, STBI_rgb);
-    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + ind,
-                 level, GL_RGB, width, height, border, GL_RGB,
-                 GL_UNSIGNED_BYTE, data);
-
-    stbi_image_free(data);
-  }
-
-  SetTextureParameters();
-
-  if (glGetError()) {
-    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kRendering,
-                                   "Error of load cubemap!",
-                                   "LoadCubemap"};
-    throw prog_error::ProgError(std::move(inf));
-  }
-
-  return texture_id_ptr;
-}
-
-
-render::SkyboxData CreateSkyboxObj(const std::vector<float>& raw_data,
-                                     const render::SkyboxConfig& skybox_con) {
-
-  glm::mat4 model = glm::mat4(1.0F);
-  glm::mat4 normal_mat = glm::mat4(1.0F);
-
-  unsigned int no_colors = 0, no_normals = 0;
-
-  render::RenderObject skybox_obj = {
-    std::make_shared<GeometryBuffer>(raw_data, kDimension,
-                                     no_colors, no_normals),
-    Shader(skybox_con.shader_con.vert_path,
-                             skybox_con.shader_con.frag_path),
-    model, normal_mat, kBuffStartPos, kSkyboxVer};
-
-  skybox_obj.geom_buff->Bind();
-  skybox_obj.geom_buff->SetCoordinates(skybox_con.shader_con.position_loc);
-  skybox_obj.geom_buff->Unbind();
-
-  render::TextureId texture_id = LoadCubemap(skybox_con);
-
-  skybox_obj.shader.Use();
-  skybox_obj.shader.SetInt("skybox", 0);
-  skybox_obj.shader.Disable();
-
-  render::SkyboxData skybox_data = {skybox_con, std::move(skybox_obj), std::move(texture_id)};
-
-  int error_code = glGetError();
-  if (error_code) {
-    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kRendering,
-                                   "Error of creating SkyboxObj",
-                                   "CreateSkyboxObj"};
-    throw prog_error::ProgError(std::move(inf));
-  }
-
-  return skybox_data;
-}
-
-
-render::SkyboxData CallSkyboxCreating(const render::SkyboxConfig& skybox_con) {
-
-  std::vector<float> skybox_vertices = {
-        // positions
-        -1.0F,  1.0F, -1.0F,
-        -1.0F, -1.0F, -1.0F,
-         1.0F, -1.0F, -1.0F,
-         1.0F, -1.0F, -1.0F,
-         1.0F,  1.0F, -1.0F,
-        -1.0F,  1.0F, -1.0F,
-
-        -1.0F, -1.0F,  1.0F,
-        -1.0F, -1.0F, -1.0F,
-        -1.0F,  1.0F, -1.0F,
-        -1.0F,  1.0F, -1.0F,
-        -1.0F,  1.0F,  1.0F,
-        -1.0F, -1.0F,  1.0F,
-
-         1.0F, -1.0F, -1.0F,
-         1.0F, -1.0F,  1.0F,
-         1.0F,  1.0F,  1.0F,
-         1.0F,  1.0F,  1.0F,
-         1.0F,  1.0F, -1.0F,
-         1.0F, -1.0F, -1.0F,
-
-        -1.0F, -1.0F,  1.0F,
-        -1.0F,  1.0F,  1.0F,
-         1.0F,  1.0F,  1.0F,
-         1.0F,  1.0F,  1.0F,
-         1.0F, -1.0F,  1.0F,
-        -1.0F, -1.0F,  1.0F,
-
-        -1.0F,  1.0F, -1.0F,
-         1.0F,  1.0F, -1.0F,
-         1.0F,  1.0F,  1.0F,
-         1.0F,  1.0F,  1.0F,
-        -1.0F,  1.0F,  1.0F,
-        -1.0F,  1.0F, -1.0F,
-
-        -1.0F, -1.0F, -1.0F,
-        -1.0F, -1.0F,  1.0F,
-         1.0F, -1.0F, -1.0F,
-         1.0F, -1.0F, -1.0F,
-        -1.0F, -1.0F,  1.0F,
-         1.0F, -1.0F,  1.0F
-  };
-
-  return CreateSkyboxObj(skybox_vertices, skybox_con);
-}
-
-void UpdateShapePos(render::RenderObject& tr_obj, const render::Camera& camera,
-                 const render::LightConfig& light_con) {
+void UpdateShapePos(graphics::RenderObject& tr_obj, const graphics::Camera& camera,
+                 const config::LightConfig& light_con) {
 
   tr_obj.shader.SetMat4("model", tr_obj.model);
   tr_obj.shader.SetMat4("view", camera.view);
@@ -187,7 +45,7 @@ void UpdateShapePos(render::RenderObject& tr_obj, const render::Camera& camera,
   }
 }
 
-void UpdateSkybox(const render::RenderObject& skybox_obj, const render::Camera& camera) {
+void UpdateSkybox(const graphics::RenderObject& skybox_obj, const graphics::Camera& camera) {
 
   glm::mat4 view = glm::mat4(glm::mat3(camera.view));
 
@@ -203,14 +61,14 @@ void UpdateSkybox(const render::RenderObject& skybox_obj, const render::Camera& 
   }
 }
 
-void DrawShape(render::RenderObject& shape_obj, const render::Camera& camera,
-               const render::LightConfig& light_con, GLenum mode) {
+void DrawShape(graphics::RenderObject& shape_obj, const graphics::Camera& camera,
+               const config::LightConfig& light_con, GLenum mode) {
 
   shape_obj.shader.Use();
-  shape_obj.geom_buff->Bind();
+  shape_obj.geom_buff.Bind();
   UpdateShapePos(shape_obj, camera, light_con);
-  shape_obj.geom_buff->Draw(mode, shape_obj.start_pos, shape_obj.count);
-  shape_obj.geom_buff->Unbind();
+  shape_obj.geom_buff.Draw(mode, shape_obj.start_pos, shape_obj.count);
+  shape_obj.geom_buff.Unbind();
   shape_obj.shader.Disable();
 
   int error_code = glGetError();
@@ -222,17 +80,17 @@ void DrawShape(render::RenderObject& shape_obj, const render::Camera& camera,
   }
 }
 
-void DrawSkybox(render::SkyboxData& skybox_data,
-                const render::Camera& camera) {
+void DrawSkybox(graphics::SkyboxData& skybox_data,
+                const graphics::Camera& camera) {
 
-  render::RenderObject& skybox_obj = skybox_data.obj;
+  graphics::RenderObject& skybox_obj = skybox_data.obj;
 
   skybox_obj.shader.Use();
-  skybox_obj.geom_buff->Bind();
+  skybox_obj.geom_buff.Bind();
   glBindTexture(GL_TEXTURE_CUBE_MAP, skybox_data.GetTextureId());
   UpdateSkybox(skybox_obj, camera);
-  skybox_obj.geom_buff->Draw(GL_TRIANGLES, skybox_obj.start_pos, skybox_obj.count);
-  skybox_obj.geom_buff->Unbind();
+  skybox_obj.geom_buff.Draw(GL_TRIANGLES, skybox_obj.start_pos, skybox_obj.count);
+  skybox_obj.geom_buff.Unbind();
   skybox_obj.shader.Disable();
 
   int error_code = glGetError();
@@ -244,7 +102,7 @@ void DrawSkybox(render::SkyboxData& skybox_data,
   }
 }
 
-void MoveCamera(render::Camera& camera, utility::Window& win, float camera_speed) {
+void MoveCamera(graphics::Camera& camera, utility::Window& win, float camera_speed) {
  if (glfwGetKey(win.GetPtr(), GLFW_KEY_W) == GLFW_PRESS) {
     camera.pos += camera_speed * camera.front;
   }
@@ -261,7 +119,7 @@ void MoveCamera(render::Camera& camera, utility::Window& win, float camera_speed
   }
 }
 
-void ProcessInput(utility::Window& win, render::Camera& camera) {
+void ProcessInput(utility::Window& win, graphics::Camera& camera) {
   float speed_coeff = 1.0F;
   if (glfwGetKey(win.GetPtr(), GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
     speed_coeff = kSpeedCoeff;
@@ -295,151 +153,51 @@ void ProcessInput(utility::Window& win, render::Camera& camera) {
 }
 
 
-void RenderCycle(utility::Window& win, render::ShapesObject& shapes_obj,
-                 const render::RenderConfig& render_con,
-                 render::SkyboxData& skybox_data) {
+void RenderCycle(utility::Window& win,
+                 graphics::GraphicsContainer& graphics_container,
+                 const config::UserConfigs& configs) {
 
-  float back_r = 0.0F, back_g = 0.0F, back_b = 0.0F, alpha = 1.0F;
+  float black_r = 0.0F, black_g = 0.0F, black_b = 0.0F, alpha = 1.0F;
 
-  render::Camera camera(render_con.camera_con);
+  graphics::ShapesObject& shapes_obj = graphics_container.GetShapesObj();
+  graphics::Camera& camera = graphics_container.GetCamera();
 
   glfwSetWindowUserPointer(win.GetPtr(), &camera);  // save info about camera in window
 
-  while (glfwGetKey(win.GetPtr(), GLFW_KEY_ESCAPE) != GLFW_PRESS) {
-    glClearColor(back_r, back_g, back_b, alpha);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  glClearColor(black_r, black_g, black_b, alpha);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    ProcessInput(win, camera);
-    DrawShape(shapes_obj.tr_obj, camera, render_con.light_con, GL_TRIANGLES);
-    DrawShape(shapes_obj.point_obj, camera, render_con.light_con, GL_POINTS);
-    DrawShape(shapes_obj.line_obj, camera, render_con.light_con, GL_LINES);
-    glDepthFunc(GL_LEQUAL);
-    DrawSkybox(skybox_data, camera);
-    glDepthFunc(GL_LESS);
+  ProcessInput(win, camera);
+  DrawShape(shapes_obj.tr_obj, camera, configs.light_con, GL_TRIANGLES);
+  DrawShape(shapes_obj.point_obj, camera, configs.light_con, GL_POINTS);
+  DrawShape(shapes_obj.line_obj, camera, configs.light_con, GL_LINES);
+  glDepthFunc(GL_LEQUAL);
+  DrawSkybox(graphics_container.GetSkybox(), camera);
+  glDepthFunc(GL_LESS);
 
+  glfwSwapBuffers(win.GetPtr());
+  glfwPollEvents();
 
-    glfwSwapBuffers(win.GetPtr());
-    glfwPollEvents();
-
-    if (glGetError()) {
-      prog_error::ErrorInfo inf = {prog_error::ErrorCode::kRendering,
-                                   "Error of redeting cycle",
-                                   "RenderCycle"};
-      throw prog_error::ProgError(std::move(inf));
-    }
-  }
-}
-
-render::RenderObject CreateTriangleObj(const std::shared_ptr<GeometryBuffer>& geom_buff_ptr,
-                                       const render::ShaderConfig& shader_con,
-                                       const render::ShapesNumber& shapes_number) {
-  glm::mat4 model = glm::mat4(1.0F);  // init unit matrix
-
-  glm::mat3 normal_mat = glm::mat3(glm::transpose(glm::inverse(model)));
-
-  render::RenderObject tr_obj = {
-      geom_buff_ptr,
-      Shader(shader_con.vert_path, shader_con.frag_path),
-      model, normal_mat, kBuffStartPos,
-      shapes_number.triangles_number * kTrVertexes};
-
-  int error_code = glGetError();
-  if (error_code) {
+  if (glGetError()) {
     prog_error::ErrorInfo inf = {prog_error::ErrorCode::kRendering,
-                                   "Error of creating triangle object",
-                                   "CreateTrangleObj"};
+                                "Error of redeting cycle",
+                                "RenderCycle"};
     throw prog_error::ProgError(std::move(inf));
   }
-
-  return tr_obj;
-}
-
-render::RenderObject CreateLineObj(const std::shared_ptr<GeometryBuffer>& geom_buff_ptr,
-                                    const render::ShaderConfig& shader_con,
-                                    const render::ShapesNumber& shapes_number) {
-  glm::mat4 model = glm::mat4(1.0F);  // init unit matrix
-
-  glm::mat3 normal_mat = glm::mat4(1.0F);
-
-  render::RenderObject point_obj = {
-      geom_buff_ptr,
-      Shader(shader_con.vert_path, shader_con.frag_path),
-      model, normal_mat,
-      kBuffStartPos + shapes_number.triangles_number * kTrVertexes,
-      shapes_number.lines_number * kLineVertexes};
-
-  int error_code = glGetError();
-  if (error_code) {
-    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kRendering,
-                                   "Error of creating line object",
-                                   "CreateTrangleObj"};
-    throw prog_error::ProgError(std::move(inf));
-  }
-
-  return point_obj;
-}
-
-render::RenderObject CreatePointObj(const std::shared_ptr<GeometryBuffer>& geom_buff_ptr,
-                                      const render::ShaderConfig& shader_con,
-                                      const render::ShapesNumber& shapes_number) {
-  glm::mat4 model = glm::mat4(1.0F);  // init unit matrix
-
-  glm::mat3 normal_mat = glm::mat4(1.0F);
-
-  render::RenderObject line_obj = {
-      geom_buff_ptr,
-      Shader(shader_con.vert_path, shader_con.frag_path),
-      model, normal_mat,
-      kBuffStartPos + shapes_number.triangles_number * kTrVertexes
-      + shapes_number.lines_number * kLineVertexes,
-      shapes_number.points_number};
-
-  int error_code = glGetError();
-  if (error_code) {
-    prog_error::ErrorInfo inf = {prog_error::ErrorCode::kRendering,
-                                   "Error of creating point object",
-                                   "CreateTrangleObj"};
-    throw prog_error::ProgError(std::move(inf));
-  }
-
-  return line_obj;
-}
-
-void ConfigureBuff(const std::shared_ptr<GeometryBuffer>& geom_buff_ptr,
-                   const render::ShaderConfig& shader_con) {
-
-  geom_buff_ptr->Bind();
-  geom_buff_ptr->SetCoordinates(shader_con.position_loc);
-  geom_buff_ptr->SetColors(shader_con.color_loc);
-  geom_buff_ptr->SetNormal(shader_con.normal_loc);
-  geom_buff_ptr->Unbind();
 }
 
 } // namespace
 
-render::ErrorType render::RenderTriangles(utility::Window window,
-                                  const render::ShapesNumber& shapes_number,
-                                  const std::vector<float>& triangles,
-                                  const render::RenderConfig& render_con,
-                                  const render::SkyboxConfig& skybox_con) {
+render::ErrorType render::RenderTriangles(utility::Window& win,
+                                  video_buff::BufferManager& buff_manager,
+                                  graphics::GraphicsContainer& graphics_container,
+                                  const config::UserConfigs& configs,
+                                  const std::vector<float>& triangles) {
 
-  std::shared_ptr<GeometryBuffer> geom_buff_ptr = std::make_shared<GeometryBuffer>(
-     GeometryBuffer(triangles, kDimension,
-                    kColors, kNormal)
-  );
-  ConfigureBuff(geom_buff_ptr, render_con.tr_shader_con);
+  video_buff::GeometryBuffer& video_buff = buff_manager.GetVideoBuff();
+  video_buff.LoadData(triangles);
 
-  render::RenderObject tr_obj = CreateTriangleObj(geom_buff_ptr, render_con.tr_shader_con,
-                                                  shapes_number);
-  render::RenderObject line_obj = CreateLineObj(geom_buff_ptr, render_con.line_shader_con,
-                                                shapes_number);
-  render::RenderObject point_obj = CreatePointObj(geom_buff_ptr, render_con.point_shader_con,
-                                                shapes_number);
-  ShapesObject shapes_obj = {std::move(tr_obj), std::move(point_obj),
-                            std::move(line_obj)};
-  render::SkyboxData skybox_data = CallSkyboxCreating(skybox_con);
-
-  RenderCycle(window, shapes_obj, render_con, skybox_data);
+  RenderCycle(win, graphics_container, configs);
 
   if (glGetError()) {
       prog_error::ErrorInfo inf = {prog_error::ErrorCode::kRendering,
@@ -454,7 +212,7 @@ render::ErrorType render::RenderTriangles(utility::Window window,
 void utility::detail::MouseCallback(GLFWwindow* win, double xpos, double ypos) {
   assert(win);
 
-  render::Camera* camera_ptr = static_cast<render::Camera*>(glfwGetWindowUserPointer(win));
+  graphics::Camera* camera_ptr = static_cast<graphics::Camera*>(glfwGetWindowUserPointer(win));
 
   if (!camera_ptr) {
     return;
@@ -471,7 +229,7 @@ void utility::detail::MouseCallback(GLFWwindow* win, double xpos, double ypos) {
   last_mouse_x = xpos;
   last_mouse_y = ypos;
 
-  render::Camera& camera = *camera_ptr;
+  graphics::Camera& camera = *camera_ptr;
   camera.yaw += delta_x;
   camera.pitch += delta_y;
 

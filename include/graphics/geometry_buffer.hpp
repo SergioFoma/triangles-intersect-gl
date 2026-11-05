@@ -9,6 +9,10 @@
 #include <vector>
 
 #include "prog_error.hpp"
+#include "graphics/shader.hpp"
+#include "configs.hpp"
+
+namespace video_buff {
 
 struct VertexBufferDeleter {
   static constexpr int kBuffCount = 1;
@@ -48,9 +52,9 @@ class GeometryBuffer {
 
   GeometryBuffer(GeometryBuffer&& other) =  default;
 
-  GeometryBuffer(const std::vector<float>& raw_data,
-                          unsigned int vertex_dim, unsigned int color_dim,
-                          unsigned int normal_dim)
+  GeometryBuffer( unsigned int vertex_dim,
+                  unsigned int color_dim,
+                  unsigned int normal_dim)
     : vertex_dim_(vertex_dim), color_dim_(color_dim), normal_dim_(normal_dim) {
 
     unsigned int vertex_array_id = 0, vertex_buffer_id = 0;
@@ -66,18 +70,6 @@ class GeometryBuffer {
       reinterpret_cast<unsigned int*>(vertex_buffer_id),
       VertexBufferDeleter{}};
     vertex_buffer_ = std::move(vertex_buffer_ptr);
-
-    Bind();
-    glBufferData(GL_ARRAY_BUFFER, raw_data.size() * sizeof(float),
-                 raw_data.data(), GL_STATIC_DRAW);
-    Unbind();
-
-    if (glGetError()) {
-      prog_error::ErrorInfo inf = {prog_error::ErrorCode::kGeomBuff,
-                                   "Error of creating geom buffer",
-                                   "GeometryBuffer::GeometryBuffer"};
-      throw prog_error::ProgError(std::move(inf));
-    }
   }
 
   void Bind() const {
@@ -91,6 +83,21 @@ class GeometryBuffer {
       prog_error::ErrorInfo inf = {prog_error::ErrorCode::kGeomBuff,
                                    "Error of binding",
                                    "GeometryBuffer::Bind"};
+      throw prog_error::ProgError(std::move(inf));
+    }
+  }
+
+  void LoadData(const std::vector<float>& raw_data) {
+
+    Bind();
+    glBufferData(GL_ARRAY_BUFFER, raw_data.size() * sizeof(float),
+                raw_data.data(), GL_STATIC_DRAW);
+    Unbind();
+
+    if (glGetError()) {
+      prog_error::ErrorInfo inf = {prog_error::ErrorCode::kGeomBuff,
+                                  "Error of creating geom buffer",
+                                  "GeometryBuffer::GeometryBuffer"};
       throw prog_error::ProgError(std::move(inf));
     }
   }
@@ -189,5 +196,43 @@ class GeometryBuffer {
     return array_id;
   }
 };
+
+class BufferManager {
+ public:
+  explicit BufferManager(const config::ShaderConfig& tr_shader_con,
+                         const config::SkyboxConfig& skybox_con)
+    : video_buff_{kDimension, kColors, kNormal},
+      skybox_buff_{kDimension, kNoColors, kNoNormals} {
+
+    video_buff_.Bind();
+    video_buff_.SetCoordinates(tr_shader_con.position_loc);
+    video_buff_.SetColors(tr_shader_con.color_loc);
+    video_buff_.SetNormal(tr_shader_con.normal_loc);
+    video_buff_.Unbind();
+
+    skybox_buff_.Bind();
+    skybox_buff_.SetCoordinates(skybox_con.shader_con.position_loc);
+    skybox_buff_.Unbind();
+  }
+
+  GeometryBuffer& GetVideoBuff() {
+    return video_buff_;
+  }
+
+  GeometryBuffer& GetSkyboxBuff() {
+    return skybox_buff_;
+  }
+
+ private:
+  GeometryBuffer video_buff_;
+  GeometryBuffer skybox_buff_;
+
+  static constexpr int kNormal = 3;            // (n_x, n_y, n_z)
+  static constexpr int kDimension = 3;         // R^3 (x, y, z)
+  static constexpr int kColors = 3;            // (r, g, b)
+  static constexpr int kNoColors = 0;          // for skybox
+  static constexpr int kNoNormals = 0;         // for skybox
+};
+} // namespace video_buff
 
 #endif

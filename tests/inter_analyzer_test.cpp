@@ -7,10 +7,10 @@
 
 namespace {
 using triangles::InterAnalyzer;
-using triangles::DoubleTriangleArray;
+using triangles::DoubleTrianglesArray;
 using Triangle3D = triangles::Triangle3D<double>;
 
-void ExpectBruteForceStatuses(const InterAnalyzer<double>& analyzer, const DoubleTriangleArray& input) {
+void ExpectBruteForceStatuses(const InterAnalyzer<double>& analyzer, const DoubleTrianglesArray& input) {
   std::vector<bool> expected(input.size(), false);
   for (size_t i = 0; i < input.size(); ++i) {
     for (size_t j = i + 1; j < input.size(); ++j) {
@@ -23,13 +23,13 @@ void ExpectBruteForceStatuses(const InterAnalyzer<double>& analyzer, const Doubl
   EXPECT_THROW(analyzer.DoesIntersect(input.size()), prog_error::ProgError);
 }
 
-void ExpectBruteForce(const DoubleTriangleArray& input) {
+void ExpectBruteForce(const DoubleTrianglesArray& input) {
   ExpectBruteForceStatuses(InterAnalyzer{input}, input);
-  ExpectBruteForceStatuses(InterAnalyzer{DoubleTriangleArray(input)}, input);
+  ExpectBruteForceStatuses(InterAnalyzer{DoubleTrianglesArray(input)}, input);
 }
 
 TEST(InterAnalyzer, OriginalIndicesAcrossAllThreeAxes) {
-  DoubleTriangleArray input;
+  DoubleTrianglesArray input;
   for (int code : {7, 3, 5, 1, 6, 2, 4, 0}) {
     const double x = (code & 4) ? 4 : 0;
     const double y = (code & 2) ? 4 : 0;
@@ -42,14 +42,14 @@ TEST(InterAnalyzer, OriginalIndicesAcrossAllThreeAxes) {
 }
 
 TEST(InterAnalyzer, RejectsInvalidTriangle) {
-  EXPECT_THROW((InterAnalyzer{DoubleTriangleArray{Triangle3D{}}}), prog_error::ProgError);
+  EXPECT_THROW((InterAnalyzer{DoubleTrianglesArray{Triangle3D{}}}), prog_error::ProgError);
 }
 
 TEST(InterAnalyzer, DifferentTriangleSizesPreserveOriginalIndices) {
   const Triangle3D wide{{0, 0, 0}, {100, 0, 0}, {0, 100, 0}};
   const Triangle3D small{{1, 1, 0}, {2, 1, 0}, {1, 2, 0}};
-  const InterAnalyzer analyzer{DoubleTriangleArray{small, wide}};
-  ExpectBruteForceStatuses(analyzer, DoubleTriangleArray{small, wide});
+  const InterAnalyzer analyzer{DoubleTrianglesArray{small, wide}};
+  ExpectBruteForceStatuses(analyzer, DoubleTrianglesArray{small, wide});
 }
 
 TEST(InterAnalyzer, EmptyAndSingleton) {
@@ -58,7 +58,7 @@ TEST(InterAnalyzer, EmptyAndSingleton) {
 }
 
 TEST(InterAnalyzer, MarkedTrianglesRemainAvailableAsPartners) {
-  DoubleTriangleArray triangles;
+  DoubleTrianglesArray triangles;
   // Disjoint small triangles all intersect one large triangle.
   triangles.emplace_back(triangles::Point3D<>{0, 0, 0},
                          triangles::Point3D<>{100, 0, 0},
@@ -75,13 +75,13 @@ TEST(InterAnalyzer, MarkedTrianglesRemainAvailableAsPartners) {
 TEST(InterAnalyzer, EqualMortonCodes) {
   for (size_t count : {7, 8, 9, 16, 17, 65}) {
     SCOPED_TRACE(count);
-    ExpectBruteForce(DoubleTriangleArray(count, Triangle3D{{0, 0, 0}, {2, 0, 0}, {0, 2, 0}}));
+    ExpectBruteForce(DoubleTrianglesArray(count, Triangle3D{{0, 0, 0}, {2, 0, 0}, {0, 2, 0}}));
   }
 }
 
 TEST(InterAnalyzer, SeparatedAlongEachAxis) {
   for (size_t axis = 0; axis < 3; ++axis) {
-    DoubleTriangleArray input;
+    DoubleTrianglesArray input;
     for (int i = 0; i < 100; ++i) {
       double x = axis == 0 ? i * 3 : 0;
       double y = axis == 1 ? i * 3 : 0;
@@ -95,7 +95,7 @@ TEST(InterAnalyzer, SeparatedAlongEachAxis) {
 }
 
 TEST(InterAnalyzer, ContactsAndTolerance) {
-  DoubleTriangleArray input;
+  DoubleTrianglesArray input;
   for (int i = 0; i < 20; ++i) {
     double x = i * 4;
     input.emplace_back(triangles::Point3D<>{x, 0, 0},
@@ -110,7 +110,7 @@ TEST(InterAnalyzer, ContactsAndTolerance) {
 }
 
 TEST(InterAnalyzer, MortonOrderDoesNotPermitEarlyExitAlongX) {
-  const DoubleTriangleArray input{
+  const DoubleTrianglesArray input{
       Triangle3D{{0, 0, 0}, {1, 0, 0}, {0, 100, 0}},
       Triangle3D{{40, 0, 0}, {41, 0, 0}, {40, 1, 0}},
       Triangle3D{{0, 80, 0}, {0.1, 80, 0}, {0, 81, 0}},
@@ -129,7 +129,7 @@ TEST(InterAnalyzer, OriginalIndicesForSpatialAndFlatScenes) {
   // -1 is spatial; 0, 1, 2 fix the corresponding axis at a negative value.
   for (int flat_axis : {-1, 0, 1, 2}) {
     SCOPED_TRACE(flat_axis);
-    DoubleTriangleArray input;
+    DoubleTrianglesArray input;
     for (int i = 0; i < 2048; ++i) {
       std::array<double, 3> a{double(coordinate(rng)), double(coordinate(rng)),
                               double(coordinate(rng))};
@@ -151,7 +151,7 @@ TEST(InterAnalyzer, RandomScenesMatchAllPairs) {
   for (double size : {0.1, 2.0, 20.0}) {
     for (int scene = 0; scene < 10; ++scene) {
       SCOPED_TRACE(testing::Message() << "size=" << size << " scene=" << scene);
-      DoubleTriangleArray input;
+      DoubleTrianglesArray input;
       for (int i = 0; i < 150; ++i) {
         const double x = coordinate(rng), y = coordinate(rng), z = coordinate(rng);
         auto point = [&] {

@@ -3,7 +3,7 @@
 #include <string>
 
 #include "triangles/inter_analyzer.hpp"
-#include "read_data.hpp"
+#include "reader.hpp"
 
 using calc_type = double;
 namespace {
@@ -11,7 +11,7 @@ namespace {
 constexpr unsigned int kBenchmarkNumber = 6;
 
 void BmTrianglesIntersect(benchmark::State& state, const std::string& file_name) {
-  triangles::TriangleArray<calc_type> triangles = reader::ReadData<calc_type>(file_name);
+  triangles::TrianglesArray<calc_type> triangles = reader::Reader<calc_type>::Read(file_name);
 
   while (state.KeepRunning()) {
     triangles::InterAnalyzer analyzer(triangles);
@@ -24,7 +24,7 @@ void BmTrianglesIntersect(benchmark::State& state, const std::string& file_name)
 int main(int argc, char** argv) {
 
   const char* bin_relative_path = argv[0];
-  const std::string materials_str = reader::GetAbsMaterials(bin_relative_path);
+  const std::string materials_str = reader::Reader<calc_type>::GetAbsMaterials(bin_relative_path);
 
   std::array<const std::string, kBenchmarkNumber> input_data = {
     materials_str + "/triangles_100.txt",

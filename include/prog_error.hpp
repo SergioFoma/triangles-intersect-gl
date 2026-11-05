@@ -19,7 +19,8 @@ enum class ErrorCode {
   kReadData     = 9,
   kTest         = 10,
   kBasics       = 11,
-  kBox          = 12
+  kBox          = 12,
+  kUpdater      = 13
 };
 
 struct ErrorInfo {

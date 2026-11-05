@@ -223,6 +223,12 @@ requires std::is_floating_point_v<T> struct Line {
   }
 };
 
+template <typename T>
+struct Axis {
+  triangles::Point3D<T> p_1_;
+  triangles::Point3D<T> p_2_;
+};
+
 }  // namespace triangles
 
 #endif  // BASICS_HPP_

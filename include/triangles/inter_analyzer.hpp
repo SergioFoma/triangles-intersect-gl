@@ -23,7 +23,7 @@ template <typename T = double>
 requires std::is_floating_point_v<T>
 class InterAnalyzer {
  public:
-  explicit InterAnalyzer(const TriangleArray<T>& triangles)
+  explicit InterAnalyzer(const TrianglesArray<T>& triangles)
       : triangles_(triangles.size()) {
     for (size_t i = 0; i < triangles.size(); ++i) {
       triangles_[i] = {.triangle = triangles[i],

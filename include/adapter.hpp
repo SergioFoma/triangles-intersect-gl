@@ -7,10 +7,15 @@
 #include <memory>
 #include <utility>
 
-#include "basics.hpp"
+#include "graphics/graphics_container.hpp"
+#include "graphics/geometry_buffer.hpp"
+#include "graphics/utility.hpp"
+#include "graphics/triangles_rendering.hpp"
+
+#include "triangles/triangle.hpp"
+
 #include "prog_error.hpp"
-#include "triangles_rendering.hpp"
-#include "triangle.hpp"
+#include "configs.hpp"
 
 namespace adapter {
 
@@ -19,11 +24,7 @@ requires std::is_floating_point_v<T>
 class Adapter {
  public:
 
-  Adapter(utility::Window window,
-          const render::RenderConfig& render_con,
-          const render::SkyboxConfig& skybox_con)
-          : win_(std::move(window)), render_con_(render_con),
-            skybox_con_(skybox_con) {}
+  Adapter() = default;
 
   void ConvertShape(const triangles::Triangle3D<T>& triangle, bool intersect_status) {
 
@@ -31,24 +32,24 @@ class Adapter {
 
     const typename triangles::Triangle3D<T>::TriangleType& tr_type = triangle.GetTriangleType();
 
-    if (tr_type == triangles::Triangle3D<T>::TriangleType::kDefault) {
+    if (tr_type == triangles::TriangleType<T>::kDefault) {
       ConvertTriangle(triangle, intersect_status, normal);
-    } else if (tr_type == triangles::Triangle3D<T>::TriangleType::kLine) {
+    } else if (tr_type == triangles::TriangleType<T>::kLine) {
       ConvertLine(triangle, intersect_status, normal);
     } else {
       ConvertPoint(triangle, intersect_status, normal);
     }
   }
 
-  void Draw() {
-    render::ShapesNumber shapes_number = {
-        triangles_number_ + points_number_ + lines_number_,
-        triangles_number_, points_number_, lines_number_
-    };
+  void Draw(utility::Window& win,
+            video_buff::BufferManager& buff_manager,
+            graphics::GraphicsContainer& graphics_container,
+            const config::UserConfigs& configs) {
 
-    render::ErrorType error_code  = render::RenderTriangles(std::move(win_),
-                                    shapes_number, raw_data_,
-                                    render_con_, skybox_con_);
+    render::ErrorType error_code  = render::RenderTriangles(win, buff_manager,
+                                                            graphics_container,
+                                                            configs,
+                                                            raw_data_);
     if (error_code != render::ErrorType::kCorrect) {
       prog_error::ErrorInfo inf = {prog_error::ErrorCode::kAdapter,
                                      "Error of rendering triangles!",
@@ -57,7 +58,7 @@ class Adapter {
     }
   }
 
-  static void SortingByType(triangles::TriangleArray<T>& triangles) {
+  static void SortingByType(triangles::TrianglesArray<T>& triangles) {
     const auto comparator = [](const triangles::Triangle3D<T>& tr1,
                                  const triangles::Triangle3D<T>& tr2) {
       return static_cast<int>(tr1.GetTriangleType())
@@ -71,16 +72,9 @@ class Adapter {
  private:
 
   std::vector<float> raw_data_;
-  size_t triangles_number_ = 0;
-  size_t points_number_ = 0;
-  size_t lines_number_ = 0;
 
-  utility::Window win_;
-  render::RenderConfig render_con_;
-  render::SkyboxConfig skybox_con_;
-
-  static constexpr render::Color red_color_ = {1.0F, 0.0F, 0.0F};
-  static constexpr render::Color white_color_ = {1.0F, 1.0F, 1.0F};
+  static constexpr graphics::Color red_color_ = {1.0F, 0.0F, 0.0F};
+  static constexpr graphics::Color white_color_ = {1.0F, 1.0F, 1.0F};
 
   void ConvertTriangle(const triangles::Triangle3D<T>& triangle,
                        bool intersect_status, const glm::vec3& normal) {
@@ -88,8 +82,6 @@ class Adapter {
     ConvertVertex(triangle.GetFirstPoint(), intersect_status, normal);
     ConvertVertex(triangle.GetSecondPoint(), intersect_status, normal);
     ConvertVertex(triangle.GetThirdPoint(), intersect_status, normal);
-
-    ++triangles_number_;
   }
 
   void ConvertLine(const triangles::Triangle3D<T>& triangle,
@@ -109,15 +101,11 @@ class Adapter {
 
     ConvertVertex(ends.first, intersect_status, normal);
     ConvertVertex(ends.second, intersect_status, normal);
-
-    ++lines_number_;
   }
 
   void ConvertPoint(const triangles::Triangle3D<T>& triangle,
                        bool intersect_status, const glm::vec3& normal) {
     ConvertVertex(triangle.GetFirstPoint(), intersect_status, normal);
-
-    ++points_number_;
   }
 
   void ConvertPoint(const triangles::Point3D<T>& point) {
