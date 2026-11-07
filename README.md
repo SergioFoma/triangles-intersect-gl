@@ -17,23 +17,28 @@ Collaborator pr1usf0x.
 ## Структура проекта 📝
 
 ```
-├──📂triangles-intersect-gl
-│   ├──📂blue                     # png изображения с текстурами для skybox
-│   ├──📂include                  # заголовочные файлы проекта
-│   │   ├──📂graphics             # заголовочные файла для графики
-│   │   └──📂triangles            # заголовочные файлы для анализатора пересечений
-|   │   ├──📄adapter.hpp          # паттерн проектирования
-|   │   ├──📄read_data.hpp        # чтение входных данных из файла
-│   ├──📂src                      # исходники
-│   │   ├── graphics              # исходники для графики
-│   │   └── triangles             # исходники для анализатора пересечений
-|   │   ├──📄adapter.cpp          # паттерн проектирования
-|   │   ├──📄read_data.cpp        # чтение входных данных из файла
-|   │   ├──📄main.cpp             # программа пользователя
-|   │   ├──📄CMakeLists.txt       # cmake для сборки исходников
-│   ├── 📂resource                # дефолтные шейдеры и текстура
-│   └── 📂tests                   # исходники, реализующие тестирование
-│   ├──📄CMakeLists.txt           # cmake для сборки проекта
+├──📂benchmark                          # измерения скорости работы программы
+├──📄CMakeLists.txt                     # сборка проекта
+├──📂include                            # хедер файлы
+│   ├──📂triangles                      # нахождение пересечений
+│   ├──📂graphics                       # работа с графикой
+│   ├──📄adapter.hpp                    # паттерн проектирования 'адаптер'
+│   ├──📄configs.hpp                    # пользовательские конфиги
+│   ├──📄configuring_paths.hpp          # настройки файловыx путей
+│   ├──📄prog_error.hpp                 # собственный класс ошибок
+│   ├──📄reader.hpp                     # чтение входных данных
+│   ├──📄resources.hpp                  # поиск шейдеров и текстур
+│   ├──📄shapes.hpp                     # структура фигур
+│   └──📄updater.hpp                    # обновление координат треугольников
+├──📂src                                # файлы исходники
+│   ├──📄CMakeLists.txt                 # сборка всех исходников
+│   ├──📄configs.cpp                    # инициализация конфигов
+│   ├──📄configuring_paths.cpp          # настройки файловых путей
+│   ├──📄main.cpp                       # main
+│   ├──📂graphics                       # работа с графикой
+│   └──📂triangles                      # нахождение пересечений
+├──📂tests                              # тесты
+└──📄README.md
 ```
 
 ## Скачивание репозитория 👾
@@ -132,13 +137,13 @@ Build/bin/triangle_intersect -f materials/triangles_1000000.txt
 
 ## Запуск тестов ⚙
 
-Соберите проект с флагом ```-DBUILD_TESTING=true```:
+Соберите проект с флагом ```-DBUILD_TESTING=ON```:
 
 ```bash
-cmake -S . -B Build -DBUILD_TESTING=true
+cmake -S . -B Build -DBUILD_TESTING=ON
 ```
 
-Компиляции unit и end-to-end тестирования:
+Компиляции unit тестирования:
 
 ```bash
 cmake --build Build
@@ -150,16 +155,10 @@ cmake --build Build
 Build/bin/triangles_tests
 ```
 
-Запуск ```end-to-end тестов```:
-
-```bash
-Build/bin/end_to_end_testing
-```
-
 ## Запуск bench марков ⚙
 
 ```bash
-cmake -S . -B Build -DBUILD_BENCHMARK=true
+cmake -S . -B Build -DBUILD_BENCHMARK=ON
 ```
 
 Компиляция:

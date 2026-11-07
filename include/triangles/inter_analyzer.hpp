@@ -13,10 +13,10 @@
 #include <utility>
 #include <vector>
 
-#include "basics.hpp"
-#include "box.hpp"
+#include "triangles/basics.hpp"
+#include "triangles/box.hpp"
 #include "prog_error.hpp"
-#include "triangle.hpp"
+#include "triangles/triangle.hpp"
 
 namespace triangles {
 template <typename T = double>

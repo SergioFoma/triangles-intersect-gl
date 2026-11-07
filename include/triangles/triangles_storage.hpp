@@ -4,7 +4,6 @@
 #include <type_traits>
 #include <utility>
 
-#include "graphics/triangles_rendering.hpp"
 #include "triangles/triangle.hpp"
 #include "reader.hpp"
 #include "shapes.hpp"

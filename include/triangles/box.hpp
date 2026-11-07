@@ -5,8 +5,8 @@
 #include <cassert>
 #include <type_traits>
 
-#include "basics.hpp"
-#include "triangle.hpp"
+#include "triangles/basics.hpp"
+#include "triangles/triangle.hpp"
 #include "prog_error.hpp"
 
 namespace triangles {

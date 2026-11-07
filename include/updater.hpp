@@ -10,7 +10,7 @@
 
 #include <type_traits>
 
-#include "triangle.hpp"
+#include "triangles/triangle.hpp"
 #include "triangles/triangles_storage.hpp"
 
 namespace updater {

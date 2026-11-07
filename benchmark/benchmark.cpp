@@ -4,6 +4,8 @@
 
 #include "triangles/inter_analyzer.hpp"
 #include "reader.hpp"
+#include "configuring_paths.hpp"
+#include "updater.hpp"
 
 using calc_type = double;
 namespace {
@@ -11,10 +13,20 @@ namespace {
 constexpr unsigned int kBenchmarkNumber = 6;
 
 void BmTrianglesIntersect(benchmark::State& state, const std::string& file_name) {
-  triangles::TrianglesArray<calc_type> triangles = reader::Reader<calc_type>::Read(file_name);
+  reader::Reader<calc_type> obj_reader{file_name};
+
+  storage::TrianglesStorage<calc_type> tr_storage{obj_reader};
+
+  updater::Updater<calc_type> updater{glfwGetTime()};
 
   while (state.KeepRunning()) {
-    triangles::InterAnalyzer analyzer(triangles);
+    triangles::TrianglesArray<calc_type>& triangles = tr_storage.GetTriangles();
+
+    triangles::InterAnalyzer<calc_type> analyzer(triangles);
+
+    updater.Update(tr_storage);
+
+    benchmark::DoNotOptimize(triangles);
     benchmark::DoNotOptimize(analyzer);
   }
 }
@@ -24,7 +36,7 @@ void BmTrianglesIntersect(benchmark::State& state, const std::string& file_name)
 int main(int argc, char** argv) {
 
   const char* bin_relative_path = argv[0];
-  const std::string materials_str = reader::Reader<calc_type>::GetAbsMaterials(bin_relative_path);
+  const std::string materials_str = paths::GetAbsMaterials(bin_relative_path);
 
   std::array<const std::string, kBenchmarkNumber> input_data = {
     materials_str + "/triangles_100.txt",

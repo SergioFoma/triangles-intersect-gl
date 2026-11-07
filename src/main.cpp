@@ -5,8 +5,8 @@
 #include <unordered_map>
 
 #include "prog_error.hpp"
-#include "triangle.hpp"
-#include "triangles_storage.hpp"
+#include "triangles/triangle.hpp"
+#include "triangles/triangles_storage.hpp"
 #include "reader.hpp"
 #include "graphics_container.hpp"
 #include "configs.hpp"
@@ -14,23 +14,26 @@
 #include "updater.hpp"
 #include "triangles/inter_analyzer.hpp"
 
+#define INIT_CLI(argc, argv, input_path, resource_paths)                      \
+  do {                                                                        \
+    CLI::App app("Finding triangles intersection and rendering them");        \
+    argv = app.ensure_utf8(argv);                                             \
+    bool is_only_intersect = false;                                           \
+    app.add_option("-f,--input_file,input_name", input_path,                  \
+                   "The input data file")->required();                        \
+    app.add_option("-r,--resource", resource_paths, "The path to resource");  \
+    app.add_flag("--only-intersection-analysis", is_only_intersect,           \
+                 "Analyzes only intersection");                               \
+    CLI11_PARSE(app, argc, argv);                                             \
+  } while (false)
+
 using calc_type = float;
 
 int main(int argc, char** argv) {
   try {
-    CLI::App app("Finding triangles intersection and rendering them");
-    argv = app.ensure_utf8(argv);
     std::string input_path;
     std::string resource_paths;
-    bool is_only_intersect = false;
-    app.add_option("-f,--input_file,input_name", input_path,
-                   "The input data file")->required();
-    app.add_option("-r,--resource", resource_paths, "The path to resource");
-    app.add_flag("--only-intersection-analysis", is_only_intersect,
-                 "Analyzes only intersection");
-    CLI11_PARSE(app, argc, argv);
-
-    // =========================== LEVEL 2. Main Loop =============================================
+    INIT_CLI(argc, argv, input_path, resource_paths);
 
     const char* bin_paths = argv[0];
     config::UserConfigs user_configs{resource_paths, bin_paths};
@@ -70,7 +73,6 @@ int main(int argc, char** argv) {
 
       updater.Update(tr_storage);
     }
-    // ==============================================================================================
   } catch (const prog_error::ProgError& e) {
     const prog_error::ErrorInfo& info = e.GetErrorInfo();
     std::cerr << "Error in " << info.func_name << "\nLog: " << e.what() << '\n';

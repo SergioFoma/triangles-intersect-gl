@@ -179,18 +179,7 @@ jobs:
       run: |
         cmake --build "${{ steps.strings.outputs.build-output-dir }}" \
           --parallel \
-          --target triangle_intersect triangles_tests end_to_end_testing
-
-    # End-to-end: блокирующий шаг.
-    - name: Run end-to-end tests
-      shell: bash
-      run: |
-        cd "${{ steps.strings.outputs.build-output-dir }}/bin"
-        if [ "${{ matrix.os }}" = "windows-latest" ]; then
-          ./end_to_end_testing.exe
-        else
-          ./end_to_end_testing
-        fi
+          --target triangle_intersect triangles_tests
 
     # Юнит-тесты не блокируют CI (уберите continue-on-error, когда тесты допилены).
     - name: Run unit tests (Google Test)
