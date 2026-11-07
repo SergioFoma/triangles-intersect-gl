@@ -41,6 +41,10 @@ class Adapter {
     }
   }
 
+  void Clear() {
+    raw_data_.clear();
+  }
+
   void Draw(utility::Window& win,
             video_buff::BufferManager& buff_manager,
             graphics::GraphicsContainer& graphics_container,
