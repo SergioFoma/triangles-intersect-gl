@@ -9,6 +9,8 @@
 #include <GLFW/glfw3.h>
 
 #include <type_traits>
+#include "tbb/blocked_range.h"
+#include "tbb/parallel_for.h"
 
 #include "triangles/triangle.hpp"
 #include "triangles/triangles_storage.hpp"
@@ -35,14 +37,20 @@ class Updater {
     }
 
     double current_time = glfwGetTime();
-    for (size_t ind = 0; ind < obj_sz; ++ind) {
-      UpdateTr(triangles[ind], axes[ind], speeds[ind], current_time - last_frame_);
-    }
+
+    tbb::blocked_range<size_t> range{kRangeStart, triangles.size()};
+    tbb::parallel_for(range, [&](tbb::blocked_range<size_t> r) {
+      for (size_t ind = r.begin(); ind < r.end(); ++ind) {
+        UpdateTr(triangles[ind], axes[ind], speeds[ind], current_time - last_frame_);
+      }
+    });
     last_frame_ = current_time;
   }
 
  private:
   double last_frame_ = 0.0;
+
+  static constexpr size_t kRangeStart = 0;
 
   void UpdateTr(triangles::Triangle3D<T>& tr, const triangles::Axis<T>& axis,
                 const T& speed, double delta) {
