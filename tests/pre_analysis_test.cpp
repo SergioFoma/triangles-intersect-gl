@@ -2,15 +2,15 @@
 #include <array>
 #include <random>
 #include <gtest/gtest.h>
-#include "inter_analyzer.hpp"
+// #include "pre_analysis.hpp"
 #include "prog_error.hpp"
 
 namespace {
-using triangles::InterAnalyzer;
+using triangles::PreAnalysis;
 using triangles::DoubleTrianglesArray;
 using Triangle3D = triangles::Triangle3D<double>;
 
-void ExpectBruteForceStatuses(const InterAnalyzer<double>& analyzer, const DoubleTrianglesArray& input) {
+void ExpectBruteForceStatuses(const PreAnalysis<double>& analyzer, const DoubleTrianglesArray& input) {
   std::vector<bool> expected(input.size(), false);
   for (size_t i = 0; i < input.size(); ++i) {
     for (size_t j = i + 1; j < input.size(); ++j) {
@@ -24,11 +24,11 @@ void ExpectBruteForceStatuses(const InterAnalyzer<double>& analyzer, const Doubl
 }
 
 void ExpectBruteForce(const DoubleTrianglesArray& input) {
-  ExpectBruteForceStatuses(InterAnalyzer{input}, input);
-  ExpectBruteForceStatuses(InterAnalyzer{DoubleTrianglesArray(input)}, input);
+  ExpectBruteForceStatuses(PreAnalysis{input}, input);
+  ExpectBruteForceStatuses(PreAnalysis{DoubleTrianglesArray(input)}, input);
 }
 
-TEST(InterAnalyzer, OriginalIndicesAcrossAllThreeAxes) {
+TEST(PreAnalysis, OriginalIndicesAcrossAllThreeAxes) {
   DoubleTrianglesArray input;
   for (int code : {7, 3, 5, 1, 6, 2, 4, 0}) {
     const double x = (code & 4) ? 4 : 0;
@@ -41,23 +41,23 @@ TEST(InterAnalyzer, OriginalIndicesAcrossAllThreeAxes) {
   ExpectBruteForce(input);
 }
 
-TEST(InterAnalyzer, RejectsInvalidTriangle) {
-  EXPECT_THROW((InterAnalyzer{DoubleTrianglesArray{Triangle3D{}}}), prog_error::ProgError);
+TEST(PreAnalysis, RejectsInvalidTriangle) {
+  EXPECT_THROW((PreAnalysis{DoubleTrianglesArray{Triangle3D{}}}), prog_error::ProgError);
 }
 
-TEST(InterAnalyzer, DifferentTriangleSizesPreserveOriginalIndices) {
+TEST(PreAnalysis, DifferentTriangleSizesPreserveOriginalIndices) {
   const Triangle3D wide{{0, 0, 0}, {100, 0, 0}, {0, 100, 0}};
   const Triangle3D small{{1, 1, 0}, {2, 1, 0}, {1, 2, 0}};
-  const InterAnalyzer analyzer{DoubleTrianglesArray{small, wide}};
+  const PreAnalysis analyzer{DoubleTrianglesArray{small, wide}};
   ExpectBruteForceStatuses(analyzer, DoubleTrianglesArray{small, wide});
 }
 
-TEST(InterAnalyzer, EmptyAndSingleton) {
+TEST(PreAnalysis, EmptyAndSingleton) {
   ExpectBruteForce({});
   ExpectBruteForce({Triangle3D{{0, 0, 0}, {1, 0, 0}, {0, 1, 0}}});
 }
 
-TEST(InterAnalyzer, MarkedTrianglesRemainAvailableAsPartners) {
+TEST(PreAnalysis, MarkedTrianglesRemainAvailableAsPartners) {
   DoubleTrianglesArray triangles;
   // Disjoint small triangles all intersect one large triangle.
   triangles.emplace_back(triangles::Point3D<>{0, 0, 0},
@@ -72,14 +72,14 @@ TEST(InterAnalyzer, MarkedTrianglesRemainAvailableAsPartners) {
   ExpectBruteForce(triangles);
 }
 
-TEST(InterAnalyzer, EqualMortonCodes) {
+TEST(PreAnalysis, EqualMortonCodes) {
   for (size_t count : {7, 8, 9, 16, 17, 65}) {
     SCOPED_TRACE(count);
     ExpectBruteForce(DoubleTrianglesArray(count, Triangle3D{{0, 0, 0}, {2, 0, 0}, {0, 2, 0}}));
   }
 }
 
-TEST(InterAnalyzer, SeparatedAlongEachAxis) {
+TEST(PreAnalysis, SeparatedAlongEachAxis) {
   for (size_t axis = 0; axis < 3; ++axis) {
     DoubleTrianglesArray input;
     for (int i = 0; i < 100; ++i) {
@@ -94,7 +94,7 @@ TEST(InterAnalyzer, SeparatedAlongEachAxis) {
   }
 }
 
-TEST(InterAnalyzer, ContactsAndTolerance) {
+TEST(PreAnalysis, ContactsAndTolerance) {
   DoubleTrianglesArray input;
   for (int i = 0; i < 20; ++i) {
     double x = i * 4;
@@ -109,13 +109,13 @@ TEST(InterAnalyzer, ContactsAndTolerance) {
   ExpectBruteForce(input);
 }
 
-TEST(InterAnalyzer, MortonOrderDoesNotPermitEarlyExitAlongX) {
+TEST(PreAnalysis, MortonOrderDoesNotPermitEarlyExitAlongX) {
   const DoubleTrianglesArray input{
       Triangle3D{{0, 0, 0}, {1, 0, 0}, {0, 100, 0}},
       Triangle3D{{40, 0, 0}, {41, 0, 0}, {40, 1, 0}},
       Triangle3D{{0, 80, 0}, {0.1, 80, 0}, {0, 81, 0}},
       Triangle3D{{99, 0, 0}, {100, 0, 0}, {99, 1, 0}}};
-  const InterAnalyzer analyzer{input};
+  const PreAnalysis analyzer{input};
   const std::vector<bool> expected{true, false, true, false};
   for (size_t i = 0; i < input.size(); ++i) {
     EXPECT_EQ(analyzer.DoesIntersect(i), expected[i]);
@@ -123,7 +123,7 @@ TEST(InterAnalyzer, MortonOrderDoesNotPermitEarlyExitAlongX) {
   ExpectBruteForce(input);
 }
 
-TEST(InterAnalyzer, OriginalIndicesForSpatialAndFlatScenes) {
+TEST(PreAnalysis, OriginalIndicesForSpatialAndFlatScenes) {
   std::mt19937 rng(67890);
   std::uniform_int_distribution<int> coordinate(-1024, 1024);
   // -1 is spatial; 0, 1, 2 fix the corresponding axis at a negative value.
@@ -145,7 +145,7 @@ TEST(InterAnalyzer, OriginalIndicesForSpatialAndFlatScenes) {
   }
 }
 
-TEST(InterAnalyzer, RandomScenesMatchAllPairs) {
+TEST(PreAnalysis, RandomScenesMatchAllPairs) {
   std::mt19937 rng(12345);
   std::uniform_real_distribution<double> coordinate(-10, 10);
   for (double size : {0.1, 2.0, 20.0}) {

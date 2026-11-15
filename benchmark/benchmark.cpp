@@ -2,7 +2,7 @@
 #include <array>
 #include <string>
 
-#include "triangles/inter_analyzer.hpp"
+#include "triangles/pre_analysis.hpp"
 #include "reader.hpp"
 #include "configuring_paths.hpp"
 #include "updater.hpp"
@@ -22,7 +22,7 @@ void BmTrianglesIntersect(benchmark::State& state, const std::string& file_name)
   while (state.KeepRunning()) {
     triangles::TrianglesArray<calc_type>& triangles = tr_storage.GetTriangles();
 
-    triangles::InterAnalyzer<calc_type> analyzer(triangles);
+    triangles::PreAnalysis<calc_type> analyzer(triangles);
 
     updater.Update(tr_storage);
 

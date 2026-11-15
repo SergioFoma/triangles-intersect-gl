@@ -123,12 +123,12 @@ class Reader {
     return triangle;
   }
 
-  static triangles::Axis<T> ReadAxis(std::istream& in) {
+  static triangles::Line<T> ReadAxis(std::istream& in) {
 
     triangles::Point3D<T> p_1 = ReadPoint(in);
     triangles::Point3D<T> p_2 = ReadPoint(in);
 
-    triangles::Axis<T> axis{p_1, p_2};
+    triangles::Line<T> axis{p_1, p_2};
 
     return axis;
   }

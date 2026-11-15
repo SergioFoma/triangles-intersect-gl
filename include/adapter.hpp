@@ -3,38 +3,39 @@
 
 #include <tbb/parallel_sort.h>
 #include <algorithm>
-#include <type_traits>
-#include <vector>
+#include <atomic>
 #include <memory>
+#include <type_traits>
 #include <utility>
+#include <vector>
 
-#include "graphics/graphics_container.hpp"
 #include "graphics/geometry_buffer.hpp"
-#include "graphics/utility.hpp"
+#include "graphics/graphics_container.hpp"
 #include "graphics/triangles_rendering.hpp"
+#include "graphics/utility.hpp"
 
+#include "triangles/pre_analysis.hpp"
 #include "triangles/triangles_storage.hpp"
-#include "triangles/inter_analyzer.hpp"
 
-#include "prog_error.hpp"
 #include "configs.hpp"
+#include "prog_error.hpp"
 
 namespace adapter {
 
 template <typename T = double>
-requires std::is_floating_point_v<T>
-class Adapter {
+requires std::is_floating_point_v<T> class Adapter {
  public:
-
   explicit Adapter(storage::TrianglesStorage<T>& storage)
-    : raw_data_(storage.GetShapesNumber().triangles_number * kTrianglePoints * kPointDim +
-                storage.GetShapesNumber().lines_number * kLinePoints * kPointDim +
-                storage.GetShapesNumber().points_number * kPointDim) {
+      : raw_data_(storage.GetShapesNumber().triangles_number * kTrianglePoints *
+                      kPointDim +
+                  storage.GetShapesNumber().lines_number * kLinePoints *
+                      kPointDim +
+                  storage.GetShapesNumber().points_number * kPointDim) {
 
     const auto comparator = [](const triangles::Triangle3D<T>& tr1,
-                                 const triangles::Triangle3D<T>& tr2) {
-      return static_cast<int>(tr1.GetTriangleType())
-      < static_cast<int>(tr2.GetTriangleType());
+                               const triangles::Triangle3D<T>& tr2) {
+      return static_cast<int>(tr1.GetTriangleType()) <
+             static_cast<int>(tr2.GetTriangleType());
     };
 
     triangles::TrianglesArray<T>& triangles = storage.GetTriangles();
@@ -42,13 +43,14 @@ class Adapter {
   }
 
   void ConvertShapes(triangles::TrianglesArray<T>& triangles,
-                     const triangles::InterAnalyzer<T>& analyzer,
+                     const std::vector<std::atomic_bool>& predicates,
                      const shapes::ShapesNumber& shapes_num) {
 
     tbb::blocked_range<size_t> range{0, shapes_num.shapes_number};
     tbb::parallel_for(range, [&](tbb::blocked_range<size_t> r) {
       for (size_t ind = r.begin(); ind < r.end(); ++ind) {
-        ConvertShape(triangles[ind], shapes_num, analyzer.DoesIntersect(ind), ind);
+        ConvertShape(triangles[ind], shapes_num,
+                     predicates[ind].load(std::memory_order_relaxed), ind);
       }
     });
   }
@@ -76,31 +78,28 @@ class Adapter {
     }
   }
 
-  void Draw(utility::Window& win,
-            video_buff::BufferManager& buff_manager,
+  void Draw(utility::Window& win, video_buff::BufferManager& buff_manager,
             graphics::GraphicsContainer& graphics_container,
             const config::UserConfigs& configs) {
 
-    render::ErrorType error_code  = render::RenderTriangles(win, buff_manager,
-                                                            graphics_container,
-                                                            configs,
-                                                            raw_data_);
+    render::ErrorType error_code = render::RenderTriangles(
+        win, buff_manager, graphics_container, configs, raw_data_);
     if (error_code != render::ErrorType::kCorrect) {
       prog_error::ErrorInfo inf = {prog_error::ErrorCode::kAdapter,
-                                     "Error of rendering triangles!",
-                                     "Adapter::ConvertTriangle"};
+                                   "Error of rendering triangles!",
+                                   "Adapter::ConvertTriangle"};
       throw prog_error::ProgError(std::move(inf));
     }
   }
- private:
 
+ private:
   std::vector<float> raw_data_;
 
   static constexpr graphics::Color red_color_ = {1.0F, 0.0F, 0.0F};
   static constexpr graphics::Color white_color_ = {1.0F, 1.0F, 1.0F};
-  static constexpr size_t kPointDim = 9;   // (x, y, z, r, g, b, n_x, n_y, n_z)
-  static constexpr size_t kTrianglePoints = 3; // triangle has 3 points
-  static constexpr size_t kLinePoints = 2;     // line has 2 points
+  static constexpr size_t kPointDim = 9;  // (x, y, z, r, g, b, n_x, n_y, n_z)
+  static constexpr size_t kTrianglePoints = 3;  // triangle has 3 points
+  static constexpr size_t kLinePoints = 2;      // line has 2 points
 
   void ConvertTriangle(const triangles::Triangle3D<T>& triangle,
                        bool intersect_status, const glm::vec3& normal,
@@ -123,9 +122,12 @@ class Adapter {
     T dist_2 = triangles::Point3D<T>::Distance(p_3, p_2);
     T dist_3 = triangles::Point3D<T>::Distance(p_1, p_3);
 
-    if (dist_1 > dist_2 && dist_1 > dist_3)      ends = {p_1, p_2};
-    else if (dist_2 > dist_1 && dist_2 > dist_3) ends = {p_3, p_2};
-    else ends = {p_1, p_3};
+    if (dist_1 > dist_2 && dist_1 > dist_3)
+      ends = {p_1, p_2};
+    else if (dist_2 > dist_1 && dist_2 > dist_3)
+      ends = {p_3, p_2};
+    else
+      ends = {p_1, p_3};
 
     ConvertVertex(ends.first, intersect_status, normal, raw_ind);
     ConvertVertex(ends.second, intersect_status, normal, raw_ind);
@@ -149,7 +151,7 @@ class Adapter {
       raw_data_[raw_ind++] = red_color_.g;
       raw_data_[raw_ind++] = red_color_.b;
 
-      return ;
+      return;
     }
 
     raw_data_[raw_ind++] = white_color_.r;
@@ -162,18 +164,19 @@ class Adapter {
     triangles::Surface<T> surface = triangle.GetSurface();
     triangles::Point3D<T>& norm = surface.norm_;
 
-    if (triangle.GetTriangleType() != triangles::Triangle3D<T>::TriangleType::kDefault) {
+    if (triangle.GetTriangleType() !=
+        triangles::Triangle3D<T>::TriangleType::kDefault) {
       norm = {0.0F, 0.0F, 0.0F};
     }
 
     glm::vec3 normal = {norm.x_, norm.y_, norm.z_};
 
-   return normal;
+    return normal;
   }
 
   void AddNormal(const glm::vec3& normal, size_t& raw_ind) {
     raw_data_[raw_ind++] = normal.x;
-    raw_data_[raw_ind++]= normal.y;
+    raw_data_[raw_ind++] = normal.y;
     raw_data_[raw_ind++] = normal.z;
   }
 
@@ -184,7 +187,6 @@ class Adapter {
     AddNormal(normal, raw_ind);
   }
 };
-} // namespace adapter
-
+}  // namespace adapter
 
 #endif

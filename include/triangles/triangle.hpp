@@ -102,7 +102,7 @@ class Triangle3D {
     assert(other.IsValid());
     assert(IsValid());
 
-    T metric = std::hypot(metric_, other.metric_);
+    T metric = Point3D<T>{metric_, other.metric_, T{0}}.GetModule();
 
     switch (type_) {
       case TriangleType::kDefault:
@@ -362,8 +362,7 @@ class Triangle3D {
     for (size_t i = 0; i < 3; ++i) {
       Point3D<T> side_vector =
           other.vertices_[(i + 1) % 3] - other.vertices_[i];
-      T side_length =
-          std::hypot(side_vector.x_, side_vector.y_, side_vector.z_);
+      T side_length = side_vector.GetModule();
       side_vector = side_vector / side_length;
       Point3D<T> normal_to_side = side_vector.Cross(surface.norm_);
       T dist = normal_to_side.Dot(point - other.vertices_[i]);
@@ -469,7 +468,7 @@ using DoubleTrianglesArray = TrianglesArray<double>;
 
 template<typename T>
 requires std::is_floating_point_v<T>
-using AxesArray = std::vector<Axis<T>>;
+using AxesArray = std::vector<Line<T>>;
 
 template <typename T>
 requires std::is_floating_point_v<T>
