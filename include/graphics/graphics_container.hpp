@@ -121,7 +121,7 @@ struct SkyboxData {
 
 class GraphicsContainer {
  public:
-  GraphicsContainer(const shapes::ShapesNumber& shapes_number,          // how to get at the start of program ?
+  GraphicsContainer(const shapes::ShapesNumber& shapes_number,
                     const config::UserConfigs& user_configs,
                     video_buff::BufferManager& buffer_manager)
     : shapes_obj_{
@@ -138,11 +138,6 @@ class GraphicsContainer {
       skybox_data_{CallSkyboxCreating(buffer_manager.GetSkyboxBuff(),
                                       user_configs.skybox_con)},
       camera_{user_configs.camera_con} {}
-
-    //shapes_obj_ = {std::move(tr_obj), std::move(point_obj), std::move(line_obj)};
-
-    //skybox_data_ = CallSkyboxCreating(buffer_manager.GetSkyboxBuff(),
-    //                                  user_configs.skybox_con);
 
   ShapesObject& GetShapesObj() {
     return shapes_obj_;

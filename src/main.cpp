@@ -53,9 +53,7 @@ int main(int argc, char** argv) {
 
     updater::Updater<calc_type> updater{glfwGetTime()};
 
-    adapter::Adapter<calc_type>::SortingByType(tr_storage.GetTriangles());
-
-    adapter::Adapter<calc_type> adapter;
+    adapter::Adapter<calc_type> adapter{tr_storage};
 
     while (glfwGetTime() < obj_reader.GetTotalTime() &&
            glfwGetKey(window.GetPtr(), GLFW_KEY_ESCAPE) != GLFW_PRESS) {
@@ -64,13 +62,7 @@ int main(int argc, char** argv) {
 
       triangles::InterAnalyzer<calc_type> analyzer(triangles);
 
-      adapter.Clear();
-
-      size_t shapes_number = tr_storage.GetShapesNumber().shapes_number;
-      for (size_t ind = 0; ind < shapes_number; ++ind) {
-        adapter.ConvertShape(triangles[ind], analyzer.DoesIntersect(ind));
-      }
-
+      adapter.ConvertShapes(triangles, analyzer, tr_storage.GetShapesNumber());
       adapter.Draw(window, buffer_manager, graphics_container, user_configs);
 
       updater.Update(tr_storage);
