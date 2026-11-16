@@ -15,6 +15,7 @@
 #include "graphics/utility.hpp"
 
 #include "triangles/pre_analysis.hpp"
+#include "triangles/triangle.hpp"
 #include "triangles/triangles_storage.hpp"
 
 #include "configs.hpp"
@@ -30,27 +31,37 @@ requires std::is_floating_point_v<T> class Adapter {
                       kPointDim +
                   storage.GetShapesNumber().lines_number * kLinePoints *
                       kPointDim +
-                  storage.GetShapesNumber().points_number * kPointDim) {
+                  storage.GetShapesNumber().points_number * kPointDim),
+        index_maps_(storage.GetShapesNumber().shapes_number) {
 
-    const auto comparator = [](const triangles::Triangle3D<T>& tr1,
-                               const triangles::Triangle3D<T>& tr2) {
-      return static_cast<int>(tr1.GetTriangleType()) <
-             static_cast<int>(tr2.GetTriangleType());
+    const triangles::TrianglesArray<T>& triangles = storage.GetTriangles();
+
+    tbb::blocked_range<size_t> range{0, index_maps_.size()};
+    tbb::parallel_for(range, [&](tbb::blocked_range<size_t> r) {
+      for (size_t ind = r.begin(); ind < r.end(); ++ind) {
+        index_maps_[ind] = IndexMap{ind, triangles[ind].GetTriangleType()};
+      }
+    });
+
+    const auto comparator = [](const IndexMap& first_map,
+                               const IndexMap& second_map) {
+      return static_cast<int>(first_map.type) <
+             static_cast<int>(second_map.type);
     };
 
-    triangles::TrianglesArray<T>& triangles = storage.GetTriangles();
-    tbb::parallel_sort(triangles.begin(), triangles.end(), comparator);
+    tbb::parallel_sort(index_maps_.begin(), index_maps_.end(), comparator);
   }
 
-  void ConvertShapes(triangles::TrianglesArray<T>& triangles,
+  void ConvertShapes(const triangles::TrianglesArray<T>& triangles,
                      const std::vector<std::atomic_bool>& predicates,
                      const shapes::ShapesNumber& shapes_num) {
 
     tbb::blocked_range<size_t> range{0, shapes_num.shapes_number};
     tbb::parallel_for(range, [&](tbb::blocked_range<size_t> r) {
       for (size_t ind = r.begin(); ind < r.end(); ++ind) {
-        ConvertShape(triangles[ind], shapes_num,
-                     predicates[ind].load(std::memory_order_relaxed), ind);
+        size_t origin_ind = index_maps_[ind].origin_ind;
+        ConvertShape(triangles[origin_ind], shapes_num,
+                     predicates[origin_ind].load(std::memory_order_relaxed), ind);
       }
     });
   }
@@ -93,7 +104,14 @@ requires std::is_floating_point_v<T> class Adapter {
   }
 
  private:
+
+  struct IndexMap{
+    size_t origin_ind = 0;
+    triangles::TriangleType<T> type;
+  };
+
   std::vector<float> raw_data_;
+  std::vector<IndexMap> index_maps_;
 
   static constexpr graphics::Color red_color_ = {1.0F, 0.0F, 0.0F};
   static constexpr graphics::Color white_color_ = {1.0F, 1.0F, 1.0F};

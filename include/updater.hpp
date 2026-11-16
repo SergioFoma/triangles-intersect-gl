@@ -21,7 +21,20 @@ namespace updater {
 template <typename T>
 requires std::is_floating_point_v<T> class Updater {
  public:
-  explicit Updater(double current_time) : last_frame_{current_time} {};
+  explicit Updater(storage::TrianglesStorage<T>& tr_storage,
+                   double current_time)
+    : initial_pos_(tr_storage.GetShapesNumber().shapes_number),
+      init_frame_{current_time} {
+
+    const triangles::TrianglesArray<T>& triangles = tr_storage.GetTriangles();
+
+    tbb::blocked_range<size_t> range{kRangeStart, initial_pos_.size()};
+    tbb::parallel_for(range, [&](tbb::blocked_range<size_t> r) {
+      for (size_t ind = r.begin(); ind < r.end(); ++ind) {
+        initial_pos_[ind] = triangles[ind];
+      }
+    });
+  };
 
   void Update(storage::TrianglesStorage<T>& tr_storage) {
     auto& triangles = tr_storage.GetTriangles();
@@ -41,25 +54,27 @@ requires std::is_floating_point_v<T> class Updater {
       throw prog_error::ProgError(std::move(inf));
     }
 
-    double current_time = glfwGetTime();
+    double delta = glfwGetTime() - init_frame_;
 
     tbb::blocked_range<size_t> range{kRangeStart, triangles.size()};
     tbb::parallel_for(range, [&](tbb::blocked_range<size_t> r) {
       for (size_t ind = r.begin(); ind < r.end(); ++ind) {
-        UpdateTr(triangles[ind], axes[ind], speeds[ind],
-                 current_time - last_frame_, predicates[ind]);
+        UpdateTr(triangles[ind], initial_pos_[ind],
+                 axes[ind], speeds[ind],
+                 delta, predicates[ind]);
       }
     });
-    last_frame_ = current_time;
   }
 
  private:
-  double last_frame_ = 0.0;
+  triangles::TrianglesArray<T> initial_pos_;
+  double init_frame_ = 0.0;
 
   static constexpr size_t kRangeStart = 0;
 
-  void UpdateTr(triangles::Triangle3D<T>& tr, const triangles::Line<T>& axis,
-                const T& speed, T delta, std::atomic_bool& predicate) {
+  void UpdateTr(triangles::Triangle3D<T>& tr, const triangles::Triangle3D<T>& init_pos,
+                const triangles::Line<T>& axis, const T& speed,
+                T delta, std::atomic_bool& predicate) {
 
     const auto convert_to_radians = [](T grades) {
       const T half_angle = T{180};
@@ -68,11 +83,11 @@ requires std::is_floating_point_v<T> class Updater {
     };
     const T angle = convert_to_radians(speed * delta);
     const triangles::Point3D<T> new_first_p =
-        axis.RotatePoint(tr.GetFirstPoint(), angle);
+        axis.RotatePoint(init_pos.GetFirstPoint(), angle);
     const triangles::Point3D<T> new_second_p =
-        axis.RotatePoint(tr.GetSecondPoint(), angle);
+        axis.RotatePoint(init_pos.GetSecondPoint(), angle);
     const triangles::Point3D<T> new_third_p =
-        axis.RotatePoint(tr.GetThirdPoint(), angle);
+        axis.RotatePoint(init_pos.GetThirdPoint(), angle);
     predicate.store(false, std::memory_order_relaxed);
 
     tr = triangles::Triangle3D<T>{new_first_p, new_second_p, new_third_p};

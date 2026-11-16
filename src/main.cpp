@@ -58,7 +58,7 @@ int main(int argc, char** argv) {
     graphics::GraphicsContainer graphics_container{
         tr_storage.GetShapesNumber(), user_configs, buffer_manager};
 
-    updater::Updater<calc_type> updater{glfwGetTime()};
+    updater::Updater<calc_type> updater{tr_storage, glfwGetTime()};
 
     adapter::Adapter<calc_type> adapter{tr_storage};
 
