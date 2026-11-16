@@ -51,10 +51,10 @@ config::SkyboxConfig config::UserConfigs::CreateSkyboxConfig(const resource::Res
   unsigned int sides_number = 6;
   unsigned int triangles_number = 36;
 
-  ShaderConfig shader_con = {resource.skybox_vert, resource.skybox_frag,
+  ShaderConfig shader_con = {resource.GetSkyboxVert(), resource.GetSkyboxFrag(),
                              0, 1, 2};
 
-  SkyboxConfig skybox_con = {resource.texture_sides, sides_number,
+  SkyboxConfig skybox_con = {resource.GetTextureSides(), sides_number,
                              triangles_number, shader_con};
 
   return skybox_con;

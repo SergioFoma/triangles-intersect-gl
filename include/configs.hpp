@@ -64,16 +64,8 @@ struct RenderConfig {
 
 // =============================================================
 
-struct UserConfigs {
-  config::WinConfig win_con;
-  config::LightConfig light_con;
-  config::CameraConfig camera_con;
-  config::ShaderConfig tr_shader_con;
-  config::ShaderConfig point_shader_con;
-  config::ShaderConfig line_shader_con;
-  config::SkyboxConfig skybox_con;
-  config::RenderConfig render_con;
-
+class UserConfigs {
+ public:
   UserConfigs(const std::string& resource_paths, const char* bin_paths) {
     std::string target_paths;
 
@@ -86,21 +78,55 @@ struct UserConfigs {
     const resource::TextureMap& texture_map = resource::CreateTextureMap();
     resource::Resource resource(target_paths, texture_map);
 
-    win_con = CreateWinConfig();
-    light_con = CreateLightConfig();
-    camera_con = CreateCameraConfig(win_con);
-    tr_shader_con = CreateShaderConfig(
-        resource, resource.triangle_vert, resource.triangle_frag);
-    point_shader_con =
-        CreateShaderConfig(resource, resource.point_vert, resource.point_frag);
-    line_shader_con =
-        CreateShaderConfig(resource, resource.line_vert, resource.line_frag);
-    skybox_con = CreateSkyboxConfig(resource);
-    render_con = {camera_con, light_con, tr_shader_con,
-                                      point_shader_con, line_shader_con};
+    win_con_ = CreateWinConfig();
+    light_con_ = CreateLightConfig();
+    camera_con_ = CreateCameraConfig(win_con_);
+    tr_shader_con_ = CreateShaderConfig(
+        resource, resource.GetTriangleVert(), resource.GetTriangleFrag());
+    point_shader_con_ =
+        CreateShaderConfig(resource, resource.GetPointVert(), resource.GetPointFrag());
+    line_shader_con_ =
+        CreateShaderConfig(resource, resource.GetLineVert(), resource.GetLineFrag());
+    skybox_con_ = CreateSkyboxConfig(resource);
+    render_con_ = {camera_con_, light_con_, tr_shader_con_,
+                                      point_shader_con_, line_shader_con_};
+  }
+
+  const config::WinConfig& GetWinCon() const {
+    return win_con_;
+  }
+  const config::LightConfig& GetLightCon() const {
+    return light_con_;
+  }
+  const config::CameraConfig& GetCameraCon() const {
+    return camera_con_;
+  }
+  const config::ShaderConfig& GetTrShCon() const {
+    return tr_shader_con_;
+  }
+  const config::ShaderConfig& GetPointShCon() const {
+    return point_shader_con_;
+  }
+  const config::ShaderConfig& GetLineShCon() const {
+    return line_shader_con_;
+  }
+  const config::SkyboxConfig& GetSkyboxCon() const {
+    return skybox_con_;
+  }
+  const config::RenderConfig& GetRenderCon() const {
+    return render_con_;
   }
 
  private:
+  config::WinConfig win_con_;
+  config::LightConfig light_con_;
+  config::CameraConfig camera_con_;
+  config::ShaderConfig tr_shader_con_;
+  config::ShaderConfig point_shader_con_;
+  config::ShaderConfig line_shader_con_;
+  config::SkyboxConfig skybox_con_;
+  config::RenderConfig render_con_;
+
   LightConfig CreateLightConfig();
 
   CameraConfig CreateCameraConfig(const WinConfig& win_con);

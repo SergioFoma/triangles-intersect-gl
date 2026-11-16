@@ -44,15 +44,15 @@ int main(int argc, char** argv) {
     const char* bin_paths = argv[0];
     config::UserConfigs user_configs{resource_paths, bin_paths};
 
-    utility::Window window = utility::InitGraphics(user_configs.win_con);
+    utility::Window window = utility::InitGraphics(user_configs.GetWinCon());
 
     reader::Reader<calc_type> obj_reader{input_path};
 
     storage::TrianglesStorage<calc_type> tr_storage{obj_reader};
 
     video_buff::BufferManager buffer_manager{
-        user_configs.tr_shader_con,
-        user_configs.skybox_con,
+        user_configs.GetTrShCon(),
+        user_configs.GetSkyboxCon(),
     };
 
     graphics::GraphicsContainer graphics_container{

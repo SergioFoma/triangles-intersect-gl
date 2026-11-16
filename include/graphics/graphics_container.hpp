@@ -126,18 +126,18 @@ class GraphicsContainer {
                     video_buff::BufferManager& buffer_manager)
     : shapes_obj_{
         CreateTriangleObj(buffer_manager.GetVideoBuff(),
-                                user_configs.tr_shader_con,
+                                user_configs.GetTrShCon(),
                                 shapes_number),
         CreateLineObj(buffer_manager.GetVideoBuff(),
-                              user_configs.line_shader_con,
+                              user_configs.GetLineShCon(),
                               shapes_number),
         CreatePointObj(buffer_manager.GetVideoBuff(),
-                                user_configs.point_shader_con,
+                                user_configs.GetPointShCon(),
                                 shapes_number)
       },
       skybox_data_{CallSkyboxCreating(buffer_manager.GetSkyboxBuff(),
-                                      user_configs.skybox_con)},
-      camera_{user_configs.camera_con} {}
+                                      user_configs.GetSkyboxCon())},
+      camera_{user_configs.GetCameraCon()} {}
 
   ShapesObject& GetShapesObj() {
     return shapes_obj_;

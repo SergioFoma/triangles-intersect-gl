@@ -168,9 +168,9 @@ void RenderCycle(utility::Window& win,
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   ProcessInput(win, camera);
-  DrawShape(shapes_obj.tr_obj, camera, configs.light_con, GL_TRIANGLES);
-  DrawShape(shapes_obj.point_obj, camera, configs.light_con, GL_POINTS);
-  DrawShape(shapes_obj.line_obj, camera, configs.light_con, GL_LINES);
+  DrawShape(shapes_obj.tr_obj, camera, configs.GetLightCon(), GL_TRIANGLES);
+  DrawShape(shapes_obj.point_obj, camera, configs.GetLightCon(), GL_POINTS);
+  DrawShape(shapes_obj.line_obj, camera, configs.GetLightCon(), GL_LINES);
   glDepthFunc(GL_LEQUAL);
   DrawSkybox(graphics_container.GetSkybox(), camera);
   glDepthFunc(GL_LESS);
