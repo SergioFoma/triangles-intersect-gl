@@ -90,17 +90,13 @@ class Window {
   VideoPointer InitVideo();
 };
 
-Window InitGraphics(const config::WinConfig& win_con);
-
-void InitOpenGl(const config::WinConfig& win_con);
+Window InitWindow(const config::WinConfig& win_con);
 
 Window CreateWindow(const char* win_name, const config::WinConfig& win_con);
 
 void ConfigureViewing(Window& win);
 
 utility::ErrorType InitGlad();
-
-void CleanResources();
 
 namespace detail {
 void MouseCallback(GLFWwindow* win, double xpos, double ypos);

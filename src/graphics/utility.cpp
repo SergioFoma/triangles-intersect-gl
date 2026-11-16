@@ -49,7 +49,6 @@ utility::Window::Window(const char* win_name, const config::WinConfig& win_confi
 
   GLFWwindow* window = glfwCreateWindow(width_, height_, win_name, nullptr, nullptr);
   if (!window) {
-    utility::CleanResources();
     prog_error::ErrorInfo inf = {prog_error::ErrorCode::kUtility,
                                   "Error of creating window",
                                   "Utility::Window"};
@@ -61,13 +60,11 @@ utility::Window::Window(const char* win_name, const config::WinConfig& win_confi
   max_height_ = video_.get()->height;
 }
 
-utility::Window utility::InitGraphics(const config::WinConfig& win_con) {
-  utility::InitOpenGl(win_con);
+utility::Window utility::InitWindow(const config::WinConfig& win_con) {
 
   utility::Window win = utility::CreateWindow("triangle 3D", win_con);
 
   if (utility::InitGlad() != utility::ErrorType::kCorrect) {
-    utility::CleanResources();
     prog_error::ErrorInfo inf = {prog_error::ErrorCode::kUtility,
                                    "Error of init glad",
                                    "InitGraphics"};
@@ -83,7 +80,6 @@ utility::Window::MonitorPointer utility::Window::InitMonitor() {
 
   GLFWmonitor* primaryMonitor = glfwGetPrimaryMonitor();
   if (!primaryMonitor) {
-    utility::CleanResources();
     prog_error::ErrorInfo inf = {prog_error::ErrorCode::kUtility,
                                   "Error of geting primary monitor",
                                   "Utility::Window"};
@@ -97,7 +93,6 @@ utility::Window::MonitorPointer utility::Window::InitMonitor() {
 utility::Window::VideoPointer utility::Window::InitVideo() {
   const GLFWvidmode* videoMode = glfwGetVideoMode(monitor_.get());
   if (!videoMode) {
-    utility::CleanResources();
     prog_error::ErrorInfo inf = {prog_error::ErrorCode::kUtility,
                                 "Error of geting video mode",
                                 "Utility::Window"};
@@ -106,19 +101,6 @@ utility::Window::VideoPointer utility::Window::InitVideo() {
   VideoPointer video_ptr{videoMode, VideoDeleter{}};
 
   return video_ptr;
-}
-
-void utility::InitOpenGl(const config::WinConfig& win_con) {
-  /*
-        GLFW_OPENGL_CORE_PROFILE - usu only modern function
-        GL_TRUE                  - delete all old function
-  */
-
-  glfwInit();
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, win_con.major_version);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, win_con.minor_version);
-  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-  glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 }
 
 utility::Window utility::CreateWindow(const char* win_name, const config::WinConfig& win_con) {
@@ -152,8 +134,4 @@ utility::ErrorType utility::InitGlad() {
   }
 
   return utility::ErrorType::kCorrect;
-}
-
-void utility::CleanResources() {
-  glfwTerminate();  // cleaning resources
 }

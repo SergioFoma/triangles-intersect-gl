@@ -9,7 +9,8 @@
 
 #include "adapter.hpp"
 #include "configs.hpp"
-#include "graphics_container.hpp"
+#include "graphics/graphics_container.hpp"
+#include "graphics/glfw_session.hpp"
 #include "pre_analysis.hpp"
 #include "prog_error.hpp"
 #include "reader.hpp"
@@ -44,7 +45,9 @@ int main(int argc, char** argv) {
     const char* bin_paths = argv[0];
     config::UserConfigs user_configs{resource_paths, bin_paths};
 
-    utility::Window window = utility::InitGraphics(user_configs.GetWinCon());
+    glfw::GlfwSession glfw_session{user_configs.GetWinCon()};
+
+    utility::Window window = utility::InitWindow(user_configs.GetWinCon());
 
     reader::Reader<calc_type> obj_reader{input_path};
 
@@ -89,8 +92,6 @@ int main(int argc, char** argv) {
   } catch (const prog_error::ProgError& e) {
     const prog_error::ErrorInfo& info = e.GetErrorInfo();
     std::cerr << "Error in " << info.func_name << "\nLog: " << e.what() << '\n';
-    utility::CleanResources();
     return static_cast<int>(info.code);
   }
-  utility::CleanResources();
 }
