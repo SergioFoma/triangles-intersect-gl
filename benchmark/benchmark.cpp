@@ -2,9 +2,11 @@
 #include <array>
 #include <string>
 
-#include "triangles/pre_analysis.hpp"
 #include "reader.hpp"
 #include "configuring_paths.hpp"
+
+#include "triangles/pre_analysis.hpp"
+#include "triangles/frame_analysis.hpp"
 #include "triangles/rotation_updater.hpp"
 
 using calc_type = double;
@@ -17,17 +19,18 @@ void BmTrianglesIntersect(benchmark::State& state, const std::string& file_name)
 
   triangles::TrianglesStorage<calc_type> tr_storage{obj_reader};
 
+  triangles::PreAnalyzer<calc_type> pre_analyzer;
+  tr_storage.AcceptExternal(pre_analyzer);
+
+  triangles::FrameAnalyzer<calc_type> frame_analyzer;
+
   triangles::RotationUpdater<calc_type> updater{glfwGetTime()};
 
   while (state.KeepRunning()) {
-    triangles::TrianglesArray<calc_type>& triangles = tr_storage.GetTriangles();
 
-    triangles::PreAnalysis<calc_type> analyzer(triangles);
+    tr_storage.AcceptExternal(frame_analyzer);
 
     tr_storage.AcceptExternal(updater);
-
-    benchmark::DoNotOptimize(triangles);
-    benchmark::DoNotOptimize(analyzer);
   }
 }
 

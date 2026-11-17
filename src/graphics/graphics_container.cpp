@@ -51,19 +51,18 @@ graphics::TextureId LoadCubemap(const config::SkyboxConfig& skybox_con) {
   return texture_id_ptr;
 }
 
-graphics::SkyboxData CreateSkyboxObj(video_buff::GeometryBuffer& skybox_buff,
+graphics::SkyboxData CreateSkyboxObj(video_buff::BufferManager& buffer_manager,
                                      const std::vector<float>& raw_data,
                                      const config::SkyboxConfig& skybox_con) {
   glm::mat4 model = glm::mat4(1.0F);
   glm::mat4 normal_mat = glm::mat4(1.0F);
 
   graphics::RenderObject skybox_obj = {
-    skybox_buff,
     shader::Shader(skybox_con.shader_con.vert_path,
                    skybox_con.shader_con.frag_path),
     model, normal_mat, graphics::kBuffStartPos, graphics::kSkyboxVer};
 
-  skybox_buff.LoadData(raw_data);
+  buffer_manager.LoadSkybox(raw_data);
 
   graphics::TextureId texture_id = LoadCubemap(skybox_con);
 
@@ -71,7 +70,7 @@ graphics::SkyboxData CreateSkyboxObj(video_buff::GeometryBuffer& skybox_buff,
   skybox_obj.shader.SetInt("skybox", 0);
   skybox_obj.shader.Disable();
 
-  graphics::SkyboxData skybox_data = {skybox_con, std::move(skybox_obj), std::move(texture_id)};
+  graphics::SkyboxData skybox_data = {std::move(skybox_obj), std::move(texture_id)};
 
   int error_code = glGetError();
   if (error_code) {
@@ -86,7 +85,6 @@ graphics::SkyboxData CreateSkyboxObj(video_buff::GeometryBuffer& skybox_buff,
 } // namespace
 
 graphics::RenderObject graphics::GraphicsContainer::CreateTriangleObj(
-  video_buff::GeometryBuffer& geom_buff_ptr,
   const config::ShaderConfig& shader_con,
   const shapes::ShapesNumber& shapes_number
 ) {
@@ -95,7 +93,6 @@ graphics::RenderObject graphics::GraphicsContainer::CreateTriangleObj(
   glm::mat3 normal_mat = glm::mat3(glm::transpose(glm::inverse(model)));
 
   graphics::RenderObject tr_obj = {
-      geom_buff_ptr,
       shader::Shader(shader_con.vert_path, shader_con.frag_path),
       model, normal_mat, kBuffStartPos,
       shapes_number.triangles_number * kTrVertexes};
@@ -112,7 +109,6 @@ graphics::RenderObject graphics::GraphicsContainer::CreateTriangleObj(
 }
 
 graphics::RenderObject graphics::GraphicsContainer::CreateLineObj(
-  video_buff::GeometryBuffer& geom_buff_ptr,
   const config::ShaderConfig& shader_con,
   const shapes::ShapesNumber& shapes_number
 ) {
@@ -120,8 +116,7 @@ graphics::RenderObject graphics::GraphicsContainer::CreateLineObj(
 
   glm::mat3 normal_mat = glm::mat4(1.0F);
 
-  graphics::RenderObject point_obj = {
-      geom_buff_ptr,
+  graphics::RenderObject line_obj = {
       shader::Shader(shader_con.vert_path, shader_con.frag_path),
       model, normal_mat,
       kBuffStartPos + shapes_number.triangles_number * kTrVertexes,
@@ -135,11 +130,10 @@ graphics::RenderObject graphics::GraphicsContainer::CreateLineObj(
     throw prog_error::ProgError(std::move(inf));
   }
 
-  return point_obj;
+  return line_obj;
 }
 
 graphics::RenderObject graphics::GraphicsContainer::CreatePointObj(
-  video_buff::GeometryBuffer& geom_buff_ptr,
   const config::ShaderConfig& shader_con,
   const shapes::ShapesNumber& shapes_number
 ) {
@@ -147,8 +141,7 @@ graphics::RenderObject graphics::GraphicsContainer::CreatePointObj(
 
   glm::mat3 normal_mat = glm::mat4(1.0F);
 
-  graphics::RenderObject line_obj = {
-      geom_buff_ptr,
+  graphics::RenderObject point_obj = {
       shader::Shader(shader_con.vert_path, shader_con.frag_path),
       model, normal_mat,
       kBuffStartPos + shapes_number.triangles_number * kTrVertexes
@@ -163,11 +156,11 @@ graphics::RenderObject graphics::GraphicsContainer::CreatePointObj(
     throw prog_error::ProgError(std::move(inf));
   }
 
-  return line_obj;
+  return point_obj;
 }
 
 graphics::SkyboxData graphics::GraphicsContainer::CallSkyboxCreating(
-  video_buff::GeometryBuffer& skybox_buff,
+  video_buff::BufferManager& buffer_manager,
   const config::SkyboxConfig& skybox_con
 ) {
   std::vector<float> skybox_vertices = {
@@ -215,5 +208,5 @@ graphics::SkyboxData graphics::GraphicsContainer::CallSkyboxCreating(
          1.0F, -1.0F,  1.0F
   };
 
-  return CreateSkyboxObj(skybox_buff, skybox_vertices, skybox_con);
+  return CreateSkyboxObj(buffer_manager, skybox_vertices, skybox_con);
 }

@@ -25,44 +25,101 @@ struct Color {
   float b = 0.0F;
 };
 
-struct Camera {
-  glm::mat4 view = glm::mat4(1.0F);
-  glm::mat4 projection = glm::mat4(1.0F);
-  glm::vec3 pos;
-  glm::vec3 front;
-  glm::vec3 up;
-  float speed = 0.05F;
-  float delta_time = 0.0F;
-  float last_frame = 0.0F;
-  float yaw = -90.0F;
-  float pitch = 0.0F;
-  float sensitivity = 0.0F;
-  float fovy = 0.0F;
-  float aspect = 0.0F;
-  float near_plane = 0.0F;
-  float far_plane = 0.0F;
-
+class Camera {
+ public:
   explicit Camera(const config::CameraConfig& camera)
-      : pos(camera.pos), front(camera.front), up(camera.up),
-        speed(camera.speed), sensitivity(camera.mouse_sensitivity),
-        fovy(camera.fovy), aspect(camera.aspect),
-        near_plane(camera.near_plane), far_plane(camera.far_plane) {
-    last_frame = glfwGetTime();
+      : pos_(camera.pos), front_(camera.front), up_(camera.up),
+        speed_(camera.speed), sensitivity_(camera.mouse_sensitivity),
+        fovy_(camera.fovy), aspect_(camera.aspect),
+        near_plane_(camera.near_plane), far_plane_(camera.far_plane) {
+    last_frame_ = glfwGetTime();
 
-    projection = glm::perspective(glm::radians(fovy), aspect, near_plane, far_plane);
-  }
-
-  void UpdateCameraMatrix() {
-    view = glm::lookAt(pos, pos + front, up);
+    projection_ = glm::perspective(glm::radians(fovy_), aspect_, near_plane_, far_plane_);
   }
 
   void SetPerspectiveMatrix(float new_aspect) {
-    projection = glm::perspective(glm::radians(fovy), new_aspect, near_plane, far_plane);
+    projection_ = glm::perspective(glm::radians(fovy_), new_aspect, near_plane_, far_plane_);
   }
+
+  void Move(const utility::Window& win, float speed_coeff) {
+    float current_time = glfwGetTime();
+    delta_time_ = current_time - last_frame_;
+    last_frame_ = current_time;
+    float camera_speed = speed_coeff * speed_ * delta_time_;
+
+    if (glfwGetKey(win.GetPtr(), GLFW_KEY_W) == GLFW_PRESS) {
+        pos_ += camera_speed * front_;
+      }
+    if (glfwGetKey(win.GetPtr(), GLFW_KEY_S) == GLFW_PRESS) {
+      pos_ -= camera_speed * front_;
+    }
+    if (glfwGetKey(win.GetPtr(), GLFW_KEY_A) == GLFW_PRESS) {
+      pos_ +=
+          glm::normalize(glm::cross(up_, front_)) * camera_speed;
+    }
+    if (glfwGetKey(win.GetPtr(), GLFW_KEY_D) == GLFW_PRESS) {
+      pos_ -=
+          glm::normalize(glm::cross(up_, front_)) * camera_speed;
+    }
+
+    view_ = glm::lookAt(pos_, pos_ + front_, up_);
+  }
+
+  void UpdateAngles(float delta_x, float delta_y) {
+    yaw_ += delta_x;
+    pitch_ += delta_y;
+
+    if (pitch_ > 89.0F) {
+      pitch_ = 89.0F;
+    } else if (pitch_ < -89.0F) {
+      pitch_ = -89.0F;
+    }
+
+    float pitch_rad = glm::radians(pitch_);
+    float yaw_rad = glm::radians(yaw_);
+    front_.x = std::cos(pitch_rad) * std::cos(yaw_rad);
+    front_.y = std::sin(pitch_rad);
+    front_.z = std::cos(pitch_rad) * std::sin(yaw_rad);
+  }
+
+  const glm::mat4& GetView() const {
+    return view_;
+  }
+  const glm::mat4& GetProjection() const {
+    return projection_;
+  }
+  const glm::vec3& GetPos() const {
+    return pos_;
+  }
+  const glm::vec3& GetFront() const {
+    return front_;
+  }
+  const glm::vec3& GetUp() const {
+    return up_;
+  }
+  float GetSensitivity() const {
+    return sensitivity_;
+  }
+
+ private:
+  glm::mat4 view_ = glm::mat4(1.0F);
+  glm::mat4 projection_ = glm::mat4(1.0F);
+  glm::vec3 pos_;
+  glm::vec3 front_;
+  glm::vec3 up_;
+  float speed_ = 0.05F;
+  float delta_time_ = 0.0F;
+  float last_frame_ = 0.0F;
+  float yaw_ = -90.0F;
+  float pitch_ = 0.0F;
+  float sensitivity_ = 0.0F;
+  float fovy_ = 0.0F;
+  float aspect_ = 0.0F;
+  float near_plane_ = 0.0F;
+  float far_plane_ = 0.0F;
 };
 
 struct RenderObject {
-  video_buff::GeometryBuffer& geom_buff;
   shader::Shader shader;
   glm::mat4 model;
   glm::mat3 normal_mat;
@@ -93,12 +150,11 @@ struct TextureIdDeleter {
 using TextureId = std::unique_ptr<unsigned int, TextureIdDeleter>;
 
 struct SkyboxData {
-  config::SkyboxConfig config;
   RenderObject obj;
   TextureId texture_id;
 
-  SkyboxData(config::SkyboxConfig config, RenderObject obj, TextureId id)
-    : config(std::move(config)), obj(std::move(obj)),
+  SkyboxData(RenderObject obj, TextureId id)
+    : obj(std::move(obj)),
       texture_id(std::move(id)) {}
 
   SkyboxData(const SkyboxData& other) = delete;
@@ -114,7 +170,7 @@ struct SkyboxData {
 
   SkyboxData& operator=(const SkyboxData& other) = delete;
 
-  SkyboxData& operator=(SkyboxData&& other) = delete;
+  SkyboxData& operator=(SkyboxData&& other) = default;
 
   ~SkyboxData() = default;
 };
@@ -125,21 +181,18 @@ class GraphicsContainer {
                     const config::UserConfigs& user_configs,
                     video_buff::BufferManager& buffer_manager)
     : shapes_obj_{
-        CreateTriangleObj(buffer_manager.GetVideoBuff(),
-                                user_configs.GetTrShCon(),
+        CreateTriangleObj(user_configs.GetTrShCon(),
+                          shapes_number),
+        CreatePointObj(user_configs.GetPointShCon(),
                                 shapes_number),
-        CreateLineObj(buffer_manager.GetVideoBuff(),
-                              user_configs.GetLineShCon(),
-                              shapes_number),
-        CreatePointObj(buffer_manager.GetVideoBuff(),
-                                user_configs.GetPointShCon(),
-                                shapes_number)
+        CreateLineObj(user_configs.GetLineShCon(),
+                      shapes_number)
       },
-      skybox_data_{CallSkyboxCreating(buffer_manager.GetSkyboxBuff(),
+      skybox_data_{CallSkyboxCreating(buffer_manager,
                                       user_configs.GetSkyboxCon())},
       camera_{user_configs.GetCameraCon()} {}
 
-  ShapesObject& GetShapesObj() {
+  const ShapesObject& GetShapesObj() const {
     return shapes_obj_;
   }
 
@@ -147,7 +200,7 @@ class GraphicsContainer {
     return camera_;
   }
 
-  SkyboxData& GetSkybox() {
+  const SkyboxData& GetSkybox() const {
     return skybox_data_;
   }
 
@@ -156,19 +209,16 @@ class GraphicsContainer {
   SkyboxData skybox_data_;
   Camera camera_;
 
-  RenderObject CreateTriangleObj(video_buff::GeometryBuffer& geom_buff_ptr,
-                                 const config::ShaderConfig& shader_con,
+  RenderObject CreateTriangleObj(const config::ShaderConfig& shader_con,
                                  const shapes::ShapesNumber& shapes_number);
 
-  RenderObject CreateLineObj(video_buff::GeometryBuffer& geom_buff_ptr,
-                             const config::ShaderConfig& shader_con,
+  RenderObject CreateLineObj(const config::ShaderConfig& shader_con,
                              const shapes::ShapesNumber& shapes_number);
 
-  RenderObject CreatePointObj(video_buff::GeometryBuffer& geom_buff_ptr,
-                              const config::ShaderConfig& shader_con,
+  RenderObject CreatePointObj(const config::ShaderConfig& shader_con,
                               const shapes::ShapesNumber& shapes_number);
 
-  SkyboxData CallSkyboxCreating(video_buff::GeometryBuffer& skybox_buff,
+  SkyboxData CallSkyboxCreating(video_buff::BufferManager& buffer_manager,
                                 const config::SkyboxConfig& skybox_con);
 };
 } // namespace graphics

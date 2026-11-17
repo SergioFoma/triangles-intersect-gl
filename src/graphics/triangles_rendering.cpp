@@ -19,16 +19,16 @@ float last_mouse_x = 0.0F;
 float last_mouse_y = 0.0F;
 bool first_mouse = true;
 
-void UpdateShapePos(graphics::RenderObject& tr_obj, const graphics::Camera& camera,
+void UpdateShapePos(const graphics::RenderObject& tr_obj, const graphics::Camera& camera,
                  const config::LightConfig& light_con) {
 
   tr_obj.shader.SetMat4("model", tr_obj.model);
-  tr_obj.shader.SetMat4("view", camera.view);
-  tr_obj.shader.SetMat4("projection", camera.projection);
+  tr_obj.shader.SetMat4("view", camera.GetView());
+  tr_obj.shader.SetMat4("projection", camera.GetProjection());
   tr_obj.shader.SetMat3("normalMatrix", tr_obj.normal_mat);
   tr_obj.shader.SetVec3("light.lightColor", light_con.color);
-  tr_obj.shader.SetVec3("light.viewPos", camera.pos);
-  tr_obj.shader.SetVec3("light.direction", camera.front);
+  tr_obj.shader.SetVec3("light.viewPos", camera.GetPos());
+  tr_obj.shader.SetVec3("light.direction", camera.GetFront());
 
   tr_obj.shader.SetFloat("light.constant", light_con.constant);
   tr_obj.shader.SetFloat("light.linear", light_con.linear);
@@ -47,10 +47,10 @@ void UpdateShapePos(graphics::RenderObject& tr_obj, const graphics::Camera& came
 
 void UpdateSkybox(const graphics::RenderObject& skybox_obj, const graphics::Camera& camera) {
 
-  glm::mat4 view = glm::mat4(glm::mat3(camera.view));
+ glm::mat4 view = glm::mat4(glm::mat3(camera.GetView()));
 
   skybox_obj.shader.SetMat4("view", view);
-  skybox_obj.shader.SetMat4("projection", camera.projection);
+  skybox_obj.shader.SetMat4("projection", camera.GetProjection());
 
   int error_code = glGetError();
   if (error_code) {
@@ -61,14 +61,14 @@ void UpdateSkybox(const graphics::RenderObject& skybox_obj, const graphics::Came
   }
 }
 
-void DrawShape(graphics::RenderObject& shape_obj, const graphics::Camera& camera,
+void DrawShape(video_buff::BufferManager& buff_manager,
+               const graphics::RenderObject& shape_obj,
+               const graphics::Camera& camera,
                const config::LightConfig& light_con, GLenum mode) {
 
   shape_obj.shader.Use();
-  shape_obj.geom_buff.Bind();
   UpdateShapePos(shape_obj, camera, light_con);
-  shape_obj.geom_buff.Draw(mode, shape_obj.start_pos, shape_obj.count);
-  shape_obj.geom_buff.Unbind();
+  buff_manager.DrawShapes(mode, shape_obj.start_pos, shape_obj.count);
   shape_obj.shader.Disable();
 
   int error_code = glGetError();
@@ -80,17 +80,16 @@ void DrawShape(graphics::RenderObject& shape_obj, const graphics::Camera& camera
   }
 }
 
-void DrawSkybox(graphics::SkyboxData& skybox_data,
+void DrawSkybox(video_buff::BufferManager& buff_manager,
+                const graphics::SkyboxData& skybox_data,
                 const graphics::Camera& camera) {
 
-  graphics::RenderObject& skybox_obj = skybox_data.obj;
+  const graphics::RenderObject& skybox_obj = skybox_data.obj;
 
   skybox_obj.shader.Use();
-  skybox_obj.geom_buff.Bind();
-  glBindTexture(GL_TEXTURE_CUBE_MAP, skybox_data.GetTextureId());
   UpdateSkybox(skybox_obj, camera);
-  skybox_obj.geom_buff.Draw(GL_TRIANGLES, skybox_obj.start_pos, skybox_obj.count);
-  skybox_obj.geom_buff.Unbind();
+  buff_manager.DrawSkybox(skybox_data.GetTextureId(), GL_TRIANGLES,
+                          skybox_obj.start_pos, skybox_obj.count);
   skybox_obj.shader.Disable();
 
   int error_code = glGetError();
@@ -102,22 +101,6 @@ void DrawSkybox(graphics::SkyboxData& skybox_data,
   }
 }
 
-void MoveCamera(graphics::Camera& camera, utility::Window& win, float camera_speed) {
- if (glfwGetKey(win.GetPtr(), GLFW_KEY_W) == GLFW_PRESS) {
-    camera.pos += camera_speed * camera.front;
-  }
-  if (glfwGetKey(win.GetPtr(), GLFW_KEY_S) == GLFW_PRESS) {
-    camera.pos -= camera_speed * camera.front;
-  }
-  if (glfwGetKey(win.GetPtr(), GLFW_KEY_A) == GLFW_PRESS) {
-    camera.pos +=
-        glm::normalize(glm::cross(camera.up, camera.front)) * camera_speed;
-  }
-  if (glfwGetKey(win.GetPtr(), GLFW_KEY_D) == GLFW_PRESS) {
-    camera.pos -=
-        glm::normalize(glm::cross(camera.up, camera.front)) * camera_speed;
-  }
-}
 
 void ProcessInput(utility::Window& win, graphics::Camera& camera) {
   float speed_coeff = 1.0F;
@@ -125,12 +108,7 @@ void ProcessInput(utility::Window& win, graphics::Camera& camera) {
     speed_coeff = kSpeedCoeff;
   }
 
-  float current_time = glfwGetTime();
-  camera.delta_time = current_time - camera.last_frame;
-  camera.last_frame = current_time;
-  float camera_speed = speed_coeff * camera.speed * camera.delta_time;
-
-  MoveCamera(camera, win, camera_speed);
+  camera.Move(win, speed_coeff);
 
   static bool old_key_f_status = false;
   bool current_key_f_status = (glfwGetKey(win.GetPtr(), GLFW_KEY_F) == GLFW_PRESS);
@@ -142,8 +120,6 @@ void ProcessInput(utility::Window& win, graphics::Camera& camera) {
   }
   old_key_f_status = current_key_f_status;
 
-  camera.UpdateCameraMatrix();
-
   if (glGetError()) {
     prog_error::ErrorInfo inf = {prog_error::ErrorCode::kRendering,
                                    "Error of parse input data",
@@ -154,12 +130,13 @@ void ProcessInput(utility::Window& win, graphics::Camera& camera) {
 
 
 void RenderCycle(utility::Window& win,
+                 video_buff::BufferManager& buff_manager,
                  graphics::GraphicsContainer& graphics_container,
                  const config::UserConfigs& configs) {
 
   float black_r = 0.0F, black_g = 0.0F, black_b = 0.0F, alpha = 1.0F;
 
-  graphics::ShapesObject& shapes_obj = graphics_container.GetShapesObj();
+  const graphics::ShapesObject& shapes_obj = graphics_container.GetShapesObj();
   graphics::Camera& camera = graphics_container.GetCamera();
 
   glfwSetWindowUserPointer(win.GetPtr(), &camera);  // save info about camera in window
@@ -168,11 +145,11 @@ void RenderCycle(utility::Window& win,
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   ProcessInput(win, camera);
-  DrawShape(shapes_obj.tr_obj, camera, configs.GetLightCon(), GL_TRIANGLES);
-  DrawShape(shapes_obj.point_obj, camera, configs.GetLightCon(), GL_POINTS);
-  DrawShape(shapes_obj.line_obj, camera, configs.GetLightCon(), GL_LINES);
+  DrawShape(buff_manager, shapes_obj.tr_obj, camera, configs.GetLightCon(), GL_TRIANGLES);
+  DrawShape(buff_manager, shapes_obj.point_obj, camera, configs.GetLightCon(), GL_POINTS);
+  DrawShape(buff_manager, shapes_obj.line_obj, camera, configs.GetLightCon(), GL_LINES);
   glDepthFunc(GL_LEQUAL);
-  DrawSkybox(graphics_container.GetSkybox(), camera);
+  DrawSkybox(buff_manager, graphics_container.GetSkybox(), camera);
   glDepthFunc(GL_LESS);
 
   glfwSwapBuffers(win.GetPtr());
@@ -194,10 +171,9 @@ render::ErrorType render::RenderTriangles(utility::Window& win,
                                   const config::UserConfigs& configs,
                                   const std::vector<float>& triangles) {
 
-  video_buff::GeometryBuffer& video_buff = buff_manager.GetVideoBuff();
-  video_buff.LoadData(triangles);
+  buff_manager.LoadShapes(triangles);
 
-  RenderCycle(win, graphics_container, configs);
+  RenderCycle(win, buff_manager, graphics_container, configs);
 
   if (glGetError()) {
       prog_error::ErrorInfo inf = {prog_error::ErrorCode::kRendering,
@@ -224,23 +200,10 @@ void utility::detail::MouseCallback(GLFWwindow* win, double xpos, double ypos) {
     first_mouse = false;
   }
 
-  float delta_x = (xpos - last_mouse_x) * camera_ptr->sensitivity;
-  float delta_y = (last_mouse_y - ypos) * camera_ptr->sensitivity;
+  float delta_x = (xpos - last_mouse_x) * camera_ptr->GetSensitivity();
+  float delta_y = (last_mouse_y - ypos) * camera_ptr->GetSensitivity();
   last_mouse_x = xpos;
   last_mouse_y = ypos;
 
-  graphics::Camera& camera = *camera_ptr;
-  camera.yaw += delta_x;
-  camera.pitch += delta_y;
-
-  if (camera.pitch > 89.0F) {
-    camera.pitch = 89.0F;
-  } else if (camera.pitch < -89.0F) {
-    camera.pitch = -89.0F;
-  }
-  float pitch_rad = glm::radians(camera.pitch),
-        yaw_rad = glm::radians(camera.yaw);
-  camera.front.x = std::cos(pitch_rad) * std::cos(yaw_rad);
-  camera.front.y = std::sin(pitch_rad);
-  camera.front.z = std::cos(pitch_rad) * std::sin(yaw_rad);
+  camera_ptr->UpdateAngles(delta_x, delta_y);
 }

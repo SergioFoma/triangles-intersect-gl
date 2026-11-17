@@ -215,12 +215,26 @@ class BufferManager {
     skybox_buff_.Unbind();
   }
 
-  GeometryBuffer& GetVideoBuff() {
-    return video_buff_;
+  void LoadShapes(const std::vector<float>& shapes) {
+    video_buff_.LoadData(shapes);
   }
 
-  GeometryBuffer& GetSkyboxBuff() {
-    return skybox_buff_;
+  void LoadSkybox(const std::vector<float>& skybox) {
+    skybox_buff_.LoadData(skybox);
+  }
+
+  void DrawShapes(GLenum mode, size_t start_pos, size_t count) {
+    video_buff_.Bind();
+    video_buff_.Draw(mode, start_pos, count);
+    video_buff_.Unbind();
+  }
+
+  void DrawSkybox(unsigned int texture_id,
+                  GLenum mode, size_t start_pos, size_t count) {
+    skybox_buff_.Bind();
+    glBindTexture(GL_TEXTURE_CUBE_MAP, texture_id);
+    skybox_buff_.Draw(mode, start_pos, count);
+    skybox_buff_.Unbind();
   }
 
  private:
