@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <concepts>
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
@@ -16,13 +17,13 @@ namespace triangles {
 
 const double kEps = 1e-9;
 
-template <typename T>
-requires std::is_floating_point_v<T> bool IsZero(T v, T precision = 1.0F) {
+template <std::floating_point T>
+bool IsZero(T v, T precision = 1.0F) {
   return std::abs(v) < kEps * precision;
 }
 
-template <typename T = double>
-requires std::is_floating_point_v<T> struct Point3D {
+template <std::floating_point T = double>
+struct Point3D {
   T x_{NAN}, y_{NAN}, z_{NAN};
 
   Point3D() = default;
@@ -70,16 +71,16 @@ requires std::is_floating_point_v<T> struct Point3D {
 
 enum class Orientation : uint8_t { kNegative, kCoplanar, kPositive };
 
-template <typename T = double>
-requires std::is_floating_point_v<T> T GetPrecisionByVertices(
+template <std::floating_point T = double>
+T GetPrecisionByVertices(
     const Point3D<T>& p1, const Point3D<T>& p2, const Point3D<T>& p3) {
   return Point3D<T>{Point3D<T>::Distance(p2, p1), Point3D<T>::Distance(p3, p2),
                     Point3D<T>::Distance(p1, p3)}
       .GetModule();
 }
 
-template <typename T = double>
-requires std::is_floating_point_v<T> constexpr auto kFarthestPair =
+template <std::floating_point T = double>
+constexpr auto kFarthestPair =
     [](const Point3D<T>& a, const Point3D<T>& b, const Point3D<T>& c) {
       const T ab = Point3D<T>::Distance(a, b);
       const T ac = Point3D<T>::Distance(a, c);
@@ -92,8 +93,8 @@ requires std::is_floating_point_v<T> constexpr auto kFarthestPair =
       return std::make_pair(b, c);
     };
 
-template <typename T = double>
-requires std::is_floating_point_v<T> struct Surface {
+template <std::floating_point T = double>
+struct Surface {
   Point3D<T> norm_;
   T d_{NAN};
 
@@ -142,8 +143,8 @@ requires std::is_floating_point_v<T> struct Surface {
   }
 };
 
-template <typename T = double>
-requires std::is_floating_point_v<T> struct Line {
+template <std::floating_point T = double>
+struct Line {
   Point3D<T> a_, b_;
 
   Line() = default;

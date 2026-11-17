@@ -2,30 +2,75 @@
 #include <array>
 #include <random>
 #include <gtest/gtest.h>
-// #include "pre_analysis.hpp"
+#include <chrono>
+#include <filesystem>
+#include <fstream>
+#include <iomanip>
+#include "triangles/pre_analysis.hpp"
+#include "triangles/frame_analysis.hpp"
 #include "prog_error.hpp"
 
 namespace {
-using triangles::PreAnalysis;
-using triangles::DoubleTrianglesArray;
+using DoubleTrianglesArray = triangles::TrianglesArray<double>;
 using Triangle3D = triangles::Triangle3D<double>;
 
-void ExpectBruteForceStatuses(const PreAnalysis<double>& analyzer, const DoubleTrianglesArray& input) {
+class StorageInput {
+ public:
+  explicit StorageInput(const DoubleTrianglesArray& input)
+      : path_(std::filesystem::temp_directory_path() /
+              ("pre-analysis-" + std::to_string(
+                  std::chrono::steady_clock::now().time_since_epoch().count()) +
+               ".txt")) {
+    std::ofstream out(path_);
+    out << std::setprecision(17) << input.size() << " 10\n";
+    for (const auto& tr : input) {
+      for (const auto& p : {tr.GetFirstPoint(), tr.GetSecondPoint(),
+                            tr.GetThirdPoint()}) {
+        out << p.x_ << ' ' << p.y_ << ' ' << p.z_ << ' ';
+      }
+      out << "0 0 0 0 0 1 90\n";
+    }
+  }
+  ~StorageInput() { std::filesystem::remove(path_); }
+  std::string Path() const { return path_.string(); }
+ private:
+  std::filesystem::path path_;
+};
+
+void ExpectBruteForce(const DoubleTrianglesArray& input) {
+  StorageInput file(input);
+  reader::Reader<double> reader{file.Path()};
+  triangles::TrianglesStorage<double> storage{reader};
+  triangles::PreAnalyzer<double> analyzer;
+  storage.AcceptExternal(analyzer);
+  auto pairs = storage.GetPotentialPairs();
+  storage.AcceptExternal(analyzer);
+  auto repeated = storage.GetPotentialPairs();
+  EXPECT_EQ(pairs, repeated);
+
+  std::vector<triangles::Box<double>> boxes;
+  for (size_t i = 0; i < input.size(); ++i) {
+    boxes.push_back(triangles::Box<double>::CreateTrajectoryBox(
+        input[i], storage.GetAxes()[i]));
+  }
+  std::vector<std::pair<size_t, size_t>> expected_pairs;
   std::vector<bool> expected(input.size(), false);
   for (size_t i = 0; i < input.size(); ++i) {
-    for (size_t j = i + 1; j < input.size(); ++j) {
+    for (size_t j = 0; j < i; ++j) {
+      if (boxes[i].DoesIntersect(boxes[j])) expected_pairs.emplace_back(i, j);
       if (input[i].DoesIntersect(input[j])) expected[i] = expected[j] = true;
     }
   }
-  for (size_t i = 0; i < input.size(); ++i) {
-    EXPECT_EQ(analyzer.DoesIntersect(i), expected[i]) << "original index=" << i;
-  }
-  EXPECT_THROW(analyzer.DoesIntersect(input.size()), prog_error::ProgError);
-}
+  auto sorted_pairs = pairs;
+  std::sort(sorted_pairs.begin(), sorted_pairs.end());
+  EXPECT_EQ(sorted_pairs, expected_pairs);
 
-void ExpectBruteForce(const DoubleTrianglesArray& input) {
-  ExpectBruteForceStatuses(PreAnalysis{input}, input);
-  ExpectBruteForceStatuses(PreAnalysis{DoubleTrianglesArray(input)}, input);
+  triangles::FrameAnalyzer<double> frame_analyzer;
+  storage.AcceptExternal(frame_analyzer);
+  for (size_t i = 0; i < input.size(); ++i) {
+    EXPECT_EQ(storage.GetPredicates()[i].load(), expected[i])
+        << "original index=" << i;
+  }
 }
 
 TEST(PreAnalysis, OriginalIndicesAcrossAllThreeAxes) {
@@ -41,19 +86,19 @@ TEST(PreAnalysis, OriginalIndicesAcrossAllThreeAxes) {
   ExpectBruteForce(input);
 }
 
-TEST(PreAnalysis, RejectsInvalidTriangle) {
-  EXPECT_THROW((PreAnalysis{DoubleTrianglesArray{Triangle3D{}}}), prog_error::ProgError);
+TEST(PreAnalysis, EmptyInputRejectedByReader) {
+  StorageInput file({});
+  reader::Reader<double> reader{file.Path()};
+  EXPECT_THROW((triangles::TrianglesStorage<double>{reader}), prog_error::ProgError);
 }
 
 TEST(PreAnalysis, DifferentTriangleSizesPreserveOriginalIndices) {
   const Triangle3D wide{{0, 0, 0}, {100, 0, 0}, {0, 100, 0}};
   const Triangle3D small{{1, 1, 0}, {2, 1, 0}, {1, 2, 0}};
-  const PreAnalysis analyzer{DoubleTrianglesArray{small, wide}};
-  ExpectBruteForceStatuses(analyzer, DoubleTrianglesArray{small, wide});
+  ExpectBruteForce({small, wide});
 }
 
-TEST(PreAnalysis, EmptyAndSingleton) {
-  ExpectBruteForce({});
+TEST(PreAnalysis, Singleton) {
   ExpectBruteForce({Triangle3D{{0, 0, 0}, {1, 0, 0}, {0, 1, 0}}});
 }
 
@@ -115,11 +160,6 @@ TEST(PreAnalysis, MortonOrderDoesNotPermitEarlyExitAlongX) {
       Triangle3D{{40, 0, 0}, {41, 0, 0}, {40, 1, 0}},
       Triangle3D{{0, 80, 0}, {0.1, 80, 0}, {0, 81, 0}},
       Triangle3D{{99, 0, 0}, {100, 0, 0}, {99, 1, 0}}};
-  const PreAnalysis analyzer{input};
-  const std::vector<bool> expected{true, false, true, false};
-  for (size_t i = 0; i < input.size(); ++i) {
-    EXPECT_EQ(analyzer.DoesIntersect(i), expected[i]);
-  }
   ExpectBruteForce(input);
 }
 

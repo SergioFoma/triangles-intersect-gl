@@ -1,7 +1,7 @@
 include(GoogleTest)
 set(TEST_TARGET_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/triangle_test.cpp
-  # ${CMAKE_CURRENT_SOURCE_DIR}/pre_analysis_test.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/pre_analysis_test.cpp
 )
 
 set(TEST_TARGET triangles_tests)

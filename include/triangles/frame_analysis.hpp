@@ -5,33 +5,42 @@
 #include <tbb/parallel_for.h>
 #include <atomic>
 #include <cassert>
+#include <concepts>
 #include <cstddef>
-#include <type_traits>
 #include <utility>
 #include <vector>
-#include "triangles/triangles_storage.hpp"
+#include "triangles/triangle.hpp"
+#include "triangles_storage.hpp"
 
 namespace triangles {
-template <typename T = double>
-requires std::is_floating_point_v<T> class FrameAnalyzer {
- public:
-  FrameAnalyzer(storage::TrianglesStorage<T>& storage,
-                std::vector<std::pair<size_t, size_t>>&& potential_pairs)
-      : storage_(storage), potential_pairs_(potential_pairs) {}
 
-  void Analyze() {
-    auto& triangles = storage_.GetTriangles();
-    auto& predicates = storage_.GetPredicates();
-    if (predicates.size() != triangles.size()) {
-      std::vector<std::atomic_bool> resized(triangles.size());
-      predicates.swap(resized);
-    }
+template <std::floating_point T>
+class TrianglesStorage;
+
+template <std::floating_point T = double>
+class FrameAnalyzer : public StorageUpdater<T> {
+ public:
+  void ChangeStorage(TrianglesStorage<T>& storage,
+                     TrianglesStorage<T>::UpdaterContext* ctx) override {
+    assert(ctx);
+
+    const auto& triangles = storage.GetCurrentPos();
+    auto& predicates = ctx->predicates;
+    const auto& potential_pairs = ctx->potential_pairs;
+    assert(predicates.size() == triangles.size() && "Incorrect size");
+
+    tbb::parallel_for(tbb::blocked_range<size_t>{0, predicates.size()},
+                      [&](const tbb::blocked_range<size_t>& range) {
+                        for (size_t i = range.begin(); i < range.end(); ++i) {
+                          predicates[i].store(false, std::memory_order_relaxed);
+                        }
+                      });
 
     tbb::parallel_for(
-        tbb::blocked_range<size_t>{0, potential_pairs_.size()},
+        tbb::blocked_range<size_t>{0, potential_pairs.size()},
         [&](const tbb::blocked_range<size_t>& range) {
           for (size_t i = range.begin(); i < range.end(); ++i) {
-            const auto [first, second] = potential_pairs_[i];
+            const auto [first, second] = potential_pairs[i];
 
             if (triangles[first].DoesIntersect(triangles[second])) {
               predicates[first].store(true, std::memory_order_relaxed);
@@ -41,10 +50,7 @@ requires std::is_floating_point_v<T> class FrameAnalyzer {
         });
   }
 
- private:
-  storage::TrianglesStorage<T>& storage_;
-  std::vector<std::pair<size_t, size_t>> potential_pairs_;
 };
-} // namespace triangles
+}  // namespace triangles
 
 #endif

@@ -3,7 +3,7 @@
 
 #include <algorithm>
 #include <cassert>
-#include <type_traits>
+#include <concepts>
 
 #include "prog_error.hpp"
 #include "triangles/basics.hpp"
@@ -11,12 +11,13 @@
 
 namespace triangles {
 
-template <typename T>
-requires std::is_floating_point_v<T> struct Box {
+template <std::floating_point T>
+struct Box {
   Point3D<T> min_;
   Point3D<T> max_;
 
   Box() = default;
+
   Box(const Point3D<T>& min, const Point3D<T>& max) : min_{min}, max_{max} {
     if (!IsValid()) {
       prog_error::ErrorInfo inf = {
@@ -26,12 +27,6 @@ requires std::is_floating_point_v<T> struct Box {
       };
       throw prog_error::ProgError(std::move(inf));
     }
-  }
-
-  explicit Box(const Triangle3D<T>& triangle) {
-    assert(triangle.IsValid());
-    min_ = {triangle.GetMinX(), triangle.GetMinY(), triangle.GetMinZ()};
-    max_ = {triangle.GetMaxX(), triangle.GetMaxY(), triangle.GetMaxZ()};
   }
 
   bool IsValid() const {
@@ -64,6 +59,11 @@ requires std::is_floating_point_v<T> struct Box {
             std::max(max_.z_, other.max_.z_),
         },
     };
+  }
+
+  Point3D<T> GetBoxCenter() const {
+    assert(IsValid());
+    return (min_ + max_) / 2;
   }
 
   static Box CreateTrajectoryBox(const Triangle3D<T>& triangle,

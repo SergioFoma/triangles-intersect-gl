@@ -5,7 +5,7 @@
 #include "triangles/pre_analysis.hpp"
 #include "reader.hpp"
 #include "configuring_paths.hpp"
-#include "updater.hpp"
+#include "triangles/rotation_updater.hpp"
 
 using calc_type = double;
 namespace {
@@ -15,16 +15,16 @@ constexpr unsigned int kBenchmarkNumber = 6;
 void BmTrianglesIntersect(benchmark::State& state, const std::string& file_name) {
   reader::Reader<calc_type> obj_reader{file_name};
 
-  storage::TrianglesStorage<calc_type> tr_storage{obj_reader};
+  triangles::TrianglesStorage<calc_type> tr_storage{obj_reader};
 
-  updater::Updater<calc_type> updater{glfwGetTime()};
+  triangles::RotationUpdater<calc_type> updater{glfwGetTime()};
 
   while (state.KeepRunning()) {
     triangles::TrianglesArray<calc_type>& triangles = tr_storage.GetTriangles();
 
     triangles::PreAnalysis<calc_type> analyzer(triangles);
 
-    updater.Update(tr_storage);
+    tr_storage.AcceptExternal(updater);
 
     benchmark::DoNotOptimize(triangles);
     benchmark::DoNotOptimize(analyzer);

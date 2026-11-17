@@ -21,7 +21,7 @@ enum class ErrorCode {
   kBasics       = 11,
   kBox          = 12,
   kUpdater      = 13,
-  kResource     = 14
+  kResource     = 14,
 };
 
 struct ErrorInfo {

@@ -5,7 +5,7 @@
 #include <fstream>
 #include <istream>
 #include <string>
-#include <type_traits>
+#include <concepts>
 #include <utility>
 #include <cstdint>
 
@@ -14,8 +14,7 @@
 
 namespace reader {
 
-template <typename T = double>
-requires std::is_floating_point_v<T>
+template <std::floating_point T = double>
 class Reader {
  public:
   explicit Reader(const std::string& file_name)

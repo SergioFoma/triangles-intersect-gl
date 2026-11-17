@@ -22,7 +22,7 @@ using Vertices = std::array<Point3D<T>, 3>;
 using VerticesOrientation = std::array<Orientation, 3>;
 
 template<typename T = double>
-requires std::is_floating_point_v<T>
+requires std::floating_point<T>
 class Triangle3D {
  public:
   Triangle3D() = default;
@@ -461,17 +461,14 @@ class Triangle3D {
 };
 
 template<typename T>
-requires std::is_floating_point_v<T>
+requires std::floating_point<T>
 using TrianglesArray = std::vector<Triangle3D<T>>;
 
-using DoubleTrianglesArray = TrianglesArray<double>;
-
 template<typename T>
-requires std::is_floating_point_v<T>
+requires std::floating_point<T>
 using AxesArray = std::vector<Line<T>>;
 
-template <typename T>
-requires std::is_floating_point_v<T>
+template <std::floating_point T>
 using TriangleType = triangles::Triangle3D<T>::TriangleType;
 }  // namespace triangles
 

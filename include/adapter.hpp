@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <atomic>
 #include <memory>
-#include <type_traits>
+#include <concepts>
 #include <utility>
 #include <vector>
 
@@ -23,18 +23,18 @@
 
 namespace adapter {
 
-template <typename T = double>
-requires std::is_floating_point_v<T> class Adapter {
+template <std::floating_point T = double>
+class Adapter {
  public:
-  explicit Adapter(storage::TrianglesStorage<T>& storage)
-      : raw_data_(storage.GetShapesNumber().triangles_number * kTrianglePoints *
-                      kPointDim +
-                  storage.GetShapesNumber().lines_number * kLinePoints *
-                      kPointDim +
-                  storage.GetShapesNumber().points_number * kPointDim),
+  explicit Adapter(triangles::TrianglesStorage<T>& storage)
+      : raw_data_((storage.GetShapesNumber().triangles_number * kTrianglePoints *
+                      kPointDim) +
+                  (storage.GetShapesNumber().lines_number * kLinePoints *
+                      kPointDim) +
+                  (storage.GetShapesNumber().points_number * kPointDim)),
         index_maps_(storage.GetShapesNumber().shapes_number) {
 
-    const triangles::TrianglesArray<T>& triangles = storage.GetTriangles();
+    const triangles::TrianglesArray<T>& triangles = storage.GetCurrentPos();
 
     tbb::blocked_range<size_t> range{0, index_maps_.size()};
     tbb::parallel_for(range, [&](tbb::blocked_range<size_t> r) {
