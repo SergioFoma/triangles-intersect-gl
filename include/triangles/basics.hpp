@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <concepts>
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
@@ -16,14 +17,13 @@ namespace triangles {
 
 const double kEps = 1e-9;
 
-template <typename T>
-requires std::is_floating_point_v<T> inline bool IsZero(T v,
-                                                        T precision = 1.0F) {
+template <std::floating_point T>
+bool IsZero(T v, T precision = 1.0F) {
   return std::abs(v) < kEps * precision;
 }
 
-template <typename T = double>
-requires std::is_floating_point_v<T> struct Point3D {
+template <std::floating_point T = double>
+struct Point3D {
   T x_{NAN}, y_{NAN}, z_{NAN};
 
   Point3D() = default;
@@ -45,14 +45,18 @@ requires std::is_floating_point_v<T> struct Point3D {
   Point3D operator/(T div) const { return {x_ / div, y_ / div, z_ / div}; };
 
   Point3D Cross(const Point3D& other) const {
-    return {(y_ * other.z_) - (z_ * other.y_),
-            (z_ * other.x_) - (x_ * other.z_),
-            (x_ * other.y_) - (y_ * other.x_)};
+    return {
+        (y_ * other.z_) - (z_ * other.y_),
+        (z_ * other.x_) - (x_ * other.z_),
+        (x_ * other.y_) - (y_ * other.x_),
+    };
   }
 
   T Dot(const Point3D& other) const {
     return (x_ * other.x_) + (y_ * other.y_) + (z_ * other.z_);
   }
+
+  T GetModule() const { return std::hypot(x_, y_, z_); }
 
   bool IsEqual(const Point3D& other, T precision = 1.0F) const {
     return IsZero(x_ - other.x_, precision) &&
@@ -60,23 +64,23 @@ requires std::is_floating_point_v<T> struct Point3D {
   }
 
   static T Distance(const Point3D& p1, const Point3D& p2) {
-    const Point3D side = p2 - p1;
-
-    return std::hypot(side.x_, side.y_, side.z_);
+    Point3D side = p2 - p1;
+    return side.GetModule();
   }
 };
 
 enum class Orientation : uint8_t { kNegative, kCoplanar, kPositive };
 
-template <typename T = double>
-requires std::is_floating_point_v<T> T GetPrecisionByVertices(
+template <std::floating_point T = double>
+T GetPrecisionByVertices(
     const Point3D<T>& p1, const Point3D<T>& p2, const Point3D<T>& p3) {
-  return std::hypot(Point3D<T>::Distance(p2, p1), Point3D<T>::Distance(p3, p2),
-                    Point3D<T>::Distance(p1, p3));
+  return Point3D<T>{Point3D<T>::Distance(p2, p1), Point3D<T>::Distance(p3, p2),
+                    Point3D<T>::Distance(p1, p3)}
+      .GetModule();
 }
 
-template <typename T = double>
-requires std::is_floating_point_v<T> constexpr auto kFarthestPair =
+template <std::floating_point T = double>
+constexpr auto kFarthestPair =
     [](const Point3D<T>& a, const Point3D<T>& b, const Point3D<T>& c) {
       const T ab = Point3D<T>::Distance(a, b);
       const T ac = Point3D<T>::Distance(a, c);
@@ -89,8 +93,8 @@ requires std::is_floating_point_v<T> constexpr auto kFarthestPair =
       return std::make_pair(b, c);
     };
 
-template <typename T = double>
-requires std::is_floating_point_v<T> struct Surface {
+template <std::floating_point T = double>
+struct Surface {
   Point3D<T> norm_;
   T d_{NAN};
 
@@ -111,8 +115,8 @@ requires std::is_floating_point_v<T> struct Surface {
     T c = ((p2.x_ - p1.x_) * (p3.y_ - p1.y_)) -
           ((p2.y_ - p1.y_) * (p3.x_ - p1.x_));
 
-    T norm = std::hypot(a, b, c);
-    T metric = GetPrecisionByVertices(p1, p2, p3);
+    const T norm = Point3D<T>{a, b, c}.GetModule();
+    const T metric = GetPrecisionByVertices(p1, p2, p3);
 
     if (IsZero(norm, metric)) {
       throw std::runtime_error(
@@ -139,14 +143,14 @@ requires std::is_floating_point_v<T> struct Surface {
   }
 };
 
-template <typename T = double>
-requires std::is_floating_point_v<T> struct Line {
+template <std::floating_point T = double>
+struct Line {
   Point3D<T> a_, b_;
 
   Line() = default;
   Line(const Point3D<T>& a, const Point3D<T>& b) : a_{a}, b_{b} {
     if (!(a.IsValid() && b.IsValid())) {
-      prog_error::ErrorInfo inf = {
+      const prog_error::ErrorInfo inf = {
           .code = prog_error::ErrorCode::kBasics,
           .err_msg = "Non valid arguments in Line Ctor",
           .func_name = "Line::Line",
@@ -155,7 +159,7 @@ requires std::is_floating_point_v<T> struct Line {
     }
 
     if ((b_ - a_).IsEqual({0, 0, 0})) {
-      prog_error::ErrorInfo inf = {
+      const prog_error::ErrorInfo inf = {
           .code = prog_error::ErrorCode::kBasics,
           .err_msg = "Unable to construct line by 2 similar points",
           .func_name = "Line::Line",
@@ -166,39 +170,36 @@ requires std::is_floating_point_v<T> struct Line {
 
   bool IsValid() const { return a_.IsValid() && b_.IsValid(); }
 
-  bool LiesOn(const Point3D<T>& point, T metric) const {
+  bool LiesOn(const Point3D<T>& point, T metric = 1.0) const {
     assert(IsValid());
     assert(point.IsValid());
 
-    Point3D ap = point - a_;
-    Point3D ab = b_ - a_;
-    T vec_len = std::hypot(ab.x_, ab.y_, ab.z_);
-    Point3D normalized_vec = ab / vec_len;
-    Point3D cross_vec_ap = ap.Cross(normalized_vec);
-    T h = std::hypot(cross_vec_ap.x_, cross_vec_ap.y_, cross_vec_ap.z_);
+    const Point3D ap = point - a_;
+    const Point3D ab = b_ - a_;
+    const T vec_len = ab.GetModule();
+    const Point3D normalized_vec = ab / vec_len;
+    const Point3D cross_vec_ap = ap.Cross(normalized_vec);
+    const T h = cross_vec_ap.GetModule();
     if (!IsZero(h, vec_len))
       return false;
 
-    T coord_on_ab = ap.Dot(normalized_vec);
+    const T coord_on_ab = ap.Dot(normalized_vec);
 
     return -kEps * metric <= coord_on_ab &&
            coord_on_ab - vec_len <= kEps * metric;
   }
 
-  bool CheckIntersection(const Line& other, T metric) const {
+  bool CheckIntersection(const Line& other, T metric = 1.0) const {
     assert(IsValid());
     assert(other.IsValid());
 
     Point3D direction = b_ - a_;
     Point3D other_direction = other.b_ - other.a_;
-    direction =
-        direction / std::hypot(direction.x_, direction.y_, direction.z_);
-    other_direction =
-        other_direction /
-        std::hypot(other_direction.x_, other_direction.y_, other_direction.z_);
+    direction = direction / direction.GetModule();
+    other_direction = other_direction / other_direction.GetModule();
 
     Point3D normal = direction.Cross(other_direction);
-    T normal_len = std::hypot(normal.x_, normal.y_, normal.z_);
+    const T normal_len = normal.GetModule();
     if (IsZero(normal_len)) {
       return LiesOn(other.a_, metric) || LiesOn(other.b_, metric) ||
              other.LiesOn(a_, metric) || other.LiesOn(b_, metric);
@@ -211,15 +212,60 @@ requires std::is_floating_point_v<T> struct Line {
 
     const auto crosses = [&](const Line& base, const Line& segment,
                              const Point3D<T>& base_direction) {
-      Point3D perpendicular = normal.Cross(base_direction);
-      T first = perpendicular.Dot(segment.a_ - base.a_);
-      T second = perpendicular.Dot(segment.b_ - base.a_);
+      const Point3D perpendicular = normal.Cross(base_direction);
+      const T first = perpendicular.Dot(segment.a_ - base.a_);
+      const T second = perpendicular.Dot(segment.b_ - base.a_);
       return IsZero(first, metric) || IsZero(second, metric) ||
              ((first > 0) != (second > 0));
     };
 
     return crosses(*this, other, direction) &&
            crosses(other, *this, other_direction);
+  }
+
+  T GetDistance(const Point3D<T>& point) const {
+    assert(IsValid());
+    assert(point.IsValid());
+
+    const Point3D<T> ap = point - a_;
+    const Point3D<T> direction = b_ - a_;
+    const Point3D<T> normalized_dir = direction / direction.GetModule();
+
+    const Point3D<T> cross = normalized_dir.Cross(ap);
+
+    return cross.GetModule();
+  }
+
+  Point3D<T> RotatePoint(const Point3D<T>& point, T angle) const {
+    assert(IsValid());
+    assert(point.IsValid());
+
+    const Point3D<T> direction = b_ - a_;
+    const T length = direction.GetModule();
+    const Point3D<T> normal = direction / length;
+    const Point3D<T> v = point - a_;
+    const T cosine = std::cos(angle);
+    const T sine = std::sin(angle);
+    const T projection = normal.Dot(v) * (T{1} - cosine);
+    const Point3D<T> cross = normal.Cross(v);
+
+    return {
+        a_.x_ + (v.x_ * cosine) + (cross.x_ * sine) + (normal.x_ * projection),
+        a_.y_ + (v.y_ * cosine) + (cross.y_ * sine) + (normal.y_ * projection),
+        a_.z_ + (v.z_ * cosine) + (cross.z_ * sine) + (normal.z_ * projection),
+    };
+  }
+
+  Point3D<T> GetProjection(const Point3D<T>& point) const {
+    assert(IsValid());
+    assert(point.IsValid());
+
+    const Point3D<T> ap = point - a_;
+    const Point3D<T> direction = (b_ - a_) / (b_ - a_).GetModule();
+    const T projection_module = ap.Dot(direction);
+    return {a_.x_ + projection_module * direction.x_,
+            a_.y_ + projection_module * direction.y_,
+            a_.z_ + projection_module * direction.z_};
   }
 };
 

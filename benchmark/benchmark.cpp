@@ -2,8 +2,12 @@
 #include <array>
 #include <string>
 
-#include "triangles/inter_analyzer.hpp"
-#include "read_data.hpp"
+#include "reader.hpp"
+#include "configuring_paths.hpp"
+
+#include "triangles/pre_analysis.hpp"
+#include "triangles/frame_analysis.hpp"
+#include "triangles/rotation_updater.hpp"
 
 using calc_type = double;
 namespace {
@@ -11,11 +15,22 @@ namespace {
 constexpr unsigned int kBenchmarkNumber = 6;
 
 void BmTrianglesIntersect(benchmark::State& state, const std::string& file_name) {
-  triangles::TriangleArray<calc_type> triangles = reader::ReadData<calc_type>(file_name);
+  reader::Reader<calc_type> obj_reader{file_name};
+
+  triangles::TrianglesStorage<calc_type> tr_storage{obj_reader};
+
+  triangles::PreAnalyzer<calc_type> pre_analyzer;
+  tr_storage.AcceptExternal(pre_analyzer);
+
+  triangles::FrameAnalyzer<calc_type> frame_analyzer;
+
+  triangles::RotationUpdater<calc_type> updater{glfwGetTime()};
 
   while (state.KeepRunning()) {
-    triangles::InterAnalyzer analyzer(triangles);
-    benchmark::DoNotOptimize(analyzer);
+
+    tr_storage.AcceptExternal(frame_analyzer);
+
+    tr_storage.AcceptExternal(updater);
   }
 }
 
@@ -24,7 +39,7 @@ void BmTrianglesIntersect(benchmark::State& state, const std::string& file_name)
 int main(int argc, char** argv) {
 
   const char* bin_relative_path = argv[0];
-  const std::string materials_str = reader::GetAbsMaterials(bin_relative_path);
+  const std::string materials_str = paths::GetAbsMaterials(bin_relative_path);
 
   std::array<const std::string, kBenchmarkNumber> input_data = {
     materials_str + "/triangles_100.txt",

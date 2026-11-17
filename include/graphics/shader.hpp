@@ -14,6 +14,8 @@
 
 #include "prog_error.hpp"
 
+namespace shader {
+
 struct ShaderIdDeleter {
   void operator()(std::uintptr_t* shader_id) const {
     if (shader_id) {
@@ -166,5 +168,6 @@ class Shader {
 
   unsigned int LinkShaders();
 };
+} // namespace shader
 
 #endif

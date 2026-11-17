@@ -22,7 +22,7 @@ using Vertices = std::array<Point3D<T>, 3>;
 using VerticesOrientation = std::array<Orientation, 3>;
 
 template<typename T = double>
-requires std::is_floating_point_v<T>
+requires std::floating_point<T>
 class Triangle3D {
  public:
   Triangle3D() = default;
@@ -102,7 +102,7 @@ class Triangle3D {
     assert(other.IsValid());
     assert(IsValid());
 
-    T metric = std::hypot(metric_, other.metric_);
+    T metric = Point3D<T>{metric_, other.metric_, T{0}}.GetModule();
 
     switch (type_) {
       case TriangleType::kDefault:
@@ -362,8 +362,7 @@ class Triangle3D {
     for (size_t i = 0; i < 3; ++i) {
       Point3D<T> side_vector =
           other.vertices_[(i + 1) % 3] - other.vertices_[i];
-      T side_length =
-          std::hypot(side_vector.x_, side_vector.y_, side_vector.z_);
+      T side_length = side_vector.GetModule();
       side_vector = side_vector / side_length;
       Point3D<T> normal_to_side = side_vector.Cross(surface.norm_);
       T dist = normal_to_side.Dot(point - other.vertices_[i]);
@@ -462,10 +461,15 @@ class Triangle3D {
 };
 
 template<typename T>
-requires std::is_floating_point_v<T>
-using TriangleArray = std::vector<Triangle3D<T>>;
+requires std::floating_point<T>
+using TrianglesArray = std::vector<Triangle3D<T>>;
 
-using DoubleTriangleArray = TriangleArray<double>;
+template<typename T>
+requires std::floating_point<T>
+using AxesArray = std::vector<Line<T>>;
+
+template <std::floating_point T>
+using TriangleType = triangles::Triangle3D<T>::TriangleType;
 }  // namespace triangles
 
 #endif  // TRIANGLES_TRIANGLE_HPP_
